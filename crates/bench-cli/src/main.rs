@@ -80,6 +80,10 @@ enum Command {
         /// turns; 1 is single-shot.
         #[arg(long, default_value_t = 1)]
         attempts: u32,
+        /// Resume an interrupted run: completed tasks are skipped,
+        /// failed tasks retried, output files appended.
+        #[arg(long, default_value_t = false)]
+        resume: bool,
     },
     /// Re-attempt the failed tasks in a run directory.
     Rerun {
@@ -214,13 +218,14 @@ fn main() -> Result<()> {
             });
             let stats = tokio::runtime::Runtime::new()
                 .context("build tokio runtime")?
-                .block_on(bench_cli::runner::run(
+                .block_on(bench_cli::runner::run_resume(
                     fixtures,
                     entry,
                     &out,
                     concurrency,
                     display_fmt,
                     attempts,
+                    resume,
                 ))?;
             println!(
                 "ran {} tasks: {} answered, {} failed; responses in {}/responses.jsonl",

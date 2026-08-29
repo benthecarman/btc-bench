@@ -613,7 +613,80 @@ pub async fn run(
     display: bench_gen::prompt::DisplayFormat,
     max_attempts: u32,
 ) -> Result<RunStats> {
+    run_resume(
+        fixtures,
+        entry,
+        out_dir,
+        concurrency,
+        display,
+        max_attempts,
+        false,
+    )
+    .await
+}
+
+/// Run the benchmark, optionally resuming from existing output files.
+/// Resume skips tasks with answers in responses.jsonl, retries failed
+/// tasks, and appends to all output files. Partial multi-turn attempts
+/// (process died mid-task) restart from scratch.
+pub async fn run_resume(
+    fixtures: &[Fixture],
+    entry: &ModelEntry,
+    out_dir: &Path,
+    concurrency: usize,
+    display: bench_gen::prompt::DisplayFormat,
+    max_attempts: u32,
+    resume: bool,
+) -> Result<RunStats> {
     std::fs::create_dir_all(out_dir)?;
+
+    // Resume: skip completed tasks, retry failed ones.
+    let responses_path = out_dir.join("responses.jsonl");
+    let mut completed: std::collections::BTreeSet<String> = Default::default();
+    if resume && responses_path.exists() {
+        for line in std::fs::read_to_string(&responses_path)?.lines() {
+            if line.trim().is_empty() {
+                continue;
+            }
+            if let Ok(v) = serde_json::from_str::<serde_json::Value>(line) {
+                if let Some(id) = v.get("task_id").and_then(|t| t.as_str()) {
+                    completed.insert(id.to_string());
+                }
+            }
+        }
+    }
+    let fixtures: Vec<Fixture> = if resume {
+        fixtures
+            .iter()
+            .filter(|f| !completed.contains(f.id()))
+            .cloned()
+            .collect()
+    } else {
+        fixtures.to_vec()
+    };
+
+    // On resume: clear failures for retried tasks, preserve failures
+    // for tasks not in this fixture set (stale entries from other runs).
+    let failures_path = out_dir.join("failures.jsonl");
+    if resume && failures_path.exists() {
+        let retry_ids: std::collections::BTreeSet<&str> = fixtures.iter().map(|f| f.id()).collect();
+        let kept: Vec<String> = std::fs::read_to_string(&failures_path)?
+            .lines()
+            .filter_map(|l| serde_json::from_str::<serde_json::Value>(l).ok())
+            .filter(|v| {
+                !retry_ids.contains(
+                    v.get("task_id")
+                        .and_then(|t| t.as_str())
+                        .unwrap_or_default(),
+                )
+            })
+            .map(|v| v.to_string())
+            .collect();
+        std::fs::write(
+            &failures_path,
+            kept.join("\n") + if kept.is_empty() { "" } else { "\n" },
+        )?;
+    }
     let backends = Arc::new(build_backends(entry)?);
     let cfg = ModelConfig {
         model_name: entry.model.clone(),
@@ -760,9 +833,27 @@ pub async fn run(
         let responses_path = out_dir.join("responses.jsonl");
         let failures_path = out_dir.join("failures.jsonl");
         let attempts_path = out_dir.join("attempts.jsonl");
-        let mut responses = std::fs::File::create(&responses_path)?;
-        let mut failures = std::fs::File::create(&failures_path)?;
-        let mut attempts_file = std::fs::File::create(&attempts_path)?;
+        let mut responses = if resume {
+            std::fs::OpenOptions::new()
+                .append(true)
+                .open(&responses_path)?
+        } else {
+            std::fs::File::create(&responses_path)?
+        };
+        let mut failures = if resume {
+            std::fs::OpenOptions::new()
+                .append(true)
+                .open(&failures_path)?
+        } else {
+            std::fs::File::create(&failures_path)?
+        };
+        let mut attempts_file = if resume {
+            std::fs::OpenOptions::new()
+                .append(true)
+                .open(&attempts_path)?
+        } else {
+            std::fs::File::create(&attempts_path)?
+        };
         let mut stats = RunStats {
             answered: 0,
             failed: 0,
@@ -1402,6 +1493,71 @@ mod tests {
             1,
             "exactly one request"
         );
+        let _ = std::fs::remove_dir_all(&out);
+    }
+
+    #[tokio::test]
+    async fn resume_skips_completed_and_retries_failed() {
+        let fixtures = generate(&GenParams {
+            seed: 5,
+            write: 4,
+            optimize: 0,
+            identify: 0,
+        });
+        let answers: Vec<_> = fixtures
+            .iter()
+            .map(|f| match f {
+                Fixture::Write(w) => w.reference_script_hex.clone(),
+                other => panic!("unexpected {}", other.id()),
+            })
+            .collect();
+        let out = tmpdir("resume");
+
+        // First run: 2 answered (tool calls), 2 fail (no tool call).
+        let bodies: Vec<serde_json::Value> = (0..4)
+            .map(|i| {
+                if i < 2 {
+                    completion_with_tool("submit_script", json!({ "script": answers[i] }))
+                } else {
+                    completion_text("I cannot do this.")
+                }
+            })
+            .collect();
+        let (base, captured) = spawn_mock(bodies);
+        let stats = run(&fixtures, &entry(base), &out, 1, DisplayFormat::Hex, 1)
+            .await
+            .expect("run");
+        assert_eq!(stats.answered, 2);
+        assert_eq!(stats.failed, 2);
+        let first_reqs = captured.lock().expect("lock").len();
+
+        // Resume with all-correct answers: only the 2 failed tasks retry.
+        let bodies2: Vec<serde_json::Value> = (0..2)
+            .map(|i| completion_with_tool("submit_script", json!({ "script": answers[i + 2] })))
+            .collect();
+        let (base2, captured2) = spawn_mock(bodies2);
+        let stats2 = run_resume(
+            &fixtures,
+            &entry(base2),
+            &out,
+            1,
+            DisplayFormat::Hex,
+            1,
+            true,
+        )
+        .await
+        .expect("resume");
+        assert_eq!(stats2.answered, 2, "only 2 retried");
+        assert_eq!(
+            captured2.lock().expect("lock").len(),
+            2,
+            "exactly 2 requests"
+        );
+        let _ = first_reqs;
+
+        // responses.jsonl now has all 4 answers.
+        let responses = std::fs::read_to_string(out.join("responses.jsonl")).expect("responses");
+        assert_eq!(responses.lines().count(), 4);
         let _ = std::fs::remove_dir_all(&out);
     }
 
