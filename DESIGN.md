@@ -160,7 +160,7 @@ standardness mode is a possible later option.
   tool calls arrive complete on the stream). Models are listed in a
   `models.toml` (see `models.example.toml`): `[[model.<name>]]` tables
   with `provider`, `model`, optional `base_url`, `api_key_env`,
-  `temperature` (default 0.0), `max_tokens` (default 4096). Tools are
+  `temperature` (default 0.0); generation length is never capped. Tools are
   `rmcp::model::Tool` values: `submit_script{script}` for write/optimize
   tasks and `submit_identify{label, params}` for identify tasks, one
   presented per task. Runs are sequential. A task whose response carries

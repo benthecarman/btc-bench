@@ -23,6 +23,5 @@ provider = "anthropic"
 model = "claude-sonnet-4-5"
 api_key_env = "ANTHROPIC_API_KEY"
 
-# Optional per-model sampling overrides; defaults shown.
+# Optional per-model sampling override; default shown.
 # temperature = 0.0
-# max_tokens = 4096

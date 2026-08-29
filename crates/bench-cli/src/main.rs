@@ -93,6 +93,11 @@ enum Command {
         #[arg(long, default_value = "asm")]
         display: String,
     },
+    /// Serve the graders over HTTP for RL training loops.
+    RewardServe {
+        #[arg(long, default_value_t = 9900)]
+        port: u16,
+    },
     /// Grade responses against a dataset.
     Grade {
         #[arg(long)]
@@ -251,6 +256,7 @@ fn main() -> Result<()> {
             );
             Ok(())
         }
+        Command::RewardServe { port } => bench_cli::reward::serve(port),
         Command::Grade {
             dataset,
             responses,

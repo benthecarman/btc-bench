@@ -12,6 +12,7 @@ use bench_core::{grade_identify, grade_optimize, grade_write};
 use bench_gen::fixtures::{generate, GenParams};
 use serde::{Deserialize, Serialize};
 
+pub mod reward;
 pub mod runner;
 /// Dependency pins recorded in the manifest. Fixtures embed compiled
 /// artifacts; these versions are part of the answer keys.
