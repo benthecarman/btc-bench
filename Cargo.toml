@@ -1,0 +1,26 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/bench-core",
+    "crates/bench-gen",
+    "crates/bench-cli",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.94.1"
+
+[workspace.dependencies]
+bench-core = { path = "crates/bench-core" }
+bench-gen = { path = "crates/bench-gen" }
+# Exact pins: fixture answer keys are compiled artifacts and must be
+# reproducible across machines (see DESIGN.md, "Fixtures and artifacts").
+miniscript = { version = "=13.1.0" }
+bitcoin = { version = "=0.32.102", features = ["serde"] }
+secp256k1 = { version = "0.29", features = ["rand"] }
+rand_core = "0.6"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+clap = { version = "4", features = ["derive"] }
+anyhow = "1"

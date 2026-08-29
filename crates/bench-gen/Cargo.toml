@@ -1,0 +1,18 @@
+[package]
+name = "bench-gen"
+description = "btc-bench seeded generators: policies, prompts, baselines, corpus"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license = "MIT"
+
+[dependencies]
+bench-core = { workspace = true }
+miniscript = { workspace = true, features = ["compiler"] }
+bitcoin = { workspace = true }
+secp256k1 = { workspace = true }
+rand_core = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+
+[dev-dependencies]

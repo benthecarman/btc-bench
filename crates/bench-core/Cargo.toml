@@ -1,0 +1,13 @@
+[package]
+name = "bench-core"
+description = "btc-bench task types, schemas, graders, and equivalence oracle"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license = "MIT"
+
+[dependencies]
+miniscript = { workspace = true }
+bitcoin = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }

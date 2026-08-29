@@ -1,0 +1,194 @@
+# btc-bench — an LLM benchmark for Bitcoin Script
+
+First benchmark for AI models that write, optimize, and identify Bitcoin
+Script. No prior art exists as of 2026-08 (nearest neighbors: Solidity
+decompilation benches such as SCDBench). Recall benchmark: standard and
+protocol templates are public knowledge, and we accept that models have
+memorized them.
+
+Rust workspace, three crates:
+
+- `bench-core` — task types, fixture schemas, graders, equivalence oracle.
+  No network I/O.
+- `bench-gen` — seeded policy sampler, English verbalizer, naive
+  de-optimizer, identification corpus, fixture writer.
+- `bench-cli` — the `btc-bench` binary: fixture generation, offline
+  grading, and (next phase) the live model runner.
+
+## Task types
+
+### Task 1 — write a script that does X
+
+1. Generator samples a concrete miniscript policy from a seeded grammar
+   (tiers below). Guardrails: satisfiable, `Policy::compile()` succeeds,
+   201-opcode and stack limits hold, atom count small enough for the
+   truth-table oracle (see below).
+2. Reference = compiled miniscript and its script bytes. Fixtures store
+   the compiled script, weights, and the policy string. Compiler output
+   is not stable across rust-miniscript versions, so the compiled bytes —
+   not the policy — are the answer key.
+3. Prompt = deterministic English template walk of the policy AST. Fixed,
+   distinct vocabulary for relative vs absolute timelocks. Keys appear in
+   the prompt as labeled variables ("Alice's key: 02…"), context-correct:
+   33-byte compressed for legacy/segwit, 32-byte x-only for taproot.
+4. Model returns one script (hex or asm). Grading:
+   - Parse answer to bytes; malformed = 0.
+   - Gate: `Miniscript::decode_consensus` with the task's context.
+     Not-a-miniscript or type-invalid = 0.
+   - Oracle: semantic equivalence to the reference (below). Pass = 1.
+
+Contexts (all three, v1): legacy (model writes the P2SH redeemScript),
+segwit v0 (P2WSH witnessScript), taproot (the tapleaf script; key-path
+design is out of scope, prompt states the target). The model always
+writes the inner script.
+
+Tiers: easy ≤ 2 atoms, no timelocks; medium 3–6 atoms, one timelock or
+hash; hard 7–12 atoms, timelocks + hashes + `thresh`. Split 40/40/20.
+
+### Task 2 — write a more optimized script
+
+1. Same generator and oracle as Task 1.
+2. Baseline = the systematic de-optimizer; encoding details and the
+   or/thresh shape requirement are under "Task 2 (refinements from
+   implementation)" below.
+3. Prompt hands the model the baseline script and states the metric:
+   input weight primary, script size secondary.
+4. Candidate must remain semantically equivalent (Task 1 oracle).
+   Score per metric = clamp((base − cand) / (base − optimal), 0, 1);
+   headline = weight score; size score reported.
+
+### Task 3 — identify what this script does
+
+1. Item shows the raw output script (scriptPubKey) plus the
+   redeemScript/witnessScript where the family has one. No sample
+   witnesses; P2TR items are labeled plain `p2tr`.
+2. Families v1: standards (P2PK, P2PKH, P2WPKH, P2SH, bare/P2WSH
+   multisig, P2TR, OP_RETURN data, P2A anchor, ordinals commit/reveal
+   pair), Lightning (BOLT 3: funding, to_local, to_remote, keyed
+   anchors, offered/accepted HTLC, HTLC-success/timeout), Liquid
+   (fedpeg N-of-M, emergency path), coinswap, Revault. Protocol corpus
+   pinned to an exact bolts commit and rust-lightning version;
+   fedpeg hex from Liquid chainparams.
+3. No near-miss distractors, no `unknown` class (decision: do not
+   punish models for knowing the templates).
+4. Answer = single flat label + parameters extracted mechanically from
+   the script (`k`, `n`, `delay`, `timeout`, `hash_type`, anchors
+   flag). Partial credit: label only = 0.5, label + params = 1.0,
+   configurable. No LLM judge anywhere.
+
+## Correctness oracle
+
+Judge-free, complete for our task distribution:
+
+1. Gate: `decode_consensus` into `Miniscript<Pk, Ctx>` (per-context:
+   `PublicKey` for legacy/segwit, `XOnlyPublicKey` for tap).
+2. Fast path: lift both to `semantic::Policy`, `sorted()`, `PartialEq`.
+3. Full oracle: exhaustive truth-table equivalence. Every generated
+   task has a closed atom set: keys (satisfied / not), preimages
+   (known / not), absolute and relative timelocks. Keys and preimages
+   are boolean; timelocks are monotone, so testing at each distinct
+   atom value and one below it (union of both policies' breakpoints)
+   plus the extremes is complete. Two monotone step functions equal on
+   every breakpoint are equal everywhere. Atom counts are bounded by
+   the tiers (≤ 12 atoms), so the table is at most ~2^12 × a few
+   timelock points × a small AST — milliseconds in Rust.
+
+rust-miniscript provides parsing, type-checking, context validity, and
+lifting; only the truth-table walk is ours (~100 lines over the
+crate's `semantic::Policy` enum). The crate's own lift+compare is
+documented incomplete (Gröbner bases), hence step 3 — required anyway
+for Task 2, where structural difference is guaranteed by design.
+
+Two generated shapes are ungradable and resampled at fixture-build
+time: compiled references that the Legacy optimizer renders as `pk_h`
+(the script bytes carry only a 20-byte hash, which decodes to `RawPkH`
+and cannot lift), and policies mixing height and relative timelocks in
+a single spending path (the lifter rejects those by design).
+
+## Task 2 (refinements from implementation)
+
+The naive baseline encodes: right-nested `and_v` chains of `v:` leaves;
+`or_d` folds with dissatisfiable children first; `t:or_i` nesting when
+no child is dissatisfiable; `thresh(k,…)` expanded into an or over
+k-subsets with no `multi`. It is parsed with `from_str_insane` (subset
+expansion repeats pubkeys, which sane parsing rejects) and verified
+equivalent by the oracle before shipping.
+
+Optimize tasks sample policies containing an `or` or `thresh`, where
+the naive encoding is guaranteed non-optimal: plain 2-key `and_v`
+chains are already the compiled optimum and would give the optimizer
+nothing to do. The generator asserts baseline weight > compiled weight;
+shapes that fail the assertion are skipped.
+
+Weights come from `Descriptor::max_weight_to_satisfy()` (the
+non-deprecated weight API; it supersedes `max_satisfaction_weight`)
+on `sh(ms)` / `wsh(ms)` / `tr(<dummy key>, leaf)` wrappers.
+
+Consensus-valid but non-standard miniscripts pass; a stricter
+standardness mode is a possible later option.
+
+## Runner
+
+- Single-shot: model gets the prompt and must call the submit tool
+  exactly once. No auxiliary tools, no feedback loop. The tool loop is
+  turn-agnostic so a tool-assisted multi-turn mode is a config flag
+  later.
+- Sampling: temperature 0, n = 1, pass@1 by default; n, temperature,
+  top-p configurable. Raw responses are always stored, so pass^k is
+  computable post-hoc without re-running.
+- Embedded scripts (optimize baselines, identify scriptPubKeys) render as
+  decoded Bitcoin Core asm by default; `--display hex` switches to raw
+  hex. Answers are accepted in either notation regardless.
+- Providers via `goose-providers` (team choice; alpha, pinned exact):
+  `openai` (Responses API), `openai_compatible` (chat/completions against
+  any base URL, non-streaming), `anthropic` (Messages API, streaming;
+  tool calls arrive complete on the stream). Models are listed in a
+  `models.toml` (see `models.example.toml`): `[[model.<name>]]` tables
+  with `provider`, `model`, optional `base_url`, `api_key_env`,
+  `temperature` (default 0.0), `max_tokens` (default 4096). Tools are
+  `rmcp::model::Tool` values: `submit_script{script}` for write/optimize
+  tasks and `submit_identify{label, params}` for identify tasks, one
+  presented per task. Runs are sequential. A task whose response carries
+  no tool call (or errors) goes to `failures.jsonl` with the raw text;
+  it counts as unanswered at grading time.
+  If goose-providers embedding ever becomes genuinely blocked, we
+  surface exactly what is missing and decide — no silent fallback.
+
+## Fixtures and artifacts
+
+Hybrid: committed fixtures under `datasets/` are the headline
+benchmark; the generator supports `--seed` for fresh sets. Sizes v1:
+300 write, 300 optimize, 250 identify (~70% standard / 30% protocol).
+Task IDs are stable and append-only across revisions.
+
+Manifest pins: schema version, generator git hash, seed, parameters,
+miniscript / bitcoin versions, bolts commit (task 3). Per-run
+artifacts in `runs/<timestamp>-<model>/`: raw request/response JSONL,
+graded per-task JSON, markdown summary.
+
+## Stack
+
+| Crate           | Version         | Note                                  |
+|-----------------|-----------------|---------------------------------------|
+| miniscript      | 13.1.0          | latest stable; MSRV 1.63              |
+| bitcoin         | 0.32.102        | latest stable; ceiling from miniscript `^0.32.6` |
+| secp256k1       | ^0.29           | via miniscript                        |
+| goose-providers | 0.1.0-alpha.7   | alpha — pin exact version             |
+| rmcp            | 3.x             | model types for tools, via goose      |
+| Workspace MSRV  | 1.94.1          | governed by goose-providers           |
+
+## Roadmap
+
+1. ✅ Design (this document).
+2. ✅ Scaffold + oracle + generator + offline grading: `btc-bench
+   gen|prompts|grade`, judge-free end to end.
+3. ✅ Live runner on goose-providers: `btc-bench run` (single-shot,
+   submit tools, responses/failures JSONL); verified against a local
+   OpenAI-compatible mock server.
+4. First model sweep against a committed dataset.
+5. Protocol identification corpus (BOLT 3 / Liquid transcriptions,
+   pinned commits).
+6. Taproot tree-tier tasks, pass^k reporting, tool-assisted mode.
+7. Extension tier: arbitrary (non-miniscript) scripts — needs an
+   execution engine (bitcoin-scriptexec / bitcoin-circle-stf /
+   bitcoind regtest) since the decode gate no longer applies.

@@ -1,0 +1,28 @@
+# btc-bench model configuration. Copy to models.toml and fill in keys.
+# One [[model.<name>]] table per model; keys are read from the
+# environment variable named by `api_key_env` at run time.
+#
+#   btc-bench run --dataset datasets/v1 --config models.toml --model gpt-5
+
+# OpenAI (Responses API).
+[model.gpt-5]
+provider = "openai"
+model = "gpt-5"
+api_key_env = "OPENAI_API_KEY"
+
+# Any OpenAI-compatible endpoint (OpenRouter, vLLM, Ollama, Together, ...).
+[model.local]
+provider = "openai_compatible"
+model = "qwen3-coder"
+base_url = "http://127.0.0.1:8000/v1"
+# api_key_env omitted when the endpoint needs no auth
+
+# Anthropic (Messages API; always streams, tool calls arrive complete).
+[model.claude]
+provider = "anthropic"
+model = "claude-sonnet-4-5"
+api_key_env = "ANTHROPIC_API_KEY"
+
+# Optional per-model sampling overrides; defaults shown.
+# temperature = 0.0
+# max_tokens = 4096
