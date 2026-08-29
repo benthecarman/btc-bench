@@ -144,7 +144,7 @@ pub fn grade_optimize(fixture: &OptimizeFixture, answer: &str) -> OptimizeResult
     let reference = ScriptBuf::from_hex(&fixture.optimal_script_hex).expect("fixture hex is valid");
     let verdict = check_equivalence(fixture.context, &reference, &candidate);
     if !verdict.is_equivalent() {
-        let reason = format!("{verdict:?}");
+        let reason = verdict.to_string();
         return OptimizeResult {
             verdict,
             weight_score: 0.0,

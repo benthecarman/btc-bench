@@ -30,6 +30,23 @@ impl Verdict {
     }
 }
 
+impl core::fmt::Display for Verdict {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        match self {
+            Verdict::Equivalent => write!(f, "semantically equivalent"),
+            Verdict::NotEquivalent => write!(
+                f,
+                "the script is valid but not semantically equivalent to the required spending policy"
+            ),
+            Verdict::InvalidScript(msg) => write!(f, "{msg}"),
+            Verdict::TooLarge => write!(
+                f,
+                "the script is valid but has too many key/hash atoms to verify"
+            ),
+        }
+    }
+}
+
 /// Check `candidate` against `reference` in a specific script context.
 ///
 /// Generic over the miniscript context; use [`check_equivalence`] for the
@@ -169,6 +186,16 @@ mod tests {
         let cand = ms(&format!("and_v(v:after(500),pk({a}))"));
         let verdict = check_in_context::<Segwitv0>(&r.encode(), &cand.encode());
         assert_eq!(verdict, Verdict::Equivalent);
+    }
+
+    #[test]
+    fn verdict_display_has_no_debug_quoting() {
+        let (a, b) = (pk_hex(1), pk_hex(2));
+        let r = ms(&format!("and_v(v:pk({a}),pk({b}))"));
+        let verdict = check_in_context::<Segwitv0>(&r.encode(), &script("6a"));
+        let msg = verdict.to_string();
+        assert!(!msg.contains("InvalidScript(\""), "no Debug wrapper: {msg}");
+        assert!(!msg.contains("\\\""), "no escaped quotes: {msg}");
     }
 
     #[test]

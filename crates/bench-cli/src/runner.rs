@@ -415,8 +415,6 @@ fn evaluate(fixture: &Fixture, answer: &TaskAnswer) -> Evaluation {
                 Evaluation { passed: true, score: r.score, feedback: String::new() }
             } else {
                 let detail = match &r.reason {
-                    Some(reason) if reason.contains("NotEquivalent") =>
-                        "Your script parsed as valid Miniscript, but it is not semantically equivalent to the required spending policy. Re-read the spending conditions.".to_string(),
                     Some(reason) => format!("Your answer was rejected: {reason}"),
                     None => "Your answer was rejected.".to_string(),
                 };
@@ -438,11 +436,10 @@ fn evaluate(fixture: &Fixture, answer: &TaskAnswer) -> Evaluation {
                 }
             } else {
                 let reason = r.reason.unwrap_or_default();
-                if reason.contains("NotEquivalent") {
-                    Evaluation { passed: false, score: 0.0, feedback:
-                        "Your script parsed, but it is not semantically equivalent to the original. The spending semantics must not change.".to_string() }
-                } else {
-                    Evaluation { passed: false, score: 0.0, feedback: format!("Your answer was rejected: {reason}") }
+                Evaluation {
+                    passed: false,
+                    score: 0.0,
+                    feedback: format!("Your answer was rejected: {reason}"),
                 }
             }
         }
