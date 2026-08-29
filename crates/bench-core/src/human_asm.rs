@@ -7,28 +7,47 @@
 use bitcoin::blockdata::opcodes::all;
 use bitcoin::script::Instruction;
 
-/// Render a script as human-style asm.
+/// Render a script as human-style asm. Number pushes are decimal ONLY
+/// when immediately followed by `OP_CSV` or `OP_CLTV` — the timelock
+/// arguments a human writes as values (`144 OP_CSV`). Every other push
+/// (pubkeys, hashes, protocol magic like the P2A blob or the ord
+/// envelope) stays hex even when the bytes happen to parse as a
+/// minimal CScriptNum, because in those positions the bytes are data,
+/// not numbers.
 pub fn to_human_asm(script: &bitcoin::Script) -> String {
+    let ins: Vec<Option<Instruction<'_>>> = script.instructions().map(|r| r.ok()).collect();
     let mut out = String::new();
     let mut first = true;
-    for ins in script.instructions() {
-        let part = match ins {
-            Ok(Instruction::Op(op)) => {
+    for (i, item) in ins.iter().enumerate() {
+        let part = match item {
+            Some(Instruction::Op(op)) => {
                 if op.to_u8() == all::OP_PUSHBYTES_0.to_u8() {
                     "OP_0".to_string()
                 } else {
                     format!("{op}")
                 }
             }
-            Ok(Instruction::PushBytes(bytes)) => match decode_minimal_num(bytes.as_bytes()) {
-                Some(v) => format!("{v}"),
-                None => bytes
-                    .as_bytes()
-                    .iter()
-                    .map(|b| format!("{b:02x}"))
-                    .collect::<String>(),
-            },
-            Err(_) => continue,
+            Some(Instruction::PushBytes(bytes)) => {
+                let numeric_context = matches!(
+                    ins.get(i + 1),
+                    Some(Some(Instruction::Op(next)))
+                        if next.to_u8() == all::OP_CSV.to_u8()
+                            || next.to_u8() == all::OP_CLTV.to_u8()
+                );
+                match if numeric_context {
+                    decode_minimal_num(bytes.as_bytes())
+                } else {
+                    None
+                } {
+                    Some(v) => format!("{v}"),
+                    None => bytes
+                        .as_bytes()
+                        .iter()
+                        .map(|b| format!("{b:02x}"))
+                        .collect::<String>(),
+                }
+            }
+            None => continue,
         };
         if !first {
             out.push(' ');
@@ -111,17 +130,31 @@ mod tests {
     }
 
     #[test]
-    fn numbers_render_decimal() {
-        // 405 = 0x0195 -> minimal bytes 95 01.
+    fn numbers_render_decimal_before_timelocks() {
+        // 405 = 0x0195 -> minimal bytes 95 01, followed by OP_CSV.
         let s = script(&[&[0x95, 0x01]], &[all::OP_CSV]);
         assert_eq!(to_human_asm(s.as_script()), "405 OP_CSV");
     }
 
     #[test]
+    fn data_pushes_stay_hex_outside_timelock_context() {
+        // The P2A blob 4e73 parses as minimal CScriptNum 29518 but is
+        // data; it must never render as a decimal.
+        let s = script(&[&[0x4e, 0x73]], &[]);
+        assert_eq!(to_human_asm(s.as_script()), "4e73");
+        // Same for the ordinals envelope magic "ord".
+        let s = script(&[&[0x6f, 0x72, 0x64]], &[]);
+        assert_eq!(to_human_asm(s.as_script()), "6f7264");
+    }
+
+    #[test]
     fn small_numbers_via_pushbytes() {
         // 144 = 90 00 minimal (high bit of 0x90 forces a sign byte).
+        let s = script(&[&[0x90, 0x00]], &[all::OP_CSV]);
+        assert_eq!(to_human_asm(s.as_script()), "144 OP_CSV");
+        // Same push NOT in timelock context stays hex.
         let s = script(&[&[0x90, 0x00]], &[all::OP_DROP]);
-        assert_eq!(to_human_asm(s.as_script()), "144 OP_DROP");
+        assert_eq!(to_human_asm(s.as_script()), "9000 OP_DROP");
     }
 
     #[test]
