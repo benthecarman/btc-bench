@@ -35,8 +35,10 @@ pub struct ModelEntry {
     /// `openai`, `openai_compatible`, or `anthropic`.
     pub provider: String,
     pub model: String,
-    /// Required for `openai_compatible`; defaults per provider otherwise.
-    pub base_url: Option<String>,
+    /// Endpoint URL(s) for `openai_compatible`; defaults per provider
+    /// otherwise. Multiple URLs are load-balanced round-robin — e.g. a
+    /// workstation GPU plus a tailnet box serving the same model.
+    pub base_url: Option<toml::Value>,
     /// Environment variable holding the API key; absent means no auth.
     pub api_key_env: Option<String>,
     #[serde(default)]
@@ -105,36 +107,58 @@ fn auth_for(entry: &ModelEntry) -> Result<AuthMethod> {
     }
 }
 
-fn build_backend(entry: &ModelEntry) -> Result<Backend> {
+fn base_urls(entry: &ModelEntry) -> Result<Vec<String>> {
+    let raw = entry
+        .base_url
+        .clone()
+        .unwrap_or(toml::Value::String(String::new()));
+    match raw {
+        toml::Value::String(s) => Ok(vec![s]),
+        toml::Value::Array(arr) => Ok(arr
+            .into_iter()
+            .filter_map(|v| v.as_str().map(String::from))
+            .collect()),
+        _ => anyhow::bail!("base_url must be a string or array of strings"),
+    }
+}
+
+fn build_backends(entry: &ModelEntry) -> Result<Vec<Backend>> {
     match entry.provider.as_str() {
         "openai" => {
-            let host = entry
-                .base_url
-                .clone()
+            let hosts = base_urls(entry)?;
+            let host = hosts
+                .into_iter()
+                .next()
                 .unwrap_or_else(|| "https://api.openai.com/v1".into());
             let api = ApiClient::new_with_tls(host, auth_for(entry)?, None)?;
-            Ok(Backend::OpenAi(
+            Ok(vec![Backend::OpenAi(
                 OpenAiProviderBuilder::new(api).name("openai").build(),
-            ))
+            )])
         }
         "openai_compatible" => {
-            let Some(host) = &entry.base_url else {
+            let hosts = base_urls(entry)?;
+            if hosts.is_empty() {
                 bail!("openai_compatible model entries require base_url");
-            };
+            }
             // Non-streaming keeps the single-shot loop simple and the
             // mock-server test deterministic.
-            let provider = OpenAiCompatibleProvider::new(
-                "openai_compatible".into(),
-                ApiClient::new_with_tls(host.clone(), auth_for(entry)?, None)?,
-                String::new(),
-            )
-            .with_supports_streaming(false);
-            Ok(Backend::Compat(provider))
+            let mut backends = Vec::with_capacity(hosts.len());
+            for host in &hosts {
+                let provider = OpenAiCompatibleProvider::new(
+                    "openai_compatible".into(),
+                    ApiClient::new_with_tls(host.clone(), auth_for(entry)?, None)?,
+                    String::new(),
+                )
+                .with_supports_streaming(false);
+                backends.push(Backend::Compat(provider));
+            }
+            Ok(backends)
         }
         "anthropic" => {
-            let host = entry
-                .base_url
-                .clone()
+            let hosts = base_urls(entry)?;
+            let host = hosts
+                .into_iter()
+                .next()
                 .unwrap_or_else(|| "https://api.anthropic.com".into());
             let auth = match &entry.api_key_env {
                 Some(var) => {
@@ -150,9 +174,9 @@ fn build_backend(entry: &ModelEntry) -> Result<Backend> {
             };
             let api = ApiClient::new_with_tls(host, auth, None)?
                 .with_header("anthropic-version", "2023-06-01")?;
-            Ok(Backend::Anthropic(
+            Ok(vec![Backend::Anthropic(
                 AnthropicProviderBuilder::new(api).name("anthropic").build(),
-            ))
+            )])
         }
         other => bail!("unknown provider {other:?}; use openai, openai_compatible, or anthropic"),
     }
@@ -590,7 +614,7 @@ pub async fn run(
     max_attempts: u32,
 ) -> Result<RunStats> {
     std::fs::create_dir_all(out_dir)?;
-    let backend = Arc::new(build_backend(entry)?);
+    let backends = Arc::new(build_backends(entry)?);
     let cfg = ModelConfig {
         model_name: entry.model.clone(),
         context_limit: None,
@@ -620,11 +644,13 @@ pub async fn run(
     let fix_rx = std::sync::Arc::new(tokio::sync::Mutex::new(fix_rx));
 
     let entry_retries = entry.retries.unwrap_or(3);
+    let rr = Arc::new(std::sync::atomic::AtomicUsize::new(0));
     let (res_tx, mut res_rx) = tokio::sync::mpsc::unbounded_channel();
     let mut set = tokio::task::JoinSet::new();
     for _ in 0..concurrency {
         let rx = Arc::clone(&fix_rx);
-        let backend = Arc::clone(&backend);
+        let backends = Arc::clone(&backends);
+        let rr = Arc::clone(&rr);
         let cfg = cfg.clone();
         let res_tx = res_tx.clone();
         let display = display;
@@ -640,6 +666,8 @@ pub async fn run(
                 // Multi-turn attempt loop: after a graded failure the
                 // model receives mechanical feedback and may retry, up
                 // to max_attempts (1 = single-shot).
+                let backend =
+                    &backends[rr.fetch_add(1, std::sync::atomic::Ordering::Relaxed) % backends.len()];
                 let mut history: Vec<Message> =
                     vec![Message::user().with_text(prompt.as_str())];
                 let mut turn_outcomes: Vec<TurnOutcome> = Vec::new();
@@ -962,7 +990,7 @@ mod tests {
         ModelEntry {
             provider: "openai_compatible".into(),
             model: "mock".into(),
-            base_url: Some(base_url),
+            base_url: Some(toml::Value::String(base_url)),
             api_key_env: None,
             temperature: Some(0.0),
             max_tokens: None,
