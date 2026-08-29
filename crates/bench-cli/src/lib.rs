@@ -299,6 +299,8 @@ mod tests {
                         script: w.reference_script_hex.clone(),
                     }),
                     raw: None,
+                    finish_reason: None,
+                    output_tokens: None,
                 }),
                 Fixture::Optimize(o) => responses.push(ResponseRecord {
                     task_id: o.id.clone(),
@@ -306,6 +308,8 @@ mod tests {
                         script: o.optimal_script_hex.clone(),
                     }),
                     raw: None,
+                    finish_reason: None,
+                    output_tokens: None,
                 }),
                 Fixture::Identify(i) => responses.push(ResponseRecord {
                     task_id: i.id.clone(),
@@ -314,6 +318,8 @@ mod tests {
                         params: i.params.clone(),
                     }),
                     raw: None,
+                    finish_reason: None,
+                    output_tokens: None,
                 }),
             }
         }

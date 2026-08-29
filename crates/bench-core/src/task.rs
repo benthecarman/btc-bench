@@ -151,4 +151,11 @@ pub struct ResponseRecord {
     /// Raw model output, kept for auditing.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub raw: Option<String>,
+    /// Provider-reported finish reason (stop, length, tool_calls, ...),
+    /// when the transport surfaced one.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub finish_reason: Option<String>,
+    /// Provider-reported completion tokens.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub output_tokens: Option<i64>,
 }

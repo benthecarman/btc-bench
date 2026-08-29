@@ -77,6 +77,22 @@ enum Command {
         #[arg(long, default_value = "asm")]
         display: String,
     },
+    /// Re-attempt the failed tasks in a run directory.
+    Rerun {
+        #[arg(long)]
+        dataset: PathBuf,
+        #[arg(long)]
+        config: PathBuf,
+        #[arg(long)]
+        model: String,
+        /// The run directory (contains responses.jsonl / failures.jsonl).
+        #[arg(long)]
+        run_dir: PathBuf,
+        #[arg(long, default_value_t = 4)]
+        concurrency: usize,
+        #[arg(long, default_value = "asm")]
+        display: String,
+    },
     /// Grade responses against a dataset.
     Grade {
         #[arg(long)]
@@ -193,6 +209,45 @@ fn main() -> Result<()> {
                 stats.answered,
                 stats.failed,
                 out.display()
+            );
+            Ok(())
+        }
+        Command::Rerun {
+            dataset,
+            config,
+            model,
+            run_dir,
+            concurrency,
+            display,
+        } => {
+            let fixtures = load_dataset(&dataset)?;
+            let display_fmt = match display.as_str() {
+                "hex" => bench_gen::prompt::DisplayFormat::Hex,
+                "asm" => bench_gen::prompt::DisplayFormat::Asm,
+                other => bail!("unknown --display {other:?}; use hex or asm"),
+            };
+            let models = bench_cli::runner::load_models_config(&config)?;
+            let entry = models.get(&model).with_context(|| {
+                format!(
+                    "model {model:?} not in {}; have: {:?}",
+                    config.display(),
+                    models.keys()
+                )
+            })?;
+            let stats = tokio::runtime::Runtime::new()
+                .context("build tokio runtime")?
+                .block_on(bench_cli::runner::rerun(
+                    &fixtures,
+                    entry,
+                    &run_dir,
+                    concurrency,
+                    display_fmt,
+                ))?;
+            println!(
+                "rerun: {} recovered, {} still failing; merged into {}",
+                stats.recovered,
+                stats.still_failed,
+                run_dir.display()
             );
             Ok(())
         }

@@ -163,7 +163,7 @@ impl Backend {
         cfg: &ModelConfig,
         user: Message,
         tool: Tool,
-    ) -> Result<Vec<Message>, ProviderError> {
+    ) -> Result<(Vec<Message>, FinishInfo), ProviderError> {
         use goose_providers::base::MessageStream;
         let stream: MessageStream = match self {
             Backend::OpenAi(p) => {
@@ -194,15 +194,37 @@ impl Backend {
             }
         };
         let mut collected = Vec::new();
+        let mut finish = FinishInfo::default();
         let mut stream = stream;
         while let Some(item) = stream.next().await {
-            let (msg, _usage) = item?;
+            let (msg, usage) = item?;
             if let Some(m) = msg {
                 collected.push(m);
             }
+            if let Some(u) = usage {
+                if let Some(reasons) = &u.finish_reasons {
+                    if !reasons.is_empty() {
+                        finish.finish_reason = Some(reasons.join(","));
+                    }
+                }
+                if let Some(t) = u.usage.output_tokens {
+                    finish.output_tokens = Some(finish.output_tokens.unwrap_or(0) + t as i64);
+                }
+                if let Some(t) = u.usage.input_tokens {
+                    finish.input_tokens = Some(finish.input_tokens.unwrap_or(0) + t as i64);
+                }
+            }
         }
-        Ok(collected)
+        Ok((collected, finish))
     }
+}
+
+/// Provider-reported completion metadata, accumulated across a stream.
+#[derive(Clone, Debug, Default)]
+pub struct FinishInfo {
+    pub finish_reason: Option<String>,
+    pub output_tokens: Option<i64>,
+    pub input_tokens: Option<i64>,
 }
 
 fn submit_script_tool() -> Tool {
@@ -356,6 +378,96 @@ pub struct RunStats {
     pub failed: usize,
 }
 
+#[derive(Clone, Debug, serde::Serialize)]
+pub struct RerunStats {
+    /// Previously failed tasks that now answered.
+    pub recovered: usize,
+    /// Tasks that failed again.
+    pub still_failed: usize,
+}
+
+/// Re-attempt the tasks in `<run_dir>/failures.jsonl`: answers append to
+/// `responses.jsonl`, still-failing tasks replace `failures.jsonl`.
+pub async fn rerun(
+    dataset: &[Fixture],
+    entry: &ModelEntry,
+    run_dir: &Path,
+    concurrency: usize,
+    display: bench_gen::prompt::DisplayFormat,
+) -> Result<RerunStats> {
+    let failures_path = run_dir.join("failures.jsonl");
+    let old_failures_text = std::fs::read_to_string(&failures_path)
+        .with_context(|| format!("read {}", failures_path.display()))?;
+    let mut old_failures: Vec<serde_json::Value> = Vec::new();
+    let mut retry_ids: std::collections::BTreeSet<String> = std::collections::BTreeSet::new();
+    for line in old_failures_text.lines() {
+        if line.trim().is_empty() {
+            continue;
+        }
+        let v: serde_json::Value = serde_json::from_str(line).context("parse failure record")?;
+        if let Some(id) = v.get("task_id").and_then(|t| t.as_str()) {
+            retry_ids.insert(id.to_string());
+            old_failures.push(v);
+        }
+    }
+    if retry_ids.is_empty() {
+        return Ok(RerunStats {
+            recovered: 0,
+            still_failed: 0,
+        });
+    }
+    let subset: Vec<Fixture> = dataset
+        .iter()
+        .filter(|f| retry_ids.contains(f.id()))
+        .cloned()
+        .collect();
+    if subset.len() != retry_ids.len() {
+        anyhow::bail!("failures reference unknown task ids");
+    }
+
+    let tmp = run_dir.join("rerun-tmp");
+    let _ = std::fs::remove_dir_all(&tmp);
+    let stats = run(&subset, entry, &tmp, concurrency, display).await?;
+
+    // Merge: append recovered answers; keep only still-failing records.
+    let new_responses = std::fs::read_to_string(tmp.join("responses.jsonl")).unwrap_or_default();
+    let recovered_ids: std::collections::BTreeSet<String> = new_responses
+        .lines()
+        .filter_map(|l| serde_json::from_str::<serde_json::Value>(l).ok())
+        .filter_map(|v| v.get("task_id").and_then(|t| t.as_str()).map(String::from))
+        .collect();
+    let mut responses = std::fs::OpenOptions::new()
+        .append(true)
+        .open(run_dir.join("responses.jsonl"))
+        .context("open responses for append")?;
+    responses.write_all(new_responses.as_bytes())?;
+    let still: Vec<serde_json::Value> = old_failures
+        .into_iter()
+        .filter(|v| {
+            !recovered_ids.contains(
+                v.get("task_id")
+                    .and_then(|t| t.as_str())
+                    .unwrap_or_default(),
+            )
+        })
+        .collect();
+    let still_failed = still.len();
+    std::fs::write(
+        &failures_path,
+        still
+            .iter()
+            .map(|v| format!("{v}"))
+            .collect::<Vec<_>>()
+            .join("\n")
+            + if still_failed > 0 { "\n" } else { "" },
+    )?;
+    let _ = std::fs::remove_dir_all(&tmp);
+    Ok(RerunStats {
+        recovered: stats.answered,
+        still_failed,
+    })
+}
+
 /// Run the benchmark: one request per fixture, sequential. Writes
 /// `responses.jsonl` (grade-ready) and `failures.jsonl` (no tool call or
 /// transport error, with the raw text for auditing).
@@ -428,7 +540,8 @@ pub async fn run(
                         other => break other,
                     }
                 };
-                let _ = res_tx.send((f, is_identify, result, attempts));
+                let finish = result.as_ref().map(|(_, f)| f.clone()).unwrap_or_default();
+                let _ = res_tx.send((f, is_identify, result, attempts, finish));
             }
         });
     }
@@ -444,9 +557,9 @@ pub async fn run(
             answered: 0,
             failed: 0,
         };
-        while let Some((f, is_identify, outcome, attempts)) = res_rx.recv().await {
+        while let Some((f, is_identify, outcome, attempts, finish)) = res_rx.recv().await {
             match outcome {
-                Ok(messages) => {
+                Ok((messages, _finish)) => {
                     let (answer, raw) = extract_answer(&messages);
                     match answer {
                         Some(a) => {
@@ -454,6 +567,8 @@ pub async fn run(
                                 task_id: f.id().to_string(),
                                 answer: a,
                                 raw: if raw.is_empty() { None } else { Some(raw) },
+                                finish_reason: finish.finish_reason,
+                                output_tokens: finish.output_tokens,
                             };
                             writeln!(responses, "{}", serde_json::to_string(&record)?)?;
                             stats.answered += 1;
@@ -899,6 +1014,78 @@ mod tests {
             failures.contains("\"attempts\":3"),
             "attempts recorded: {failures}"
         );
+        let _ = std::fs::remove_dir_all(&out);
+    }
+
+    #[tokio::test]
+    async fn rerun_recovers_failed_tasks() {
+        let fixtures = generate(&GenParams {
+            seed: 5,
+            write: 2,
+            optimize: 0,
+            identify: 0,
+        });
+        let answers: Vec<_> = fixtures
+            .iter()
+            .map(|f| match f {
+                Fixture::Write(w) => w.reference_script_hex.clone(),
+                other => panic!("unexpected fixture {}", other.id()),
+            })
+            .collect();
+        // First run: everything fails (all 500s).
+        let (base_bad, _) = spawn_mock_scenario(usize::MAX, 500, json!({}));
+        let out = tmpdir("rerun-a");
+        let stats = run(&fixtures, &entry(base_bad), &out, 1, DisplayFormat::Hex)
+            .await
+            .expect("run");
+        assert_eq!(stats.answered, 0);
+        assert_eq!(stats.failed, 2);
+        // Rerun against a healthy server: the second fixture's answer is
+        // queued per-connection by the scenario mock's final body.
+        let (base_good, _) = spawn_mock_scenario(
+            0,
+            500,
+            completion_with_tool("submit_script", json!({ "script": answers[0] })),
+        );
+        let stats = rerun(&fixtures, &entry(base_good), &out, 1, DisplayFormat::Hex)
+            .await
+            .expect("rerun");
+        assert_eq!(stats.recovered, 2);
+        assert_eq!(stats.still_failed, 0);
+        let responses = std::fs::read_to_string(out.join("responses.jsonl")).expect("responses");
+        assert_eq!(responses.lines().count(), 2);
+        let failures = std::fs::read_to_string(out.join("failures.jsonl")).expect("failures");
+        assert!(failures.trim().is_empty());
+        let _ = std::fs::remove_dir_all(&out);
+    }
+
+    #[tokio::test]
+    async fn finish_reason_and_tokens_recorded() {
+        let fixtures = generate(&GenParams {
+            seed: 5,
+            write: 1,
+            optimize: 0,
+            identify: 0,
+        });
+        let hex = match &fixtures[0] {
+            Fixture::Write(w) => w.reference_script_hex.clone(),
+            other => panic!("unexpected fixture {}", other.id()),
+        };
+        let (base, _) = spawn_mock(vec![completion_with_tool(
+            "submit_script",
+            json!({ "script": hex }),
+        )]);
+        let out = tmpdir("finish");
+        let stats = run(&fixtures, &entry(base), &out, 1, DisplayFormat::Hex)
+            .await
+            .expect("run");
+        assert_eq!(stats.answered, 1);
+        let text = std::fs::read_to_string(out.join("responses.jsonl")).expect("responses");
+        assert!(
+            text.contains("\"finish_reason\":\"tool_calls\""),
+            "finish missing: {text}"
+        );
+        assert!(text.contains("\"output_tokens\""), "tokens missing: {text}");
         let _ = std::fs::remove_dir_all(&out);
     }
 
