@@ -36,6 +36,19 @@ impl KeySet {
     }
 }
 
+/// Unlabeled keys for protocol corpus items (scripts only; the keys
+/// never appear in prompts, so the label pool does not apply).
+pub fn generate_raw(rng: &mut SeededRng, count: usize) -> Vec<String> {
+    let secp = Secp256k1::new();
+    (0..count)
+        .map(|_| {
+            let sk = SecretKey::new(&mut *rng);
+            let pk = PublicKey::from(secp256k1::PublicKey::from_secret_key(&secp, &sk));
+            hex(&pk.to_bytes())
+        })
+        .collect()
+}
+
 pub fn generate(rng: &mut SeededRng, count: usize) -> KeySet {
     assert!(count <= LABELS.len(), "task atom count exceeds label pool");
     let secp = Secp256k1::new();

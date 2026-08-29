@@ -229,6 +229,18 @@ pub const FAMILIES: &[&str] = &[
     "op_return",
     "p2a",
     "ordinals_inscription",
+    // Protocol families (see crate::protocol for provenance).
+    "ln_to_local",
+    "ln_to_remote_anchors",
+    "ln_keyed_anchor",
+    "ln_offered_htlc",
+    "ln_received_htlc",
+    "ln_tr_to_local",
+    "ln_tr_to_remote",
+    "ln_tr_anchor",
+    "ln_tr_offered_htlc",
+    "ln_tr_accepted_htlc",
+    "liquid_fedpeg",
 ];
 
 #[cfg(test)]
@@ -240,7 +252,7 @@ mod tests {
         let mut rng = SeededRng::new(3);
         let keys = crate::keys::generate(&mut rng, 3);
         let items = standards(&mut rng, &keys, 0);
-        assert_eq!(items.len(), FAMILIES.len());
+        assert_eq!(items.len(), 10, "standards emits the ten textbook families");
         for item in &items {
             assert!(!item.spk_hex.is_empty());
             assert!(FAMILIES.contains(&item.family.as_str()));

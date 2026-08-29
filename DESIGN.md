@@ -62,13 +62,28 @@ hash; hard 7–12 atoms, timelocks + hashes + `thresh`. Split 40/40/20.
 1. Item shows the raw output script (scriptPubKey) plus the
    redeemScript/witnessScript where the family has one. No sample
    witnesses; P2TR items are labeled plain `p2tr`.
-2. Families v1: standards (P2PK, P2PKH, P2WPKH, P2SH, bare/P2WSH
-   multisig, P2TR, OP_RETURN data, P2A anchor, ordinals commit/reveal
-   pair), Lightning (BOLT 3: funding, to_local, to_remote, keyed
-   anchors, offered/accepted HTLC, HTLC-success/timeout), Liquid
-   (fedpeg N-of-M, emergency path), coinswap, Revault. Protocol corpus
-   pinned to an exact bolts commit and rust-lightning version;
-   fedpeg hex from Liquid chainparams.
+2. Families v2 (datasets/v2): the ten textbook standards plus a
+   Lightning corpus covering every commitment era — P2WSH to_local,
+   to_remote under anchors, keyed anchors, offered/received HTLC with
+   and without the anchors CSV clause, and the taproot era
+   (bolt-simple-taproot PR #1330): TR to_local delay, TR to_remote,
+   TR anchor, and TR offered/accepted HTLC timeout tapleaves — plus a
+   Liquid federation peg item (N-of-M with CSV-gated 2-of-3 emergency
+   backup). Excluded as byte-indistinguishable from existing families:
+   LN funding output (= bare_multisig), legacy to_remote (= P2WPKH),
+   HTLC-success/timeout second stage (= to_local), shared P2A (= p2a),
+   and TR-ZFC variants that collapse onto the above. Zero-fee
+   commitments reuse the no-anchors HTLC scripts (verified in
+   rust-lightning's test_anchors).
+   Pins: lightning/bolts master 152897261850 (P2WSH families,
+   cross-checked against rust-lightning chan_utils.rs); bolts PR #1330
+   (taproot). Liquid is constructed from the documented structure and
+   is NOT byte-pinned to the production fedpegscript. Coinswap and
+   Revault are pending: their canonical sources moved or vanished
+   (coinswap-mmcs/spec 404s; teleport-transactions renamed; no
+   revault script repo found).
+   Protocol items rotate 4 of 11 families per identify group (~70/30
+   standard/protocol overall).
 3. No near-miss distractors, no `unknown` class (decision: do not
    punish models for knowing the templates).
 4. Answer = single flat label + parameters extracted mechanically from
@@ -186,8 +201,9 @@ graded per-task JSON, markdown summary.
    submit tools, responses/failures JSONL); verified against a local
    OpenAI-compatible mock server.
 4. First model sweep against a committed dataset.
-5. Protocol identification corpus (BOLT 3 / Liquid transcriptions,
-   pinned commits).
+5. ✅ Protocol identification corpus: Lightning across all eras
+   (P2WSH + taproot) and a structural Liquid peg item, in
+   datasets/v2; coinswap and Revault still pending sources.
 6. Taproot tree-tier tasks, pass^k reporting, tool-assisted mode.
 7. Extension tier: arbitrary (non-miniscript) scripts — needs an
    execution engine (bitcoin-scriptexec / bitcoin-circle-stf /

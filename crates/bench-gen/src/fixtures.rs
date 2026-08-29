@@ -272,6 +272,14 @@ pub fn generate(params: &GenParams) -> Vec<Fixture> {
                 .into_iter()
                 .map(Fixture::Identify),
         );
+        // Protocol rotation: 4 of the 11 protocol families per group,
+        // cycling so every family appears across the dataset (~70/30
+        // standard/protocol split overall).
+        let all = crate::protocol::protocol_items(&mut rng, i);
+        for j in 0..4 {
+            let idx = (i * 4 + j) % all.len();
+            out.push(Fixture::Identify(all[idx].clone()));
+        }
     }
     out
 }
@@ -290,7 +298,11 @@ mod tests {
             identify: 3,
         };
         let fixtures = generate(&params);
-        assert_eq!(fixtures.len(), 10 + 10 + 3 * crate::corpus::FAMILIES.len());
+        assert_eq!(
+            fixtures.len(),
+            10 + 10 + 3 * (10 + 4),
+            "10 standards + 4 protocol per identify group"
+        );
         // Every write fixture's answer key verifies against itself.
         for f in &fixtures {
             if let Fixture::Write(w) = f {
