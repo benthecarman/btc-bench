@@ -8,6 +8,7 @@
 
 pub mod answer;
 pub mod grade;
+pub mod human_asm;
 pub mod oracle;
 pub mod task;
 pub mod truth;

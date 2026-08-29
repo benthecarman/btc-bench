@@ -24,10 +24,11 @@ impl DisplayFormat {
     fn render(self, hex: &str) -> String {
         match self {
             DisplayFormat::Hex => hex.to_string(),
-            DisplayFormat::Asm => ScriptBuf::from_hex(hex)
-                .expect("fixture hex is valid")
-                .as_script()
-                .to_asm_string(),
+            DisplayFormat::Asm => bench_core::human_asm::to_human_asm(
+                ScriptBuf::from_hex(hex)
+                    .expect("fixture hex is valid")
+                    .as_script(),
+            ),
         }
     }
 

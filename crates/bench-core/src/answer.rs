@@ -147,6 +147,8 @@ fn opcode_by_name(name: &str) -> Option<Opcode> {
         ("OP_CHECKMULTISIGVERIFY", all::OP_CHECKMULTISIGVERIFY),
         ("OP_NOP1", all::OP_NOP1),
         ("OP_CHECKLOCKTIMEVERIFY", all::OP_CLTV),
+        ("OP_CLTV", all::OP_CLTV),
+        ("OP_CSV", all::OP_CSV),
         ("OP_CHECKSEQUENCEVERIFY", all::OP_CSV),
         ("OP_NOP4", all::OP_NOP4),
         ("OP_NOP5", all::OP_NOP5),
