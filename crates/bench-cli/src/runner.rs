@@ -313,38 +313,6 @@ fn parse_textual_tool_call(
     Some((name, args))
 }
 
-/// Pull the submitted answer and any plain text out of the streamed
-/// messages. Tool calls arrive complete even on streaming providers.
-/// Falls back to parsing a textual `<tool_call>` marker when the endpoint
-/// produced no structured tool call.
-fn extract_answer(messages: &[Message]) -> (Option<TaskAnswer>, String) {
-    let mut raw = String::new();
-    for m in messages {
-        for block in &m.content {
-            match block {
-                MessageContentBlock::Text(t) => raw.push_str(&t.text),
-                MessageContentBlock::Thinking(t) => raw.push_str(&t.thinking),
-                MessageContentBlock::ToolRequest(tr) => {
-                    if let Ok(params) = &tr.tool_call {
-                        let args = params.arguments.clone().unwrap_or_default();
-                        if let Some(answer) = task_answer_from(&params.name, &args) {
-                            return (Some(answer), raw);
-                        }
-                    }
-                }
-                _ => {}
-            }
-        }
-    }
-    if let Some((name, args)) = parse_textual_tool_call(&raw) {
-        let answer = task_answer_from(&name, &args);
-        if answer.is_some() {
-            return (answer, raw);
-        }
-    }
-    (None, raw)
-}
-
 fn task_answer_from(
     name: &str,
     args: &serde_json::Map<String, serde_json::Value>,
@@ -1048,7 +1016,7 @@ mod tests {
         let record: ResponseRecord =
             serde_json::from_str(text.trim_end()).expect("parse response record");
         assert_eq!(record.task_id, fixtures[0].id());
-        let (_, summary) = grade(&fixtures, &[record], 0.5).expect("grade");
+        let (_, summary) = grade(&fixtures, &[record.clone()], 0.5, None, 0.5).expect("grade");
         assert_eq!(summary.write_n, 1);
         assert!((summary.write_mean - 1.0).abs() < 1e-9, "{summary:?}");
         let _ = std::fs::remove_dir_all(&out);
@@ -1108,7 +1076,7 @@ mod tests {
             .lines()
             .map(|l| serde_json::from_str(l).expect("record"))
             .collect();
-        let (_, summary) = grade(&fixtures, &records, 0.5).expect("grade");
+        let (_, summary) = grade(&fixtures, &records, 0.5, None, 0.5).expect("grade");
         assert_eq!(summary.identify_n, fixtures.len());
         assert!((summary.identify_mean - 1.0).abs() < 1e-9, "{summary:?}");
         let _ = std::fs::remove_dir_all(&out);
@@ -1145,7 +1113,7 @@ mod tests {
             .map(|l| serde_json::from_str(l).expect("record"))
             .collect();
         assert_eq!(records.len(), 4);
-        let (_, summary) = grade(&fixtures, &records, 0.5).expect("grade");
+        let (_, summary) = grade(&fixtures, &records, 0.5, None, 0.5).expect("grade");
         assert_eq!(summary.write_n, 4);
         assert!((summary.write_mean - 1.0).abs() < 1e-9, "{summary:?}");
         let _ = std::fs::remove_dir_all(&out);

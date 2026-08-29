@@ -122,21 +122,37 @@ fn levenshtein(a: &str, b: &str) -> usize {
     prev[b.len()]
 }
 
-/// Suggest the closest opcode name when the token looks like a near
-/// miss of a real one (typo, hallucinated suffix, wrong case).
+/// Suggest the closest opcode name when the token is a clear near-miss
+/// of exactly one real opcode. Ambiguity means silence: the suggestion
+/// must beat the runner-up by a margin (2) so a token parked between
+/// two names (the OP_NOP4..OP_NOP10 chain, OP_1/OP_16) suggests
+/// nothing rather than a guess. This is what keeps the feedback from
+/// ever being wrong: a suggestion only appears when the token is a
+/// typo of one specific opcode.
 fn suggest_opcode(token: &str) -> Option<&'static str> {
     if !token.starts_with("OP_") {
         return None;
     }
     let mut best: Option<(usize, &'static str)> = None;
+    let mut second: usize = usize::MAX;
     for (name, _) in OPCODE_NAMES {
         let d = levenshtein(token, name);
-        let budget = (name.len() / 4).max(1);
-        if d <= budget && best.is_none_or(|(bd, _)| d < bd) {
-            best = Some((d, name));
+        if d <= 3 {
+            match best {
+                Some((bd, _)) if d >= bd => second = second.min(d),
+                _ => {
+                    if let Some((bd, _)) = best {
+                        second = bd;
+                    }
+                    best = Some((d, name));
+                }
+            }
         }
     }
-    best.map(|(_, name)| name)
+    match best {
+        Some((d, name)) if d + 2 <= second => Some(name),
+        _ => None,
+    }
 }
 
 impl std::error::Error for AnswerError {}
@@ -620,6 +636,29 @@ mod tests {
             msg.contains("followed by exactly one hex data chunk"),
             "fix: {msg}"
         );
+    }
+
+    #[test]
+    fn suggestions_never_ambiguous_or_misleading() {
+        // Clear typo of exactly one opcode: suggest it.
+        let e = parse_script_answer("OP_DUP OP_HASH160 OP_CHECKMULTISIGSIG").unwrap_err();
+        assert!(e.to_string().contains("did you mean OP_CHECKMULTISIG?"));
+
+        // VERIFY suffix confusion is impossible: the pairs are far
+        // apart, so a token near one is far from the other.
+        let e = parse_script_answer("OP_DUP OP_CHECKSIGVERIF").unwrap_err();
+        assert!(e.to_string().contains("did you mean OP_CHECKSIGVERIFY?"));
+
+        // Random words: no suggestion rather than a wrong one.
+        let e = parse_script_answer("OP_BANANA").unwrap_err();
+        assert!(!e.to_string().contains("did you mean"), "{}", e);
+
+        // A token parked between adjacent names (NOP chain, OP_1/OP_16)
+        // must stay silent: any pick would be a guess.
+        for tok in ["OP_NOPX", "OP_1X", "OP_NO", "OP_NP"] {
+            let e = parse_script_answer(tok).unwrap_err();
+            assert!(!e.to_string().contains("did you mean"), "{tok}: {e}");
+        }
     }
 
     #[test]

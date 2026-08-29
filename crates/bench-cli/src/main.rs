@@ -115,6 +115,14 @@ enum Command {
         /// Score for a correct label with wrong params on identify tasks.
         #[arg(long, default_value_t = 0.5)]
         partial_credit: f64,
+        /// attempts.jsonl from a multi-turn run; enables turn-discounted
+        /// scoring and the first-try/solved breakdown.
+        #[arg(long)]
+        attempts: Option<PathBuf>,
+        /// Turn-discount floor: solving on the final attempt scores this
+        /// fraction of the graded score; first try scores it in full.
+        #[arg(long, default_value_t = 0.5)]
+        mt_base: f64,
     },
 }
 
@@ -268,10 +276,22 @@ fn main() -> Result<()> {
             responses,
             out,
             partial_credit,
+            attempts,
+            mt_base,
         } => {
             let fixtures = load_dataset(&dataset)?;
             let records = load_responses(&responses)?;
-            let (scores, summary) = grade(&fixtures, &records, partial_credit)?;
+            let attempts_map = attempts
+                .as_ref()
+                .map(|p| bench_cli::load_attempts(p))
+                .transpose()?;
+            let (scores, summary) = grade(
+                &fixtures,
+                &records,
+                partial_credit,
+                attempts_map.as_ref(),
+                mt_base,
+            )?;
             fs::create_dir_all(&out)?;
             fs::write(
                 out.join("results.json"),
