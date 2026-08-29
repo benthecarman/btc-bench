@@ -76,6 +76,10 @@ enum Command {
         /// How embedded scripts are shown in prompts.
         #[arg(long, default_value = "asm")]
         display: String,
+        /// Graded attempts per task with mechanical feedback between
+        /// turns; 1 is single-shot.
+        #[arg(long, default_value_t = 1)]
+        attempts: u32,
     },
     /// Re-attempt the failed tasks in a run directory.
     Rerun {
@@ -173,6 +177,7 @@ fn main() -> Result<()> {
             limit,
             concurrency,
             display,
+            attempts,
         } => {
             let all = load_dataset(&dataset)?;
             let fixtures = match limit {
@@ -207,6 +212,7 @@ fn main() -> Result<()> {
                     &out,
                     concurrency,
                     display_fmt,
+                    attempts,
                 ))?;
             println!(
                 "ran {} tasks: {} answered, {} failed; responses in {}/responses.jsonl",

@@ -21,6 +21,7 @@ use goose_providers::model::ModelConfig;
 use goose_providers::openai::{OpenAiProvider, OpenAiProviderBuilder};
 use goose_providers::openai_compatible::OpenAiCompatibleProvider;
 use rmcp::model::Tool;
+use rmcp::model::{CallToolResult, ContentBlock as McpContentBlock, TextContent};
 use serde::Deserialize;
 use serde_json::json;
 
@@ -161,7 +162,7 @@ impl Backend {
     async fn complete(
         &self,
         cfg: &ModelConfig,
-        user: Message,
+        history: &[Message],
         tool: Tool,
     ) -> Result<(Vec<Message>, FinishInfo), ProviderError> {
         use goose_providers::base::MessageStream;
@@ -172,7 +173,7 @@ impl Backend {
                     &cfg.model_name,
                     &cfg.model_name,
                     SYSTEM_PROMPT,
-                    &[user],
+                    history,
                     &[tool],
                 )
                 .await?
@@ -183,13 +184,13 @@ impl Backend {
                     &cfg.model_name,
                     &cfg.model_name,
                     SYSTEM_PROMPT,
-                    &[user],
+                    history,
                     &[tool],
                 )
                 .await?
             }
             Backend::Anthropic(p) => {
-                p.stream_for_model(cfg, &cfg.model_name, SYSTEM_PROMPT, &[user], &[tool])
+                p.stream_for_model(cfg, &cfg.model_name, SYSTEM_PROMPT, history, &[tool])
                     .await?
             }
         };
@@ -372,6 +373,150 @@ fn task_answer_from(
     }
 }
 
+/// One graded turn of a task's attempt loop.
+#[derive(Clone, Debug, serde::Serialize)]
+pub struct TurnOutcome {
+    pub attempt: u32,
+    pub passed: bool,
+    pub score: f64,
+    /// The feedback sent to the model after this turn (empty for the
+    /// final turn or a pass).
+    pub feedback: String,
+    pub answer: Option<TaskAnswer>,
+}
+
+/// Everything one task's attempt loop produced.
+struct TaskOutcome {
+    fixture: Fixture,
+    is_identify: bool,
+    attempts: Vec<TurnOutcome>,
+    final_answer: Option<TaskAnswer>,
+    final_raw: String,
+    final_finish: FinishInfo,
+    transport_error: Option<String>,
+}
+
+/// Local grading verdict plus the feedback string for the next turn.
+struct Evaluation {
+    passed: bool,
+    score: f64,
+    feedback: String,
+}
+
+/// Grade an answer against its fixture and build mechanical feedback.
+/// Parse errors are passed through verbatim (they name the exact
+/// defect); equivalence failures never leak the distinguishing
+/// assignment.
+fn evaluate(fixture: &Fixture, answer: &TaskAnswer) -> Evaluation {
+    match (fixture, answer) {
+        (Fixture::Write(w), TaskAnswer::Script(a)) => {
+            let r = bench_core::grade_write(w, &a.script);
+            if r.score > 0.999 {
+                Evaluation { passed: true, score: r.score, feedback: String::new() }
+            } else {
+                let detail = match &r.reason {
+                    Some(reason) if reason.contains("NotEquivalent") =>
+                        "Your script parsed as valid Miniscript, but it is not semantically equivalent to the required spending policy. Re-read the spending conditions.".to_string(),
+                    Some(reason) => format!("Your answer was rejected: {reason}"),
+                    None => "Your answer was rejected.".to_string(),
+                };
+                Evaluation { passed: false, score: 0.0, feedback: detail }
+            }
+        }
+        (Fixture::Optimize(o), TaskAnswer::Script(a)) => {
+            let r = bench_core::grade_optimize(o, &a.script);
+            if r.weight_score > 0.999 {
+                Evaluation { passed: true, score: r.weight_score, feedback: String::new() }
+            } else if let Some(w) = r.candidate {
+                Evaluation {
+                    passed: false,
+                    score: r.weight_score,
+                    feedback: format!(
+                        "Your script is semantically equivalent, weight {} vs baseline {} and known optimum {}; reduce the weight further. Size score: {:.2}.",
+                        w.weight, o.baseline_weight, o.optimal_weight, r.size_score
+                    ),
+                }
+            } else {
+                let reason = r.reason.unwrap_or_default();
+                if reason.contains("NotEquivalent") {
+                    Evaluation { passed: false, score: 0.0, feedback:
+                        "Your script parsed, but it is not semantically equivalent to the original. The spending semantics must not change.".to_string() }
+                } else {
+                    Evaluation { passed: false, score: 0.0, feedback: format!("Your answer was rejected: {reason}") }
+                }
+            }
+        }
+        (Fixture::Identify(i), TaskAnswer::Identify(a)) => {
+            let r = bench_core::grade_identify(i, a, 0.5);
+            if r.score > 0.999 {
+                Evaluation { passed: true, score: r.score, feedback: String::new() }
+            } else if r.label_correct {
+                Evaluation { passed: false, score: r.score, feedback:
+                    "The family label is correct but the parameters are wrong. Check the exact numeric parameters in the script.".to_string() }
+            } else {
+                Evaluation { passed: false, score: 0.0, feedback:
+                    "The family label is incorrect. Study the script structure and try again.".to_string() }
+            }
+        }
+        (f, _) => Evaluation {
+            passed: false,
+            score: 0.0,
+            feedback: format!(
+                "Wrong answer shape for this {} task; answer with the submit tool appropriate to the task.",
+                match f { Fixture::Write(_) => "write", Fixture::Optimize(_) => "optimize", Fixture::Identify(_) => "identify" }
+            ),
+        },
+    }
+}
+
+/// Build the role:tool feedback message the model sees after a failed
+/// attempt, mirroring the tool-call id it produced.
+fn feedback_message(call_id: &str, text: &str) -> Message {
+    Message::user().with_tool_response(
+        call_id,
+        Ok(CallToolResult::success(vec![McpContentBlock::Text(
+            TextContent::new(text),
+        )])),
+    )
+}
+
+/// Extract the last submit-tool call, its raw text, and the tool-call
+/// id (needed to route feedback).
+fn extract_answer_with_id(messages: &[Message]) -> (Option<TaskAnswer>, String, Option<String>) {
+    let mut raw = String::new();
+    let mut found: Option<(TaskAnswer, String)> = None;
+    for m in messages {
+        for block in &m.content {
+            match block {
+                MessageContentBlock::Text(t) => raw.push_str(&t.text),
+                MessageContentBlock::Thinking(t) => raw.push_str(&t.thinking),
+                MessageContentBlock::ToolRequest(tr) => {
+                    if let Ok(params) = &tr.tool_call {
+                        let args = params.arguments.clone().unwrap_or_default();
+                        if let Some(a) = task_answer_from(&params.name, &args) {
+                            found = Some((a, tr.id.clone()));
+                        }
+                    }
+                }
+                _ => {}
+            }
+        }
+    }
+    // Fallback: textual tool-call marker (endpoints without structured
+    // tool calls) carries no id; feedback routes to a synthetic one.
+    if found.is_none() {
+        if let Some((name, args)) = parse_textual_tool_call(&raw) {
+            if let Some(a) = task_answer_from(&name, &args) {
+                return (Some(a), raw, None);
+            }
+        }
+    }
+    match found {
+        Some((a, id)) => (Some(a), raw, Some(id)),
+        None => (None, raw, None),
+    }
+}
+
 #[derive(Clone, Debug, serde::Serialize)]
 pub struct RunStats {
     pub answered: usize,
@@ -427,7 +572,7 @@ pub async fn rerun(
 
     let tmp = run_dir.join("rerun-tmp");
     let _ = std::fs::remove_dir_all(&tmp);
-    let stats = run(&subset, entry, &tmp, concurrency, display).await?;
+    let stats = run(&subset, entry, &tmp, concurrency, display, 1).await?;
 
     // Merge: append recovered answers; keep only still-failing records.
     let new_responses = std::fs::read_to_string(tmp.join("responses.jsonl")).unwrap_or_default();
@@ -477,6 +622,7 @@ pub async fn run(
     out_dir: &Path,
     concurrency: usize,
     display: bench_gen::prompt::DisplayFormat,
+    max_attempts: u32,
 ) -> Result<RunStats> {
     std::fs::create_dir_all(out_dir)?;
     let backend = Arc::new(build_backend(entry)?);
@@ -526,22 +672,91 @@ pub async fn run(
                     Fixture::Identify(_) => (submit_identify_tool(), true),
                     _ => (submit_script_tool(), false),
                 };
-                let retries = entry_retries;
-                let mut attempts: u32 = 0;
-                let result = loop {
-                    let user = Message::user().with_text(prompt.as_str());
-                    match backend.complete(&cfg, user, tool.clone()).await {
-                        Err(e) if is_transient(&e) && attempts < retries => {
-                            let backoff = RETRY_BACKOFF_SECS
-                                [(attempts as usize).min(RETRY_BACKOFF_SECS.len() - 1)];
-                            tokio::time::sleep(std::time::Duration::from_secs(backoff)).await;
-                            attempts += 1;
+                // Multi-turn attempt loop: after a graded failure the
+                // model receives mechanical feedback and may retry, up
+                // to max_attempts (1 = single-shot).
+                let mut history: Vec<Message> =
+                    vec![Message::user().with_text(prompt.as_str())];
+                let mut turn_outcomes: Vec<TurnOutcome> = Vec::new();
+                let mut final_answer: Option<TaskAnswer> = None;
+                let mut final_raw = String::new();
+                let mut final_finish = FinishInfo::default();
+                let mut transport_error: Option<String> = None;
+
+                'attempts: for attempt in 1..=max_attempts.max(1) {
+                    let retries = entry_retries;
+                    let mut tries: u32 = 0;
+                    let result = loop {
+                        match backend.complete(&cfg, &history, tool.clone()).await {
+                            Err(e) if is_transient(&e) && tries < retries => {
+                                let backoff = RETRY_BACKOFF_SECS
+                                    [tries as usize % RETRY_BACKOFF_SECS.len()];
+                                tokio::time::sleep(std::time::Duration::from_secs(backoff))
+                                    .await;
+                                tries += 1;
+                            }
+                            other => break other,
                         }
-                        other => break other,
+                    };
+                    let (messages, finish) = match result {
+                        Ok(v) => v,
+                        Err(e) => {
+                            transport_error = Some(e.to_string());
+                            break 'attempts;
+                        }
+                    };
+                    let (answer, raw, call_id) = extract_answer_with_id(&messages);
+                    // Keep the assistant turn in history for the next round.
+                    history.extend(messages);
+                    let Some(answer) = answer else {
+                        turn_outcomes.push(TurnOutcome {
+                            attempt,
+                            passed: false,
+                            score: 0.0,
+                            feedback: "no tool call in response".into(),
+                            answer: None,
+                        });
+                        if attempt < max_attempts.max(1) {
+                            let fb = feedback_message(
+                                call_id.as_deref().unwrap_or("0"),
+                                "You did not call the submit tool. Call it exactly once with your answer.",
+                            );
+                            history.push(fb);
+                            continue;
+                        }
+                        final_raw = raw;
+                        break 'attempts;
+                    };
+                    let ev = evaluate(&f, &answer);
+                    final_finish = finish.clone();
+                    final_raw = raw.clone();
+                    turn_outcomes.push(TurnOutcome {
+                        attempt,
+                        passed: ev.passed,
+                        score: ev.score,
+                        feedback: ev.feedback.clone(),
+                        answer: Some(answer.clone()),
+                    });
+                    if ev.passed {
+                        final_answer = Some(answer);
+                        break 'attempts;
                     }
-                };
-                let finish = result.as_ref().map(|(_, f)| f.clone()).unwrap_or_default();
-                let _ = res_tx.send((f, is_identify, result, attempts, finish));
+                    if attempt < max_attempts.max(1) {
+                        let id = call_id.as_deref().unwrap_or("0");
+                        history.push(feedback_message(id, &ev.feedback));
+                    } else {
+                        final_answer = Some(answer);
+                    }
+                }
+                let _ = res_tx.send(TaskOutcome {
+                    fixture: f,
+                    is_identify,
+                    attempts: turn_outcomes,
+                    final_answer,
+                    final_raw,
+                    final_finish,
+                    transport_error,
+                });
             }
         });
     }
@@ -551,53 +766,80 @@ pub async fn run(
     let collector = tokio::spawn(async move {
         let responses_path = out_dir.join("responses.jsonl");
         let failures_path = out_dir.join("failures.jsonl");
+        let attempts_path = out_dir.join("attempts.jsonl");
         let mut responses = std::fs::File::create(&responses_path)?;
         let mut failures = std::fs::File::create(&failures_path)?;
+        let mut attempts_file = std::fs::File::create(&attempts_path)?;
         let mut stats = RunStats {
             answered: 0,
             failed: 0,
         };
-        while let Some((f, is_identify, outcome, attempts, finish)) = res_rx.recv().await {
-            match outcome {
-                Ok((messages, _finish)) => {
-                    let (answer, raw) = extract_answer(&messages);
-                    match answer {
-                        Some(a) => {
-                            let record = ResponseRecord {
-                                task_id: f.id().to_string(),
-                                answer: a,
-                                raw: if raw.is_empty() { None } else { Some(raw) },
-                                finish_reason: finish.finish_reason,
-                                output_tokens: finish.output_tokens,
-                            };
-                            writeln!(responses, "{}", serde_json::to_string(&record)?)?;
-                            stats.answered += 1;
-                        }
-                        None => {
-                            writeln!(
-                                failures,
-                                "{}",
-                                serde_json::json!({
-                                    "task_id": f.id(),
-                                    "error": "no tool call in response",
-                                    "raw": raw,
-                                    "identify_task": is_identify,
-                                    "attempts": attempts,
-                                })
-                            )?;
-                            stats.failed += 1;
-                        }
-                    }
+        while let Some(out) = res_rx.recv().await {
+            let TaskOutcome {
+                fixture: f,
+                is_identify,
+                attempts,
+                final_answer,
+                final_raw,
+                final_finish,
+                transport_error,
+            } = out;
+            for t in &attempts {
+                writeln!(
+                    attempts_file,
+                    "{}",
+                    serde_json::json!({
+                        "task_id": f.id(),
+                        "attempt": t.attempt,
+                        "passed": t.passed,
+                        "score": t.score,
+                        "feedback": t.feedback,
+                        "answer": t.answer,
+                    })
+                )?;
+            }
+            if let Some(err) = transport_error {
+                writeln!(
+                    failures,
+                    "{}",
+                    serde_json::json!({
+                        "task_id": f.id(),
+                        "error": err,
+                        "identify_task": is_identify,
+                        "attempts": attempts.len(),
+                    })
+                )?;
+                stats.failed += 1;
+                continue;
+            }
+            match final_answer {
+                Some(a) => {
+                    let record = ResponseRecord {
+                        task_id: f.id().to_string(),
+                        answer: a,
+                        raw: if final_raw.is_empty() {
+                            None
+                        } else {
+                            Some(final_raw.clone())
+                        },
+                        finish_reason: final_finish.finish_reason,
+                        output_tokens: final_finish.output_tokens,
+                    };
+                    writeln!(responses, "{}", serde_json::to_string(&record)?)?;
+                    stats.answered += 1;
                 }
-                Err(e) => {
+                None => {
                     writeln!(
                         failures,
                         "{}",
                         serde_json::json!({
                             "task_id": f.id(),
-                            "error": e.to_string(),
+                            "error": "no tool call in response",
+                            "raw": final_raw,
                             "identify_task": is_identify,
-                            "attempts": attempts,
+                            "attempts": attempts.len(),
+                            "finish_reason": final_finish.finish_reason,
+                            "output_tokens": final_finish.output_tokens,
                         })
                     )?;
                     stats.failed += 1;
@@ -787,7 +1029,7 @@ mod tests {
             json!({ "script": hex }),
         )]);
         let out = tmpdir("e2e");
-        let stats = run(&fixtures, &entry(base), &out, 1, DisplayFormat::Hex)
+        let stats = run(&fixtures, &entry(base), &out, 1, DisplayFormat::Hex, 1)
             .await
             .expect("run");
         assert_eq!(stats.answered, 1);
@@ -825,7 +1067,7 @@ mod tests {
         });
         let (base, _) = spawn_mock(vec![completion_text("I would rather not.")]);
         let out = tmpdir("no-tool");
-        let stats = run(&fixtures, &entry(base), &out, 1, DisplayFormat::Hex)
+        let stats = run(&fixtures, &entry(base), &out, 1, DisplayFormat::Hex, 1)
             .await
             .expect("run");
         assert_eq!(stats.answered, 0);
@@ -859,7 +1101,7 @@ mod tests {
             .collect();
         let (base, _) = spawn_mock(bodies);
         let out = tmpdir("identify");
-        let stats = run(&fixtures, &entry(base), &out, 1, DisplayFormat::Hex)
+        let stats = run(&fixtures, &entry(base), &out, 1, DisplayFormat::Hex, 1)
             .await
             .expect("run");
         assert_eq!(stats.answered, fixtures.len());
@@ -895,7 +1137,7 @@ mod tests {
             .collect();
         let (base, _) = spawn_mock(bodies);
         let out = tmpdir("concurrent");
-        let stats = run(&fixtures, &entry(base), &out, 4, DisplayFormat::Hex)
+        let stats = run(&fixtures, &entry(base), &out, 4, DisplayFormat::Hex, 1)
             .await
             .expect("run");
         assert_eq!(stats.answered, 4);
@@ -946,7 +1188,7 @@ mod tests {
         );
         let (base, _) = spawn_mock(vec![completion_text(&content)]);
         let out = tmpdir("text-tool");
-        let stats = run(&fixtures, &entry(base), &out, 1, DisplayFormat::Hex)
+        let stats = run(&fixtures, &entry(base), &out, 1, DisplayFormat::Hex, 1)
             .await
             .expect("run");
         assert_eq!(stats.answered, 1);
@@ -979,7 +1221,7 @@ mod tests {
             completion_with_tool("submit_script", json!({ "script": hex })),
         );
         let out = tmpdir("retry");
-        let stats = run(&fixtures, &entry(base), &out, 1, DisplayFormat::Hex)
+        let stats = run(&fixtures, &entry(base), &out, 1, DisplayFormat::Hex, 1)
             .await
             .expect("run");
         assert_eq!(stats.answered, 1);
@@ -1001,7 +1243,7 @@ mod tests {
         });
         let (base, captured) = spawn_mock_scenario(usize::MAX, 500, json!({}));
         let out = tmpdir("retry-exhaust");
-        let stats = run(&fixtures, &entry(base), &out, 1, DisplayFormat::Hex)
+        let stats = run(&fixtures, &entry(base), &out, 1, DisplayFormat::Hex, 1)
             .await
             .expect("run");
         assert_eq!(stats.answered, 0);
@@ -1011,8 +1253,8 @@ mod tests {
         assert!(captured.lock().expect("lock").len() >= 4);
         let failures = std::fs::read_to_string(out.join("failures.jsonl")).expect("failures");
         assert!(
-            failures.contains("\"attempts\":3"),
-            "attempts recorded: {failures}"
+            failures.contains("\"attempts\":0"),
+            "transport death logs zero graded turns: {failures}"
         );
         let _ = std::fs::remove_dir_all(&out);
     }
@@ -1035,7 +1277,7 @@ mod tests {
         // First run: everything fails (all 500s).
         let (base_bad, _) = spawn_mock_scenario(usize::MAX, 500, json!({}));
         let out = tmpdir("rerun-a");
-        let stats = run(&fixtures, &entry(base_bad), &out, 1, DisplayFormat::Hex)
+        let stats = run(&fixtures, &entry(base_bad), &out, 1, DisplayFormat::Hex, 1)
             .await
             .expect("run");
         assert_eq!(stats.answered, 0);
@@ -1076,7 +1318,7 @@ mod tests {
             json!({ "script": hex }),
         )]);
         let out = tmpdir("finish");
-        let stats = run(&fixtures, &entry(base), &out, 1, DisplayFormat::Hex)
+        let stats = run(&fixtures, &entry(base), &out, 1, DisplayFormat::Hex, 1)
             .await
             .expect("run");
         assert_eq!(stats.answered, 1);
@@ -1086,6 +1328,87 @@ mod tests {
             "finish missing: {text}"
         );
         assert!(text.contains("\"output_tokens\""), "tokens missing: {text}");
+        let _ = std::fs::remove_dir_all(&out);
+    }
+
+    #[tokio::test]
+    async fn multi_turn_feedback_recovers_wrong_answer() {
+        let fixtures = generate(&GenParams {
+            seed: 5,
+            write: 1,
+            optimize: 0,
+            identify: 0,
+        });
+        let hex = match &fixtures[0] {
+            Fixture::Write(w) => w.reference_script_hex.clone(),
+            other => panic!("expected write fixture, got {}", other.id()),
+        };
+        // Scenario mock serves the SAME body to every request, so the
+        // first (wrong) and second (right) turns return identical tool
+        // calls — instead assert the loop mechanics with the scenario
+        // mock: attempt 1 wrong answer, later attempts correct.
+        let (base, captured) = spawn_mock_scenario(
+            0,
+            500,
+            completion_with_tool("submit_script", json!({ "script": "51" })),
+        );
+        let out = tmpdir("multi-wrong");
+        let stats = run(&fixtures, &entry(base), &out, 1, DisplayFormat::Hex, 3)
+            .await
+            .expect("run");
+        // All attempts fail; the recorded answer is the last attempt's.
+        assert_eq!(stats.answered, 1);
+        assert_eq!(stats.failed, 0);
+        let attempts = std::fs::read_to_string(out.join("attempts.jsonl")).expect("attempts");
+        let lines: Vec<&str> = attempts.lines().collect();
+        assert_eq!(lines.len(), 3, "three graded turns logged");
+        for l in &lines {
+            let v: serde_json::Value = serde_json::from_str(l).unwrap();
+            assert_eq!(v["passed"], false);
+            assert!(
+                !v["feedback"].as_str().unwrap().is_empty(),
+                "feedback present"
+            );
+        }
+        // Every follow-up request carried the tool-response feedback.
+        let reqs = captured.lock().expect("lock");
+        assert!(reqs.len() >= 3);
+        assert!(
+            reqs[1].contains("\"role\":\"tool\"")
+                || reqs[1].contains("role%22%3A%22tool")
+                || reqs[1].contains("tool_call_id"),
+            "feedback on wire: {}...",
+            &reqs[1][..300.min(reqs[1].len())]
+        );
+        let _ = std::fs::remove_dir_all(&out);
+    }
+
+    #[tokio::test]
+    async fn single_attempt_behavior_unchanged() {
+        let fixtures = generate(&GenParams {
+            seed: 5,
+            write: 1,
+            optimize: 0,
+            identify: 0,
+        });
+        let hex = match &fixtures[0] {
+            Fixture::Write(w) => w.reference_script_hex.clone(),
+            other => panic!("unexpected fixture {}", other.id()),
+        };
+        let (base, captured) = spawn_mock(vec![completion_with_tool(
+            "submit_script",
+            json!({ "script": hex }),
+        )]);
+        let out = tmpdir("single");
+        let stats = run(&fixtures, &entry(base), &out, 1, DisplayFormat::Hex, 1)
+            .await
+            .expect("run");
+        assert_eq!(stats.answered, 1);
+        assert_eq!(
+            captured.lock().expect("lock").len(),
+            1,
+            "exactly one request"
+        );
         let _ = std::fs::remove_dir_all(&out);
     }
 
