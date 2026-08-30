@@ -185,7 +185,6 @@ pub fn grade_optimize(fixture: &OptimizeFixture, answer: &str) -> OptimizeResult
 #[derive(Clone, Debug)]
 pub struct IdentifyResult {
     pub label_correct: bool,
-    pub params_correct: bool,
     pub score: f64,
 }
 
@@ -211,7 +210,6 @@ pub fn grade_identify(
     };
     IdentifyResult {
         label_correct,
-        params_correct,
         score,
     }
 }

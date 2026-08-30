@@ -436,12 +436,9 @@ fn evaluate(fixture: &Fixture, answer: &TaskAnswer) -> Evaluation {
             }
         }
         (Fixture::Identify(i), TaskAnswer::Identify(a)) => {
-            let r = bench_core::grade_identify(i, a, 0.5);
+            let r = bench_core::grade_identify(i, a, 0.0);
             if r.score > 0.999 {
                 Evaluation { passed: true, score: r.score, feedback: String::new() }
-            } else if r.label_correct {
-                Evaluation { passed: false, score: r.score, feedback:
-                    "The family label is correct but the parameters are wrong. Check the exact numeric parameters in the script.".to_string() }
             } else {
                 Evaluation { passed: false, score: 0.0, feedback:
                     "The family label is incorrect. Study the script structure and try again.".to_string() }

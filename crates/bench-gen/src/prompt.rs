@@ -101,8 +101,7 @@ pub fn identify_prompt(f: &bench_core::task::IdentifyFixture, display: DisplayFo
          scriptPubKey {}: {}{}\
          \n\
          Call submit_answer with:\n\
-         - label: one of {}\n\
-         - params: the script's numeric parameters where applicable (e.g. k, n for multisig)",
+         - label: one of {}",
         display.label(),
         display.render(&f.spk_hex),
         inner,
