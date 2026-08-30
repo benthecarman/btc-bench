@@ -1,0 +1,119 @@
+# btc-bench
+
+A benchmark for AI models that write, optimize, and identify Bitcoin
+Script. Graded by a judge-free oracle: every answer is verified
+mechanically, no LLM judge anywhere.
+
+## Tasks
+
+| Task | What the model does | Grading |
+|------|-------------------|--------|
+| **Write** | Compose a script from an English spending policy | Decode-gated as Miniscript, then proven semantically equivalent by exhaustive truth-table evaluation over the task's closed atom set |
+| **Optimize** | Shrink a deliberately naive baseline script | Equivalence-gated, scored by weight improvement toward the compiler optimum |
+| **Identify** | Label a scriptPubKey (plus redeem/witness script) with its protocol family and parameters | Exact label match + mechanically extracted parameters |
+
+Three script contexts: legacy (P2SH redeemScript), segwit v0 (P2WSH
+witnessScript), and taproot (script-path leaf tapscript).
+
+## Quick start
+
+```bash
+cargo build --release
+
+# Generate a fixture dataset (deterministic per seed)
+btc-bench gen --out datasets/my-set --seed 42 --write 300 --optimize 300 --identify 18
+
+# Run against a model (any OpenAI-compatible endpoint)
+btc-bench run --dataset datasets/my-set --config models.toml --model my-model --concurrency 8
+
+# Multi-turn with graded feedback between attempts
+btc-bench run --dataset datasets/my-set --config models.toml --model my-model --attempts 3
+
+# Grade results
+btc-bench grade --dataset datasets/my-set --responses runs/my-run/responses.jsonl
+
+# With multi-turn scoring and token efficiency
+btc-bench grade --dataset datasets/my-set --responses runs/my-run/responses.jsonl \
+    --attempts runs/my-run/attempts.jsonl
+```
+
+## Model configuration
+
+Copy `models.example.toml` to `models.toml` and fill in your endpoints:
+
+```toml
+[model.my-model]
+provider = "openai_compatible"
+model = "your-model-name"
+base_url = "http://localhost:8000/v1"
+```
+
+Multiple `base_url` entries are load-balanced round-robin:
+
+```toml
+base_url = [
+    "http://workstation:8000/v1",
+    "http://spark:8001/v1",
+]
+```
+
+## What the oracle proves
+
+The correctness oracle is structurally anti-cheat:
+
+- **Decode gate**: answers must parse as valid, type-checked Miniscript
+  in the task's script context. An always-true script (`OP_1`) decodes
+  fine but fails equivalence — it scores 0.
+- **Exhaustive truth-table equivalence**: every generated task has a
+  closed atom set (keys, hash preimages, timelocks). Both scripts are
+  evaluated over all assignments; any single-row divergence fails.
+  Complete because the generator bounds the atom space.
+- **No answer leak**: multi-turn feedback names parse errors verbatim
+  (they're mechanical facts) but equivalence failures never reveal the
+  distinguishing assignment. Test-pinned.
+
+## Identify families
+
+**Standards**: P2PK, P2PKH, P2WPKH, bare/P2SH/P2WSH multisig, P2TR,
+OP_RETURN, P2A anchor, ordinals inscription.
+
+**Lightning** (BOLT 3 + bolt-simple-taproot PR #1330): to_local,
+to_remote under anchors, keyed anchors, offered/received HTLC (with and
+without the anchors CSV clause), TR to_local, TR to_remote, TR anchor,
+TR offered/accepted HTLC timeout tapleaves.
+
+**Liquid**: federation peg (N-of-M with CSV-gated emergency backup).
+
+## Reward service for RL
+
+```bash
+btc-bench reward-serve --port 9900
+```
+
+POST `/reward` with `{"task": <fixture>, "answer": "..."}` returns
+`{"score": 0.0-1.0, "reason": "..."}`. Wraps the same graders the
+benchmark uses — designed as the verifiable reward for RLVR training
+loops.
+
+## Regression gate
+
+```bash
+scripts/regression-gate.sh my-model          # gate against baseline
+scripts/regression-gate.sh my-model --update # refresh baseline
+```
+
+Runs a fixed 26-task smoke set and diffs against a stored per-model
+baseline. Exits nonzero on regression.
+
+## Stack
+
+| Crate | Version |
+|-------|---------|
+| miniscript | 13.1.0 |
+| bitcoin | 0.32.102 |
+| goose-providers | 0.1.0-alpha.7 |
+| Workspace MSRV | 1.94.1 |
+
+## License
+
+MIT
