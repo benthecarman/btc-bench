@@ -74,8 +74,6 @@ pub fn optimize_prompt(f: &OptimizeFixture, display: DisplayFormat) -> String {
          \n\
          {}\n\
          \n\
-         Keys:\n{}\n\
-         \n\
          Write a semantically equivalent script with a lower input weight \
          (script plus witness, the quantity transaction fees are paid for). \
          Script byte size is a secondary metric. The spending semantics must \
@@ -85,7 +83,6 @@ pub fn optimize_prompt(f: &OptimizeFixture, display: DisplayFormat) -> String {
         f.context.script_noun(),
         display.label(),
         display.render(&f.baseline_script_hex),
-        key_block(&f.keys),
     )
 }
 
