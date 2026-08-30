@@ -188,6 +188,47 @@ mod tests {
         assert_eq!(verdict, Verdict::Equivalent);
     }
 
+    /// Feedback leak audit: the feedback for a failed answer must never
+    /// contain the reference script, its keys, or the distinguishing
+    /// truth-table assignment. This is the anti-triangulation guarantee
+    /// for multi-turn — three rounds of feedback must not be enough to
+    /// brute-force the answer.
+    #[test]
+    fn feedback_never_leaks_reference() {
+        let (a, b, c) = (pk_hex(1), pk_hex(2), pk_hex(3));
+        // Reference: and(A, or(B, C))
+        let reference = ms(&format!("and_v(v:pk({a}),or_d(pk({b}),pk({c})))"));
+        let reference_hex = reference.encode().to_hex_string();
+
+        // Three different wrong answers, each with its feedback.
+        let wrong_scripts = [
+            // Wrong key entirely.
+            ms_any(&format!("and_v(v:pk({a}),pk({}))", c)).encode(),
+            // Right keys, wrong structure.
+            ms_any(&format!("or_d(pk({a}),and_b(pk({b}),s:pk({c})))")).encode(),
+            // Always-true attack.
+            script("51"),
+        ];
+        for wrong in &wrong_scripts {
+            let verdict = check_in_context::<Segwitv0>(&reference.encode(), wrong);
+            let feedback = verdict.to_string();
+            // Must not contain the reference script bytes.
+            assert!(
+                !feedback.contains(&reference_hex),
+                "leaks reference hex: {feedback}"
+            );
+            // Must not name which specific atoms differ.
+            assert!(
+                !feedback.contains("differ") && !feedback.contains("when"),
+                "names the difference: {feedback}"
+            );
+            // Must not contain any key hex from the reference.
+            for key in [&a, &b, &c] {
+                assert!(!feedback.contains(key), "leaks key {key}: {feedback}");
+            }
+        }
+    }
+
     #[test]
     fn verdict_display_has_no_debug_quoting() {
         let (a, b) = (pk_hex(1), pk_hex(2));

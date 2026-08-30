@@ -149,6 +149,8 @@ pub struct Summary {
     /// base floor at the final attempt).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub multi_turn: Option<MultiTurnSummary>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub token_efficiency: Option<TokenEfficiency>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -158,6 +160,18 @@ pub struct MultiTurnSummary {
     pub mt_score: f64,
     pub mean_turns_when_solved: f64,
     pub n: usize,
+}
+
+/// Token efficiency: mean output tokens for solved vs unsolved tasks.
+/// Solved-with-fewer-tokens is a real capability dimension (GLM-5.3
+/// showed 50% gains at lower token counts). None when the run didn't
+/// capture output_tokens.
+#[derive(Serialize, Deserialize, Clone, Debug, Default)]
+pub struct TokenEfficiency {
+    pub solved_mean_tokens: Option<f64>,
+    pub unsolved_mean_tokens: Option<f64>,
+    pub solved_n: usize,
+    pub unsolved_n: usize,
 }
 
 /// Turn factor: 1.0 when solved on the first attempt, decreasing
@@ -293,6 +307,42 @@ pub fn grade(
     }
     let _ = &mt_scores_by_id;
     let div = |s: f64, n: usize| if n == 0 { f64::NAN } else { s / n as f64 };
+    // Token efficiency from output_tokens on responses.
+    let token_efficiency = {
+        let mut solved_tokens: Vec<f64> = Vec::new();
+        let mut unsolved_tokens: Vec<f64> = Vec::new();
+        for ts in &scores {
+            let record = responses.iter().find(|r| r.task_id == ts.task_id);
+            if let Some(r) = record {
+                if let Some(t) = r.output_tokens {
+                    if ts.score >= 0.999 {
+                        solved_tokens.push(t as f64);
+                    } else {
+                        unsolved_tokens.push(t as f64);
+                    }
+                }
+            }
+        }
+        if solved_tokens.is_empty() && unsolved_tokens.is_empty() {
+            None
+        } else {
+            Some(TokenEfficiency {
+                solved_mean_tokens: if solved_tokens.is_empty() {
+                    None
+                } else {
+                    Some(solved_tokens.iter().sum::<f64>() / solved_tokens.len() as f64)
+                },
+                unsolved_mean_tokens: if unsolved_tokens.is_empty() {
+                    None
+                } else {
+                    Some(unsolved_tokens.iter().sum::<f64>() / unsolved_tokens.len() as f64)
+                },
+                solved_n: solved_tokens.len(),
+                unsolved_n: unsolved_tokens.len(),
+            })
+        }
+    };
+
     let multi_turn = attempts.map(|a| {
         let n = a.len().max(1);
         MultiTurnSummary {
@@ -317,6 +367,7 @@ pub fn grade(
         identify_n: i_n,
         missing,
         multi_turn,
+        token_efficiency,
     };
     Ok((scores, summary))
 }
@@ -338,7 +389,7 @@ fn a_kind(a: &TaskAnswer) -> &'static str {
 
 /// Render the summary as a markdown report.
 pub fn summary_markdown(s: &Summary) -> String {
-    format!(
+    let mut out = format!(
         "# btc-bench results\n\n\
          | task | mean score | n |\n|---|---|---|\n\
          | write | {:.3} | {} |\n\
@@ -355,7 +406,23 @@ pub fn summary_markdown(s: &Summary) -> String {
         s.identify_mean,
         s.identify_n,
         s.missing,
-    )
+    );
+    if let Some(te) = &s.token_efficiency {
+        out.push_str(&format!(
+            "Token efficiency: solved {:.0} tok (n={}), unsolved {:.0} tok (n={})\n",
+            te.solved_mean_tokens.unwrap_or(0.0),
+            te.solved_n,
+            te.unsolved_mean_tokens.unwrap_or(0.0),
+            te.unsolved_n,
+        ));
+    }
+    if let Some(mt) = &s.multi_turn {
+        out.push_str(&format!(
+            "Multi-turn: first-try {:.3}, solved {:.3}, discounted {:.3}, mean turns {:.2} (n={})\n",
+            mt.first_try, mt.solved, mt.mt_score, mt.mean_turns_when_solved, mt.n
+        ));
+    }
+    out
 }
 
 trait WriteJsonl {

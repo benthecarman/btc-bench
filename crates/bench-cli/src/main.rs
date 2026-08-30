@@ -190,6 +190,7 @@ fn main() -> Result<()> {
             concurrency,
             display,
             attempts,
+            resume,
         } => {
             let all = load_dataset(&dataset)?;
             let fixtures = match limit {
