@@ -28,23 +28,30 @@ pub fn to_human_asm(script: &bitcoin::Script) -> String {
                 }
             }
             Some(Instruction::PushBytes(bytes)) => {
-                let numeric_context = matches!(
-                    ins.get(i + 1),
-                    Some(Some(Instruction::Op(next)))
-                        if next.to_u8() == all::OP_CSV.to_u8()
-                            || next.to_u8() == all::OP_CLTV.to_u8()
-                );
-                match if numeric_context {
-                    decode_minimal_num(bytes.as_bytes())
+                // The empty push (opcode 0x00 / OP_0) is classified as
+                // PushBytes(&[]) by the instruction iterator, not as an
+                // Op. Render it as OP_0 explicitly.
+                if bytes.is_empty() {
+                    "OP_0".to_string()
                 } else {
-                    None
-                } {
-                    Some(v) => format!("{v}"),
-                    None => bytes
-                        .as_bytes()
-                        .iter()
-                        .map(|b| format!("{b:02x}"))
-                        .collect::<String>(),
+                    let numeric_context = matches!(
+                        ins.get(i + 1),
+                        Some(Some(Instruction::Op(next)))
+                            if next.to_u8() == all::OP_CSV.to_u8()
+                                || next.to_u8() == all::OP_CLTV.to_u8()
+                    );
+                    match if numeric_context {
+                        decode_minimal_num(bytes.as_bytes())
+                    } else {
+                        None
+                    } {
+                        Some(v) => format!("{v}"),
+                        None => bytes
+                            .as_bytes()
+                            .iter()
+                            .map(|b| format!("{b:02x}"))
+                            .collect::<String>(),
+                    }
                 }
             }
             None => continue,
