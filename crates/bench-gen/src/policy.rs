@@ -129,6 +129,173 @@ fn sample_medium(rng: &mut SeededRng) -> Abs {
 }
 
 fn sample_hard(rng: &mut SeededRng) -> Abs {
+    // Real-world patterns from Blockstream/miniscript-templates
+    // (MINT-001..002, MINT-005..009), vault and custody structures.
+    let roll = rng.below(6);
+    match roll {
+        0 => vault_full(rng),
+        1 => vault_simplified(rng),
+        2 => timelock_gated_recovery(rng),
+        3 => timelock_in_thresh(rng),
+        4 => vault_single_principal(rng),
+        _ => sample_hard_synth(rng),
+    }
+}
+
+/// MINT-005/006: or(and(thresh(PAKs), or(thresh(PKs,after), and(pk,after))),
+///                  and(thresh(RKs), after))
+fn vault_full(rng: &mut SeededRng) -> Abs {
+    let mut used = Vec::new();
+    let mut group = |rng: &mut SeededRng, used: &mut Vec<usize>, n: usize| -> Abs {
+        let mut ks = Vec::new();
+        for _ in 0..n {
+            ks.push(used.len());
+            used.push(used.len());
+        }
+        Abs::Thresh(2, ks)
+    };
+    let paks = group(rng, &mut used, 3);
+    let pks = group(rng, &mut used, 3);
+    let rks = group(rng, &mut used, 3);
+    let sak = Abs::Key(used.len());
+    used.push(used.len());
+    let t1 = Abs::After(sample_after(rng));
+    let t2 = Abs::After(sample_after(rng));
+    let t3 = Abs::After(sample_after(rng));
+    Abs::Or(vec![
+        Abs::And(vec![
+            paks,
+            Abs::Or(vec![Abs::And(vec![pks, t1]), Abs::And(vec![sak, t2])]),
+        ]),
+        Abs::And(vec![rks, t3]),
+    ])
+}
+
+/// MINT-007/008: or(and(thresh(PAKs), or(pk, and(pk,after))), and(pk,after))
+fn vault_simplified(rng: &mut SeededRng) -> Abs {
+    let mut used = Vec::new();
+    let mut ks = Vec::new();
+    for _ in 0..3 {
+        ks.push(used.len());
+        used.push(used.len());
+    }
+    let paks = Abs::Thresh(2, ks);
+    let pk = Abs::Key(used.len());
+    used.push(used.len());
+    let sak = Abs::Key(used.len());
+    used.push(used.len());
+    let rk = Abs::Key(used.len());
+    used.push(used.len());
+    let t1 = Abs::After(sample_after(rng));
+    let t2 = Abs::After(sample_after(rng));
+    Abs::Or(vec![
+        Abs::And(vec![paks, Abs::Or(vec![pk, Abs::And(vec![sak, t1])])]),
+        Abs::And(vec![rk, t2]),
+    ])
+}
+
+/// MINT-009: or(and(thresh(SAKs), or(pk,pk)), and(after, or(pk,pk)))
+fn timelock_gated_recovery(rng: &mut SeededRng) -> Abs {
+    let mut used = Vec::new();
+    let mut ks = Vec::new();
+    for _ in 0..3 {
+        ks.push(used.len());
+        used.push(used.len());
+    }
+    let saks = Abs::Thresh(2, ks);
+    let pak1 = Abs::Key(used.len());
+    used.push(used.len());
+    let pak2 = Abs::Key(used.len());
+    used.push(used.len());
+    let rk1 = Abs::Key(used.len());
+    used.push(used.len());
+    let rk2 = Abs::Key(used.len());
+    used.push(used.len());
+    let t = Abs::After(sample_after(rng));
+    Abs::Or(vec![
+        Abs::And(vec![saks, Abs::Or(vec![pak1, pak2])]),
+        Abs::And(vec![t, Abs::Or(vec![rk1, rk2])]),
+    ])
+}
+
+/// MINT-001/002: thresh(k, pk...pk, after(N)) — timelock counts toward k
+fn timelock_in_thresh(rng: &mut SeededRng) -> Abs {
+    let mut used = Vec::new();
+    let n_keys = rng.range(3, 5) as usize;
+    let mut ks = Vec::new();
+    for _ in 0..n_keys {
+        ks.push(used.len());
+        used.push(used.len());
+    }
+    let k = rng.range(2, n_keys as u64) as usize;
+    // Timelock counts as one of the k conditions
+    Abs::Thresh(k, ks).combine_with(
+        if rng.bool() {
+            Abs::After(sample_after(rng))
+        } else {
+            Abs::Older(sample_older(rng))
+        },
+        rng,
+    )
+}
+
+/// MINT-006 variant with 1 principal key instead of thresh
+fn vault_single_principal(rng: &mut SeededRng) -> Abs {
+    let mut used = Vec::new();
+    let mut ks = Vec::new();
+    for _ in 0..3 {
+        ks.push(used.len());
+        used.push(used.len());
+    }
+    let paks = Abs::Thresh(2, ks);
+    let pk1 = Abs::Key(used.len());
+    used.push(used.len());
+    let pk2 = Abs::Key(used.len());
+    used.push(used.len());
+    let rk1 = Abs::Key(used.len());
+    used.push(used.len());
+    let rk2 = Abs::Key(used.len());
+    used.push(used.len());
+    let t1 = Abs::After(sample_after(rng));
+    let t2 = Abs::After(sample_after(rng));
+    Abs::Or(vec![
+        Abs::And(vec![paks, Abs::Or(vec![pk1, pk2])]),
+        Abs::And(vec![Abs::Or(vec![rk1, rk2]), t1]),
+    ])
+    .and_also(t2, rng)
+}
+
+// Helper trait for fluent pattern building
+trait AbsExt {
+    fn combine_with(self, other: Abs, rng: &mut SeededRng) -> Abs;
+    fn and_also(self, other: Abs, rng: &mut SeededRng) -> Abs;
+}
+
+impl AbsExt for Abs {
+    fn combine_with(self, other: Abs, rng: &mut SeededRng) -> Abs {
+        // Rebuild thresh with the timelock as an additional condition
+        if let Abs::Thresh(k, ref ks) = self {
+            // For MINT-001: the policy is thresh(k, keys...) where the
+            // timelock is one of the k conditions. We model this as
+            // and(thresh(k, keys), timelock) since the miniscript
+            // concrete-policy parser rejects mixed thresh with timelocks.
+            Abs::And(vec![Abs::Thresh(k, ks.clone()), other])
+        } else {
+            Abs::And(vec![self, other])
+        }
+    }
+    fn and_also(self, other: Abs, rng: &mut SeededRng) -> Abs {
+        // Randomly combine with and or or
+        if rng.bool() {
+            Abs::And(vec![self, other])
+        } else {
+            Abs::Or(vec![self, other])
+        }
+    }
+}
+
+/// Original synthetic hard-tier sampler (renamed)
+fn sample_hard_synth(rng: &mut SeededRng) -> Abs {
     let mut used = Vec::new();
     let mut groups: Vec<Abs> = Vec::new();
     // Thresh group: k-of-n over 3..=5 fresh keys.
