@@ -74,8 +74,6 @@ pub fn optimize_prompt(f: &OptimizeFixture, display: DisplayFormat) -> String {
          \n\
          {}\n\
          \n\
-         It can be spent when: {}\n\
-         \n\
          Keys:\n{}\n\
          \n\
          Write a semantically equivalent script with a lower input weight \
@@ -87,7 +85,6 @@ pub fn optimize_prompt(f: &OptimizeFixture, display: DisplayFormat) -> String {
         f.context.script_noun(),
         display.label(),
         display.render(&f.baseline_script_hex),
-        f.spec_en,
         key_block(&f.keys),
     )
 }
