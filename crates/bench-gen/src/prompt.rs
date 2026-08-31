@@ -61,13 +61,15 @@ pub fn write_prompt(f: &WriteFixture) -> String {
          Rules:\n\
          - Use exactly the keys listed above; do not invent keys.\n\
          - The script must be a valid, consensus-enforceable script.\n\
-         - Respond by calling the submit_answer tool with the script as a hex string or Bitcoin Core asm.",
+         - Respond by calling the submit_answer tool with the script as a \
+         hex string or Bitcoin Core asm. In asm, opcode names carry the \
+         OP_ prefix (OP_CHECKMULTISIG, not CHECKMULTISIG) and data pushes \
+         are raw hex.",
         f.context.script_noun(),
         key_block(&f.keys),
         f.spec_en,
     )
 }
-
 pub fn optimize_prompt(f: &OptimizeFixture, display: DisplayFormat) -> String {
     format!(
         "The following Bitcoin Script (a {}) is correct but deliberately unoptimized {}:\n\
@@ -127,6 +129,10 @@ mod tests {
 
     #[test]
     fn prompts_contain_essentials() {
+        // The recalibrated answer contract must stay in the prompts:
+        // models lost whole tiers to not knowing the miniscript gate
+        // or the OP_ prefix rule existed.
+
         let params = crate::fixtures::GenParams {
             seed: 3,
             write: 1,
@@ -139,10 +145,22 @@ mod tests {
                 Fixture::Write(_) => {
                     assert!(p.contains("submit_answer"));
                     assert!(p.contains("Alice's public key:"));
+                    assert!(
+                        !p.contains("Miniscript"),
+                        "the decode gate stays implicit by design"
+                    );
+                    assert!(
+                        p.contains("OP_ prefix"),
+                        "the asm notation rule must be stated"
+                    );
                 }
                 Fixture::Optimize(_) => {
                     assert!(p.contains("input weight"));
                     assert!(p.contains("OP_CHECKSIG"), "default display is asm");
+                    assert!(
+                        !p.contains("Miniscript"),
+                        "the decode gate stays implicit by design"
+                    );
                 }
                 Fixture::Identify(_) => assert!(p.contains("scriptPubKey")),
             }

@@ -42,8 +42,16 @@ segwit v0 (P2WSH witnessScript), taproot (the tapleaf script; key-path
 design is out of scope, prompt states the target). The model always
 writes the inner script.
 
-Tiers: easy ≤ 2 atoms, no timelocks; medium 3–6 atoms, one timelock or
-hash; hard 7–12 atoms, timelocks + hashes + `thresh`. Split 40/40/20.
+Tiers: easy ≤ 2 atoms, no timelocks; medium 2–6 atoms with a timelock
+or hash always present (the 2-atom band — two keys plus one non-key
+atom — is the deliberate calibration step above easy; synthetic
+two-level shapes plus the MINT-001/002 timelock-in-thresh structure at
+one draw in four); hard 7–12 atoms, timelocks + hashes + `thresh`,
+every shape census-verified shippable. Split 40/40/20. Write/optimize
+prompts state the asm notation rule (opcode names carry the OP_
+prefix). The Miniscript decode-gate requirement is deliberately NOT
+stated in prompts: producing a script that composes into valid
+Miniscript is part of what the benchmark measures.
 
 ### Task 2 — write a more optimized script
 
@@ -120,14 +128,36 @@ time: compiled references that the Legacy optimizer renders as `pk_h`
 and cannot lift), and policies mixing height and relative timelocks in
 a single spending path (the lifter rejects those by design).
 
+### Execution cross-check (dual oracle)
+
+After rust-miniscript's bitcoind integration tests, every reference
+and baseline is also proven *spendable* at fixture-build time: the
+semantic policy is searched for one satisfying assignment, the crate
+satisfier builds a concrete witness (dummy signatures; hash preimages
+and timelocks are real — hashes are sampled as image-of-known-preimage
+for this), and the crate interpreter executes the witness under the
+output's natural wrapping (P2SH scriptSig, P2WSH witness, P2TR
+script-path with a real commitment). The execution path shares no code
+with the truth-table walk, so each oracle cross-checks the other;
+`oracle::tests::agrees_with_mutual_entailment` additionally pins
+agreement with the crate's bounded entailment on both polarities.
+Fixtures carry the sampled preimages (`hash_preimages`) so the audit
+can re-run this check; they leak nothing the embedded answer key does
+not already contain.
+
 ## Task 2 (refinements from implementation)
 
-The naive baseline encodes: right-nested `and_v` chains of `v:` leaves;
-`or_d` folds with dissatisfiable children first; `t:or_i` nesting when
-no child is dissatisfiable; `thresh(k,…)` expanded into an or over
-k-subsets with no `multi`. It is parsed with `from_str_insane` (subset
-expansion repeats pubkeys, which sane parsing rejects) and verified
-equivalent by the oracle before shipping.
+The naive baseline is a *sampled* de-optimizer (after rust-miniscript's
+insane-fragment corpus, `bitcoind-tests/data/random_ms.txt`): each
+policy node is rendered through a randomly chosen type-valid encoding —
+`and_v(v:…)` chains vs `and_b(…, s:…)` altstack conjunctions vs
+`andor(…, 0)`; `or_d` vs `or_b` vs `t:or_i` vs `t:or_c` vs `andor(…,1,…)`;
+`thresh` as k-subset enumeration (or_d arms, t:or_i arms, andor folds)
+or a `thresh(k, pk, a:pk, …)` node with no `multi`. Candidates are
+validated by `from_str_insane` parsing before use; the fixture oracle
+remains the final arbiter. A single deterministic style (the original
+encoder, kept as the reference form) is learnable as a pattern; the
+sampled space presents the full variety of hand-written bloat.
 
 Optimize tasks sample policies containing an `or` or `thresh`, where
 the naive encoding is guaranteed non-optimal: plain 2-key `and_v`
@@ -139,15 +169,71 @@ Weights come from `Descriptor::max_weight_to_satisfy()` (the
 non-deprecated weight API; it supersedes `max_satisfaction_weight`)
 on `sh(ms)` / `wsh(ms)` / `tr(<dummy key>, leaf)` wrappers.
 
-Consensus-valid but non-standard miniscripts pass; a stricter
-standardness mode is a possible later option.
+### Hard-tier shapes and the shape census
+
+The four MINT vault structures (MINT-005..009: vault_full,
+vault_simplified, timelock_gated_recovery, vault_single_principal) and
+the original synthetic hard sampler were **removed**: a shape census
+(parse → compile → lift self-check → execution oracle, per context)
+showed all five died at the pk_h/RawPkH gate in every context — thresh
+groups under or-branches make the compiler emit `pk_h`, whose script
+bytes decode as `RawPkH` and cannot lift — so they never shipped a
+single fixture in any dataset and only burned retries. MINT-001/002
+(timelock_in_thresh, 3–5 atoms) survives and is classified as a
+medium-tier shape, matching its atom budget.
+
+The hard tier now samples four census-verified shapes, each held to
+the full 7..=12 atom budget (test-enforced): absolute timelocks hugging
+the height/time encoding boundary from below (499999996–499999999 —
+499999999 is the last height-encoded CLTV value; the BIP65 threshold
+500000000 is inclusive, so values ≥ it are UNIX timestamps and stay out
+of this shape), a custody-style recovery structure (instant path behind
+a relative timelock, committee path behind an absolute one; thresh only
+under and-branches), deep and-nesting over mixed atom kinds with one
+embedded key-or, and k-of-n at the subset-expansion cap (C(n,k) ≤ 12).
+The census runs as a permanent test: every dispatched shape must ship
+in ≥ 10/30 trials, so a future shape that cannot ship fails CI instead
+of silently skewing the distribution. Duplicate-key sampling was also
+removed — the sane compiler rejects repeated keys in every context, so
+every reused-key draw was dead rng burn.
+
+### Lint (insanity) reporting
+
+Every decoded write/optimize answer is analyzed with miniscript's own
+predicates (`requires_sig`, `is_non_malleable`, `within_resource_limits`,
+`has_repeated_keys`, `has_mixed_timelocks`, `contains_raw_pkh`). The
+findings are mechanical facts about the submitted script, so they
+appear in graded output (`lint` on each task score) and in multi-turn
+feedback, without affecting scores. `grade --standard-mode` opts into
+gating: answers with findings score 0 and the findings become the
+reason. Type-correct-but-insane answers (e.g. malleable rewrites) are
+equivalence-legal by design; the lint makes the distinction visible.
+
+## Dataset audit
+
+`btc-bench audit --dataset <dir>` re-derives every answer key from
+first principles (after rust-miniscript's differential
+`regression_compiler` fuzz methodology): stored scripts must decode,
+oracle-verify against themselves, and pass the execution oracle;
+policies must recompile (byte drift that stays oracle-equivalent is a
+warning, non-equivalence is a hard failure); stored weights must match
+freshly computed values; optimize baselines must stay equivalent and
+strictly heavier; manifest pins must match the declared dependency
+versions. Run it in CI whenever a dataset is committed or a dependency
+bumps. A golden grader test (`bench-core/tests/golden`) pins grading
+behavior — scores, reasons, and lint output — against committed
+fixtures and answers.
 
 ## Runner
 
-- Single-shot: model gets the prompt and must call the submit tool
-  exactly once. No auxiliary tools, no feedback loop. The tool loop is
-  turn-agnostic so a tool-assisted multi-turn mode is a config flag
-  later.
+- Default mode is multi-turn (attempts = 3): after a graded failure
+  the model receives mechanical feedback (parse errors and decode-gate
+  rejections verbatim, lint findings, the optimize weight/size gap;
+  never the reference, its keys, or the distinguishing assignment) and
+  may retry. Single-shot (attempts = 1) measures unaided fluency;
+  multi-turn measures feedback-driven recovery. The regression gate
+  runs single-shot for speed and noise. The tool loop is turn-agnostic
+  so a tool-assisted mode is a config flag later.
 - Sampling: temperature 0, n = 1, pass@1 by default; n, temperature,
   top-p configurable. Raw responses are always stored, so pass^k is
   computable post-hoc without re-running.

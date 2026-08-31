@@ -26,8 +26,8 @@ btc-bench gen --out datasets/my-set --seed 42 --write 300 --optimize 300 --ident
 # Run against a model (any OpenAI-compatible endpoint)
 btc-bench run --dataset datasets/my-set --config models.toml --model my-model --concurrency 8
 
-# Multi-turn with graded feedback between attempts
-btc-bench run --dataset datasets/my-set --config models.toml --model my-model --attempts 3
+# Multi-turn with graded feedback between attempts (default; --attempts 1 for single-shot)
+btc-bench run --dataset datasets/my-set --config models.toml --model my-model
 
 # Grade results
 btc-bench grade --dataset datasets/my-set --responses runs/my-run/responses.jsonl
@@ -35,6 +35,13 @@ btc-bench grade --dataset datasets/my-set --responses runs/my-run/responses.json
 # With multi-turn scoring and token efficiency
 btc-bench grade --dataset datasets/my-set --responses runs/my-run/responses.jsonl \
     --attempts runs/my-run/attempts.jsonl
+
+# Re-verify a committed dataset (answer keys, weights, spendability)
+btc-bench audit --dataset datasets/my-set
+
+# Gate insanity findings (malleable, unsafe, ...) instead of just reporting them
+btc-bench grade --dataset datasets/my-set --responses runs/my-run/responses.jsonl \
+    --out runs/my-run/graded --standard-mode
 ```
 
 ## Model configuration
@@ -64,6 +71,17 @@ The correctness oracle is structurally anti-cheat:
 - **Decode gate**: answers must parse as valid, type-checked Miniscript
   in the task's script context. An always-true script (`OP_1`) decodes
   fine but fails equivalence — it scores 0.
+- **Execution cross-check**: at fixture build (and audit) time the
+  reference and baseline are proven spendable end-to-end — a real
+  witness from the crate satisfier (known hash preimages, real
+  timelocks, assumed signatures), executed by the crate interpreter
+  under P2SH / P2WSH / P2TR wrapping. A second, independent oracle
+  that shares no code with the truth table.
+- **Insanity lint**: decoded answers are analyzed with miniscript's
+  own sanity predicates (malleability, signature-free paths, resource
+  limits, repeated keys). Findings are reported per task in results
+  and in multi-turn feedback; `grade --standard-mode` turns them into
+  a gate.
 - **Exhaustive truth-table equivalence**: every generated task has a
   closed atom set (keys, hash preimages, timelocks). Both scripts are
   evaluated over all assignments; any single-row divergence fails.
@@ -102,7 +120,7 @@ scripts/regression-gate.sh my-model          # gate against baseline
 scripts/regression-gate.sh my-model --update # refresh baseline
 ```
 
-Runs a fixed 26-task smoke set and diffs against a stored per-model
+Runs a fixed 60-task smoke set and diffs against a stored per-model
 baseline. Exits nonzero on regression.
 
 ## Stack
