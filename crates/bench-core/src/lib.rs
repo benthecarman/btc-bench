@@ -7,6 +7,7 @@
 //! See DESIGN.md for the completeness argument.
 
 pub mod answer;
+pub mod exec;
 pub mod grade;
 pub mod human_asm;
 pub mod oracle;
@@ -14,6 +15,7 @@ pub mod task;
 pub mod truth;
 
 pub use answer::{parse_script_answer, AnswerError};
+pub use exec::{execution_check, HashPreimages, PreimageMap};
 pub use grade::{
     grade_identify, grade_optimize, grade_write, weights_for, IdentifyResult, OptimizeResult,
     Weights, WriteResult,

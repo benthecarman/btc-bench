@@ -239,6 +239,50 @@ mod tests {
         assert!(!msg.contains("\\\""), "no escaped quotes: {msg}");
     }
 
+    /// Metamorphic cross-check: the truth-table oracle must agree with
+    /// miniscript's own bounded entailment (a third, independent
+    /// equivalence path) on both equivalent and inequivalent pairs.
+    #[test]
+    fn agrees_with_mutual_entailment() {
+        let (a, b, c) = (pk_hex(1), pk_hex(2), pk_hex(3));
+        let pairs = [
+            // Equivalent: same policy, different fragments.
+            (
+                format!("and_v(v:pk({a}),or_d(pk({b}),pk({c})))"),
+                format!("and_b(or_d(pk({b}),pk({c})),s:pk({a}))"),
+                true,
+            ),
+            (
+                format!("or_d(pk({a}),pk({b}))"),
+                format!("or_d(pk({b}),pk({a}))"),
+                true,
+            ),
+            (
+                format!("and_v(v:pk({a}),pk({b}))"),
+                format!("and_v(v:pk({a}),pk({c}))"),
+                false,
+            ),
+        ];
+        for (x, y, want) in pairs {
+            let mx = ms(&x);
+            let my = ms(&y);
+            let verdict = check_in_context::<Segwitv0>(&mx.encode(), &my.encode());
+            assert_eq!(verdict.is_equivalent(), want, "{x} vs {y}");
+            let sem_x = mx.lift().unwrap();
+            let sem_y = my.lift().unwrap();
+            let entailed = sem_x
+                .clone()
+                .entails(sem_y.clone())
+                .zip(sem_y.entails(sem_x))
+                .map(|(fwd, bwd)| fwd && bwd);
+            assert_eq!(
+                entailed,
+                Some(want),
+                "entailment disagrees with the truth table: {x} vs {y}"
+            );
+        }
+    }
+
     #[test]
     fn attacker_and_invalid_scripts() {
         let (a, b) = (pk_hex(1), pk_hex(2));
