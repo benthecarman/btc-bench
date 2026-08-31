@@ -8,10 +8,17 @@ tolerance = float(os.environ.get("GATE_TOLERANCE", "0.05"))
 
 text = open(summary_path).read()
 metrics = {}
-for m in re.finditer(r"\| ([a-z ()]+) \| ([0-9.]+) \| \d+ \|", text):
+# Row shape: | <task> | <mean> | <95% CI or blank> | <n> |
+# Match on name + leading mean only, so added columns never silently
+# empty the metric set again (an empty set makes the gate vacuous).
+for m in re.finditer(r"\| ([a-z ()]+) \| ([0-9.]+) \|", text):
     metrics[m.group(1).strip()] = float(m.group(2))
+if not metrics:
+    print(f"no metrics parsed from {summary_path}; summary format drift?")
+    sys.exit(1)
 
 if update or not os.path.exists(baseline_path):
+    os.makedirs(os.path.dirname(baseline_path) or ".", exist_ok=True)
     with open(baseline_path, "w") as f:
         json.dump(metrics, f, indent=1)
     print(f"baseline written: {baseline_path}")
