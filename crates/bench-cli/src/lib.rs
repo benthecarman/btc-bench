@@ -256,6 +256,7 @@ pub fn classify_failure(failure: &Option<String>, reason: &Option<String>) -> &'
             "parse error" => "answer parse error",
             "decode reject" => "decode-gate reject",
             "wrong semantics" => "wrong semantics",
+            "unimproved" => "unimproved (equivalent)",
             "gated" => "gated (standard mode)",
             _ => "other",
         };
@@ -281,7 +282,7 @@ pub fn is_wellformed(score: f64, failure: &Option<String>, reason: &Option<Strin
     score > 0.0
         || matches!(
             classify_failure(failure, reason),
-            "wrong semantics" | "gated (standard mode)"
+            "wrong semantics" | "unimproved (equivalent)" | "gated (standard mode)"
         )
 }
 
@@ -322,8 +323,13 @@ fn turn_factor(first_passing_attempt: Option<u32>, max_attempts: u32, base: f64)
 }
 
 /// Structural failure class for a script/descriptor answer, from the
-/// parse result and the oracle verdict.
-fn failure_class(parsed: bool, verdict: &bench_core::Verdict) -> Option<String> {
+/// parse result, the oracle verdict, and the curve score. "unimproved"
+/// is equivalent-but-zero-on-the-curve (optimize/tree): every gate and
+/// the semantics passed, only the improvement is missing — without the
+/// class, those answers vanished from the well-formed split (a run
+/// where 80% of optimize answers echoed the baseline reported 6/300
+/// well-formed instead of ~243/295).
+fn failure_class(parsed: bool, verdict: &bench_core::Verdict, score: f64) -> Option<String> {
     use bench_core::Verdict;
     if !parsed {
         return Some("parse error".into());
@@ -331,6 +337,7 @@ fn failure_class(parsed: bool, verdict: &bench_core::Verdict) -> Option<String> 
     match verdict {
         Verdict::InvalidScript(_) | Verdict::TooLarge => Some("decode reject".into()),
         Verdict::NotEquivalent => Some("wrong semantics".into()),
+        Verdict::Equivalent if score == 0.0 => Some("unimproved".into()),
         Verdict::Equivalent => None,
     }
 }
@@ -371,7 +378,11 @@ pub fn grade(
                         Some("gated".to_string()),
                     )
                 } else {
-                    (res.score, res.reason, failure_class(parsed, &res.verdict))
+                    (
+                        res.score,
+                        res.reason,
+                        failure_class(parsed, &res.verdict, res.score),
+                    )
                 };
                 TaskScore {
                     task_id: r.task_id.clone(),
@@ -399,7 +410,7 @@ pub fn grade(
                         res.weight_score,
                         res.size_score,
                         res.reason,
-                        failure_class(parsed, &res.verdict),
+                        failure_class(parsed, &res.verdict, res.weight_score),
                     )
                 };
                 TaskScore {
@@ -437,7 +448,7 @@ pub fn grade(
                     (
                         res.weight_score,
                         res.reason,
-                        failure_class(parsed, &res.verdict),
+                        failure_class(parsed, &res.verdict, res.weight_score),
                     )
                 };
                 TaskScore {
