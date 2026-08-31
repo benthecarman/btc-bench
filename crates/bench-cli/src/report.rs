@@ -24,6 +24,8 @@ struct GradedTask {
     reason: Option<String>,
     #[serde(default)]
     lint: Option<Vec<String>>,
+    #[serde(default)]
+    failure: Option<String>,
 }
 
 fn load_graded(run_dir: &Path) -> Result<Vec<GradedTask>> {
@@ -62,7 +64,7 @@ fn ctx_of(f: &Fixture) -> Option<ContextKind> {
     }
 }
 
-use crate::classify_reason as classify;
+use crate::classify_failure;
 
 fn atoms_of(f: &Fixture) -> Option<usize> {
     match f {
@@ -185,7 +187,7 @@ pub fn report(dataset: &Path, runs: &[(String, std::path::PathBuf)], out: &Path)
             }
             let e = cells.entry(k).or_insert((0, 0, 0.0));
             e.0 += 1;
-            if crate::is_wellformed(t.score, &t.reason) {
+            if crate::is_wellformed(t.score, &t.failure, &t.reason) {
                 e.1 += 1;
                 e.2 += t.score;
             }
@@ -314,7 +316,8 @@ pub fn report(dataset: &Path, runs: &[(String, std::path::PathBuf)], out: &Path)
         let mut tax: BTreeMap<&str, usize> = BTreeMap::new();
         for t in g {
             if t.score == 0.0 {
-                *tax.entry(classify(&t.reason)).or_insert(0) += 1;
+                *tax.entry(classify_failure(&t.failure, &t.reason))
+                    .or_insert(0) += 1;
             }
         }
         md.push_str(&format!(

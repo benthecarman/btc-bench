@@ -148,6 +148,12 @@ pub struct TaskScore {
     /// (informational; zeroed scores only under --standard-mode).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub lint: Option<Vec<String>>,
+    /// Structural failure class ("parse error" | "decode reject" |
+    /// "wrong semantics" | "gated"). Set from the grader's verdict,
+    /// not by string-matching the reason — reasons carry real library
+    /// text and are not a stable classification surface.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub failure: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -238,10 +244,22 @@ pub struct ToolUse {
     pub unsolved_n: usize,
 }
 
-/// Failure taxonomy for a graded task, from the grader's reason
-/// string. Used by the summary (format vs reasoning split) and the
-/// sweep report (zero-score taxonomy).
-pub fn classify_reason(reason: &Option<String>) -> &'static str {
+/// Failure taxonomy for a graded task. The structural `failure` field
+/// decides when present; the reason-string heuristics only cover
+/// results graded before the field existed (reasons carry verbatim
+/// library text now, which is not a stable classification surface —
+/// the old substring matching miscounted optimize/tree decode-gate
+/// rejects as parse errors).
+pub fn classify_failure(failure: &Option<String>, reason: &Option<String>) -> &'static str {
+    if let Some(f) = failure {
+        return match f.as_str() {
+            "parse error" => "answer parse error",
+            "decode reject" => "decode-gate reject",
+            "wrong semantics" => "wrong semantics",
+            "gated" => "gated (standard mode)",
+            _ => "other",
+        };
+    }
     let Some(r) = reason else {
         return "other";
     };
@@ -256,12 +274,13 @@ pub fn classify_reason(reason: &Option<String>) -> &'static str {
     }
 }
 
-/// A write/optimize answer is well-formed when it cleared the parse
-/// and decode gates: it either scored, or failed on semantics only.
-pub fn is_wellformed(score: f64, reason: &Option<String>) -> bool {
+/// A write/optimize/tree answer is well-formed when it cleared the
+/// parse and decode gates: it either scored, or failed on semantics
+/// only.
+pub fn is_wellformed(score: f64, failure: &Option<String>, reason: &Option<String>) -> bool {
     score > 0.0
         || matches!(
-            classify_reason(reason),
+            classify_failure(failure, reason),
             "wrong semantics" | "gated (standard mode)"
         )
 }
@@ -302,6 +321,20 @@ fn turn_factor(first_passing_attempt: Option<u32>, max_attempts: u32, base: f64)
     }
 }
 
+/// Structural failure class for a script/descriptor answer, from the
+/// parse result and the oracle verdict.
+fn failure_class(parsed: bool, verdict: &bench_core::Verdict) -> Option<String> {
+    use bench_core::Verdict;
+    if !parsed {
+        return Some("parse error".into());
+    }
+    match verdict {
+        Verdict::InvalidScript(_) | Verdict::TooLarge => Some("decode reject".into()),
+        Verdict::NotEquivalent => Some("wrong semantics".into()),
+        Verdict::Equivalent => None,
+    }
+}
+
 /// Grade responses against fixtures. Unknown task IDs and unanswered
 /// fixtures count as missing (score 0 in the means' denominators).
 pub fn grade(
@@ -329,12 +362,17 @@ pub fn grade(
         let ts = match (f, &r.answer) {
             (Fixture::Write(w), TaskAnswer::Script(a)) => {
                 let res = grade_write(w, &a.script);
+                let parsed = bench_core::answer::parse_script_answer(&a.script).is_ok();
                 let lint = (!res.lint.is_empty()).then(|| res.lint.clone());
-                let (score, reason) = if standard && !res.lint.is_empty() {
+                let (score, reason, failure) = if standard && !res.lint.is_empty() {
                     gated.insert(r.task_id.clone());
-                    (0.0, Some(format!("standard mode: {}", res.lint.join("; "))))
+                    (
+                        0.0,
+                        Some(format!("standard mode: {}", res.lint.join("; "))),
+                        Some("gated".to_string()),
+                    )
                 } else {
-                    (res.score, res.reason)
+                    (res.score, res.reason, failure_class(parsed, &res.verdict))
                 };
                 TaskScore {
                     task_id: r.task_id.clone(),
@@ -342,20 +380,28 @@ pub fn grade(
                     size_score: None,
                     reason,
                     lint,
+                    failure,
                 }
             }
             (Fixture::Optimize(o), TaskAnswer::Script(a)) => {
                 let res = grade_optimize(o, &a.script);
+                let parsed = bench_core::answer::parse_script_answer(&a.script).is_ok();
                 let lint = (!res.lint.is_empty()).then(|| res.lint.clone());
-                let (weight, size, reason) = if standard && !res.lint.is_empty() {
+                let (weight, size, reason, failure) = if standard && !res.lint.is_empty() {
                     gated.insert(r.task_id.clone());
                     (
                         0.0,
                         0.0,
                         Some(format!("standard mode: {}", res.lint.join("; "))),
+                        Some("gated".to_string()),
                     )
                 } else {
-                    (res.weight_score, res.size_score, res.reason)
+                    (
+                        res.weight_score,
+                        res.size_score,
+                        res.reason,
+                        failure_class(parsed, &res.verdict),
+                    )
                 };
                 TaskScore {
                     task_id: r.task_id.clone(),
@@ -363,6 +409,7 @@ pub fn grade(
                     size_score: Some(size),
                     reason,
                     lint,
+                    failure,
                 }
             }
             (Fixture::Identify(i), TaskAnswer::Identify(a)) => {
@@ -373,16 +420,26 @@ pub fn grade(
                     size_score: None,
                     reason: None,
                     lint: None,
+                    failure: None,
                 }
             }
             (Fixture::Tree(t), TaskAnswer::Descriptor(a)) => {
                 let res = bench_core::grade_tree(t, &a.descriptor);
+                let parsed = bench_core::parse_tr_answer(&a.descriptor).is_ok();
                 let lint = (!res.lint.is_empty()).then(|| res.lint.clone());
-                let (score, reason) = if standard && !res.lint.is_empty() {
+                let (score, reason, failure) = if standard && !res.lint.is_empty() {
                     gated.insert(r.task_id.clone());
-                    (0.0, Some(format!("standard mode: {}", res.lint.join("; "))))
+                    (
+                        0.0,
+                        Some(format!("standard mode: {}", res.lint.join("; "))),
+                        Some("gated".to_string()),
+                    )
                 } else {
-                    (res.weight_score, res.reason)
+                    (
+                        res.weight_score,
+                        res.reason,
+                        failure_class(parsed, &res.verdict),
+                    )
                 };
                 TaskScore {
                     task_id: r.task_id.clone(),
@@ -390,6 +447,7 @@ pub fn grade(
                     size_score: None,
                     reason,
                     lint,
+                    failure,
                 }
             }
             (f, a) => bail!(
@@ -445,7 +503,7 @@ pub fn grade(
                 w_sum += ts.score;
                 w_n += 1;
                 w_scores.push(ts.score);
-                if is_wellformed(ts.score, &ts.reason) {
+                if is_wellformed(ts.score, &ts.failure, &ts.reason) {
                     w_wf_sum += ts.score;
                     w_wf_n += 1;
                 }
@@ -455,7 +513,7 @@ pub fn grade(
                 o_s_sum += ts.size_score.unwrap_or(0.0);
                 o_n += 1;
                 o_scores.push(ts.score);
-                if is_wellformed(ts.score, &ts.reason) {
+                if is_wellformed(ts.score, &ts.failure, &ts.reason) {
                     o_wf_sum += ts.score;
                     o_wf_n += 1;
                 }
@@ -469,7 +527,7 @@ pub fn grade(
                 t_sum += ts.score;
                 t_n += 1;
                 t_scores.push(ts.score);
-                if is_wellformed(ts.score, &ts.reason) {
+                if is_wellformed(ts.score, &ts.failure, &ts.reason) {
                     t_wf_sum += ts.score;
                     t_wf_n += 1;
                 }

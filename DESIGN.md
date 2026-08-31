@@ -272,7 +272,18 @@ predicates (`requires_sig`, `is_non_malleable`, `within_resource_limits`,
 `has_repeated_keys`, `has_mixed_timelocks`, `contains_raw_pkh`). The
 findings are mechanical facts about the submitted script, so they
 appear in graded output (`lint` on each task score) and in multi-turn
-feedback, without affecting scores. `grade --standard-mode` opts into
+feedback, without affecting scores. Finding texts are rust-miniscript's
+own `AnalysisError` Display strings, verbatim (typos included): the
+feedback a model trains against here is the same text real tooling
+prints, so the learned repair loop transfers out of the bench. The
+same principle holds across diagnostics — decode errors and compiler
+errors pass through untouched; bench-invented prose exists only where
+the ecosystem has no text to borrow (the answer parser, the
+equivalence verdict). Task scores also carry a structural `failure`
+class ("parse error" / "decode reject" / "wrong semantics" / "gated")
+set from the verdict, so the report taxonomy never string-matches
+library error text (the old substring matching miscounted
+optimize/tree decode rejects as parse errors). `grade --standard-mode` opts into
 gating: answers with findings score 0 and the findings become the
 reason. Type-correct-but-insane answers (e.g. malleable rewrites) are
 equivalence-legal by design; the lint makes the distinction visible.

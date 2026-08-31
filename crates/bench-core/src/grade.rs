@@ -84,24 +84,29 @@ pub fn lint_report(kind: ContextKind, script: &ScriptBuf) -> Vec<&'static str> {
         let Ok(ms) = Miniscript::<Ctx::Key, Ctx>::decode_consensus(script.as_script()) else {
             return Vec::new();
         };
+        // Finding texts are rust-miniscript's own AnalysisError
+        // Display strings, verbatim (typos included): a model trained
+        // against this feedback meets the same words in real work.
         let mut out = Vec::new();
         if !ms.requires_sig() {
-            out.push("unsafe: a spend path requires no signature");
+            out.push("All spend paths must require a signature");
         }
         if !ms.is_non_malleable() {
-            out.push("malleable");
+            out.push("Miniscript is malleable");
         }
         if !ms.within_resource_limits() {
-            out.push("a spend path exceeds consensus resource limits");
+            out.push(
+                "At least one spend path exceeds the resource limits(stack depth/satisfaction size..)",
+            );
         }
         if ms.has_repeated_keys() {
-            out.push("repeated public keys");
+            out.push("Miniscript contains repeated pubkeys or pubkeyhashes");
         }
         if ms.has_mixed_timelocks() {
-            out.push("unspendable path: mixes height-based and time-based timelocks");
+            out.push("Contains a combination of heightlock and timelock");
         }
         if ms.contains_raw_pkh() {
-            out.push("raw pkh fragment without a corresponding key");
+            out.push("Miniscript contains raw pkh");
         }
         out
     }
@@ -146,7 +151,7 @@ pub fn grade_write(fixture: &WriteFixture, answer: &str) -> WriteResult {
         .collect();
     WriteResult {
         reason: if score == 0.0 {
-            Some(format!("{verdict:?}"))
+            Some(verdict.to_string())
         } else {
             None
         },
@@ -473,15 +478,17 @@ mod tests {
         let script = ScriptBuf::from_hex(&malleable).unwrap();
         let lints = lint_report(ContextKind::SegwitV0, &script);
         assert!(
-            lints.iter().any(|l| l.contains("malleable")),
-            "expected malleable finding, got {lints:?}"
+            lints.iter().any(|l| *l == "Miniscript is malleable"),
+            "expected miniscript's own malleability text, got {lints:?}"
         );
         // Unsafe: OP_1 decodes as Trivial, spends with no signature.
         let script = ScriptBuf::from_hex("51").unwrap();
         let lints = lint_report(ContextKind::SegwitV0, &script);
         assert!(
-            lints.iter().any(|l| l.contains("no signature")),
-            "expected unsafe finding, got {lints:?}"
+            lints
+                .iter()
+                .any(|l| *l == "All spend paths must require a signature"),
+            "expected miniscript's own sigless text, got {lints:?}"
         );
         // Undecodable garbage carries no lint (the gate reports it).
         let script = ScriptBuf::from_hex("6a").unwrap();

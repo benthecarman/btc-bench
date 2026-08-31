@@ -290,7 +290,10 @@ mod tests {
         // OP_1: decodes, lints unsafe, weighs.
         let c = check_script(ContextKind::SegwitV0, "51");
         assert!(c.decoded);
-        assert!(c.lint.iter().any(|l| l.contains("no signature")));
+        assert!(c
+            .lint
+            .iter()
+            .any(|l| l.contains("All spend paths must require a signature")));
         assert!(c.weight.is_some());
         // A sane two-key script: clean report with all facts.
         let ms = miniscript::Miniscript::<bitcoin::PublicKey, Segwitv0>::from_str(&format!(
