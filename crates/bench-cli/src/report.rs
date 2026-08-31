@@ -57,22 +57,7 @@ fn ctx_of(f: &Fixture) -> Option<ContextKind> {
     }
 }
 
-/// Failure taxonomy for a zero (or gated) score, from the grader's
-/// reason string.
-fn classify(reason: &Option<String>) -> &'static str {
-    let Some(r) = reason else {
-        return "other";
-    };
-    if r.starts_with("standard mode") {
-        "gated (standard mode)"
-    } else if r.contains("NotEquivalent") || r.contains("semantically equivalent") {
-        "wrong semantics"
-    } else if r.contains("InvalidScript") {
-        "decode-gate reject"
-    } else {
-        "answer parse error"
-    }
-}
+use crate::classify_reason as classify;
 
 /// The lint rate among perfect answers: equivalent-but-insane scripts.
 /// These score 1.0 by default and 0.0 under --standard-mode.
@@ -89,7 +74,8 @@ pub fn report(dataset: &Path, runs: &[(String, std::path::PathBuf)], out: &Path)
     let mut md = String::new();
     md.push_str("# Sweep report\n\n");
 
-    // Headline table.
+    // Headline table. Means are over answered tasks; the 95% CI is a
+    // percentile bootstrap over the same per-task scores.
     md.push_str("| model | write | optimize (w) | optimize (s) | identify | unanswered | linted-perfect |\n");
     md.push_str("|---|---|---|---|---|---|---|\n");
     let mut loaded: Vec<(String, Vec<GradedTask>)> = Vec::new();
@@ -98,7 +84,7 @@ pub fn report(dataset: &Path, runs: &[(String, std::path::PathBuf)], out: &Path)
         loaded.push((label.clone(), g));
     }
     for (label, g) in &loaded {
-        let mut acc: BTreeMap<&str, (f64, usize)> = BTreeMap::new();
+        let mut vecs: BTreeMap<&str, Vec<f64>> = BTreeMap::new();
         let mut answered = 0usize;
         let mut linted = 0usize;
         let mut perfect = 0usize;
@@ -116,31 +102,35 @@ pub fn report(dataset: &Path, runs: &[(String, std::path::PathBuf)], out: &Path)
             let k = kind_of(f);
             // Optimize: track weight and size separately.
             if k == "optimize" {
-                let e = acc.entry("optimize_w").or_insert((0.0, 0));
-                e.0 += t.score;
-                e.1 += 1;
-                let e = acc.entry("optimize_s").or_insert((0.0, 0));
-                e.0 += t.size_score.unwrap_or(0.0);
-                e.1 += 1;
+                vecs.entry("optimize_w").or_default().push(t.score);
+                vecs.entry("optimize_s")
+                    .or_default()
+                    .push(t.size_score.unwrap_or(0.0));
             } else {
-                let e = acc.entry(k).or_insert((0.0, 0));
-                e.0 += t.score;
-                e.1 += 1;
+                vecs.entry(k).or_default().push(t.score);
             }
         }
         let unanswered = fixtures.len().saturating_sub(answered);
-        let pct = |k: &str| {
-            acc.get(k)
-                .map(|(s, n)| if *n == 0 { f64::NAN } else { s / *n as f64 })
+        let mean = |k: &str| {
+            vecs.get(k)
+                .filter(|v| !v.is_empty())
+                .map(|v| v.iter().sum::<f64>() / v.len() as f64)
                 .unwrap_or(f64::NAN)
         };
+        let cell = |k: &str, seed: u64| {
+            let m = mean(k);
+            match vecs.get(k).and_then(|v| crate::bootstrap_ci(v, 1000, seed)) {
+                Some((lo, hi)) => format!("{m:.3} [{lo:.3}, {hi:.3}]"),
+                None => format!("{m:.3}"),
+            }
+        };
         md.push_str(&format!(
-            "| {} | {:.3} | {:.3} | {:.3} | {:.3} | {} | {}/{} |\n",
+            "| {} | {} | {} | {:.3} | {} | {} | {}/{} |\n",
             label,
-            pct("write"),
-            pct("optimize_w"),
-            pct("optimize_s"),
-            pct("identify"),
+            cell("write", 1),
+            cell("optimize_w", 2),
+            mean("optimize_s"),
+            cell("identify", 3),
             unanswered,
             linted,
             perfect,
@@ -151,6 +141,41 @@ pub fn report(dataset: &Path, runs: &[(String, std::path::PathBuf)], out: &Path)
         "linted-perfect = score 1.0 with insanity findings (malleable etc.); \
                  the fraction a --standard-mode gate would zero.\n\n",
     );
+
+    // Format vs reasoning: an answer is well-formed when it cleared the
+    // parse and decode gates; its failure, if any, is semantic. The
+    // sem column is the mean score among well-formed answers.
+    md.push_str("## Well-formed vs semantic (write/optimize)\n\n");
+    md.push_str(
+        "| model | write wf | write sem | optimize wf | optimize sem |\n|---|---|---|---|---|\n",
+    );
+    for (label, g) in &loaded {
+        let mut cells: BTreeMap<&str, (usize, usize, f64)> = BTreeMap::new();
+        for t in g {
+            let Some(f) = by_id.get(t.task_id.as_str()) else {
+                continue;
+            };
+            let k = kind_of(f);
+            if k == "identify" {
+                continue;
+            }
+            let e = cells.entry(k).or_insert((0, 0, 0.0));
+            e.0 += 1;
+            if crate::is_wellformed(t.score, &t.reason) {
+                e.1 += 1;
+                e.2 += t.score;
+            }
+        }
+        let render = |k: &str| {
+            let (n, wf, sum) = cells.get(k).copied().unwrap_or((0, 0, 0.0));
+            let sem = if wf == 0 { f64::NAN } else { sum / wf as f64 };
+            (format!("{wf}/{n}"), format!("{sem:.3}"))
+        };
+        let (wwf, wsem) = render("write");
+        let (owf, osem) = render("optimize");
+        md.push_str(&format!("| {label} | {wwf} | {wsem} | {owf} | {osem} |\n"));
+    }
+    md.push('\n');
 
     // Tier x kind breakdown per model.
     md.push_str("## Tier breakdown (mean score)\n\n");
