@@ -114,16 +114,16 @@ Miniscript is part of what the benchmark measures.
    standard/protocol overall).
 3. No near-miss distractors, no `unknown` class (decision: do not
    punish models for knowing the templates).
-4. Answer = single flat label + parameters extracted mechanically from
-   the script (`k`, `n`, `delay`, `timeout`, `hash_type`, anchors
-   flag). Per-parameter credit: a wrong label = 0; a correct label =
-   `partial_credit + (1 − partial_credit) × param_fraction`, where
-   `param_fraction` is correct params over claimed-plus-expected
-   params (Jaccard-style, so invented params dilute — spamming keys
-   never pays). Exact params still = 1.0; `partial_credit` defaults
-   to 0.5. Denser than the old all-or-nothing params bonus, which
-   scored one-wrong-param the same as no params at all — and a denser
-   RLVR signal. No LLM judge anywhere.
+4. Answer = the single flat family label; grading is binary. Fixtures
+   still carry mechanically extracted parameters (`k`, `n`, `delay`,
+   `timeout`, ...) as metadata, but they are never graded: parameter
+   NAMES were a naming-convention tax (a model that reads 980 off the
+   CSV and identifies ln_to_local but says "delay" instead of
+   "to_self_delay" understood the script; docking it measures
+   vocabulary recall, not comprehension). A per-parameter credit
+   scheme was briefly reintroduced on top of leftover machinery and
+   then removed for the same reason — identify is label-only,
+   deliberately. No LLM judge anywhere.
 
 ### Task 4 — design a taproot tree
 
@@ -356,7 +356,7 @@ fixtures and answers.
   with `provider`, `model`, optional `base_url`, `api_key_env`,
   `temperature` (default 0.0); generation length is never capped. Tools are
   `rmcp::model::Tool` values: `submit_script{script}` for write/optimize
-  tasks and `submit_identify{label, params}` for identify tasks, one
+  tasks and `submit_identify{label}` for identify tasks, one
   presented per task. Runs are sequential. A task whose response carries
   no tool call (or errors) goes to `failures.jsonl` with the raw text;
   it counts as unanswered at grading time.

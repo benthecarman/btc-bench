@@ -168,7 +168,7 @@ enum Command {
     },
     /// Export SFT pairs: one JSONL line per task with the exact
     /// runner prompt and the reference answer (hex + asm for scripts,
-    /// label + params for identify). Format completions to taste.
+    /// the family label for identify). Format completions to taste.
     SftExport {
         #[arg(long)]
         dataset: PathBuf,
@@ -195,9 +195,6 @@ enum Command {
         /// Output directory for results.json and summary.md.
         #[arg(long)]
         out: PathBuf,
-        /// Score for a correct label with wrong params on identify tasks.
-        #[arg(long, default_value_t = 0.5)]
-        partial_credit: f64,
         /// attempts.jsonl from a multi-turn run; enables turn-discounted
         /// scoring and the first-try/solved breakdown.
         #[arg(long)]
@@ -533,7 +530,7 @@ fn main() -> Result<()> {
                     }),
                     bench_core::task::Fixture::Identify(i) => serde_json::json!({
                         "task_id": i.id, "kind": "identify", "prompt": prompt,
-                        "target_label": i.family, "target_params": i.params,
+                        "target_label": i.family,
                     }),
                     bench_core::task::Fixture::Tree(t) => serde_json::json!({
                         "task_id": t.id, "kind": "tree", "prompt": prompt,
@@ -575,7 +572,6 @@ fn main() -> Result<()> {
             dataset,
             responses,
             out,
-            partial_credit,
             attempts,
             mt_base,
             standard_mode,
@@ -589,7 +585,6 @@ fn main() -> Result<()> {
             let (scores, summary) = grade(
                 &fixtures,
                 &records,
-                partial_credit,
                 attempts_map.as_ref(),
                 mt_base,
                 standard_mode,

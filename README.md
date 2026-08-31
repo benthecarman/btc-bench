@@ -10,7 +10,7 @@ mechanically, no LLM judge anywhere.
 |------|-------------------|--------|
 | **Write** | Compose a script from an English spending policy | Decode-gated as Miniscript, then proven semantically equivalent by exhaustive truth-table evaluation over the task's closed atom set |
 | **Optimize** | Shrink a deliberately naive baseline script | Equivalence-gated, scored by weight improvement toward the compiler optimum |
-| **Identify** | Label a scriptPubKey (plus redeem/witness script) with its protocol family and parameters | Exact label match + per-parameter credit (each correct parameter earns a share; invented parameters dilute it) |
+| **Identify** | Label a scriptPubKey (plus redeem/witness script) with its protocol family | Label-only, binary: right family or wrong family (parameter naming is a vocabulary tax, not comprehension) |
 | **Tree** | Design a full Taproot output — internal key + script tree — as a `tr()` descriptor | Lifted-semantics equivalence (unspendable key pinned false), then scored on worst-case weight between a single-leaf baseline and a balanced reference tree |
 
 Three script contexts: legacy (P2SH redeemScript), segwit v0 (P2WSH
@@ -218,7 +218,7 @@ btc-bench sft-export --dataset datasets/train
 
 Writes one JSONL line per task: the exact runner prompt plus the
 reference answer (`target_hex` + `target_asm` for write/optimize,
-`target_label` + `target_params` for identify). Pair with
+`target_label` for identify). Pair with
 `--verbal-families 1,2 --vary-structure --exclude <eval-set>` at gen
 time for cold-start SFT data that never touches the eval surface.
 

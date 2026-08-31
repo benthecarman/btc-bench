@@ -340,7 +340,6 @@ fn failure_class(parsed: bool, verdict: &bench_core::Verdict) -> Option<String> 
 pub fn grade(
     fixtures: &[Fixture],
     responses: &[ResponseRecord],
-    partial_credit: f64,
     attempts: Option<&std::collections::BTreeMap<String, (Option<u32>, u32)>>,
     mt_base: f64,
     standard: bool,
@@ -413,7 +412,7 @@ pub fn grade(
                 }
             }
             (Fixture::Identify(i), TaskAnswer::Identify(a)) => {
-                let res = grade_identify(i, a, partial_credit);
+                let res = grade_identify(i, a);
                 TaskScore {
                     task_id: r.task_id.clone(),
                     score: res.score,
@@ -841,7 +840,6 @@ mod tests {
                     task_id: i.id.clone(),
                     answer: TaskAnswer::Identify(IdentifyAnswer {
                         label: i.family.clone(),
-                        params: i.params.clone(),
                     }),
                     raw: None,
                     finish_reason: None,
@@ -860,7 +858,7 @@ mod tests {
                 }),
             }
         }
-        let (scores, summary) = grade(&fixtures, &responses, 0.5, None, 0.5, false).unwrap();
+        let (scores, summary) = grade(&fixtures, &responses, None, 0.5, false).unwrap();
         assert!((summary.write_mean - 1.0).abs() < 1e-9, "{summary:?}");
         assert!((summary.identify_mean - 1.0).abs() < 1e-9, "{summary:?}");
         assert!(
@@ -884,7 +882,6 @@ mod tests {
                 }),
                 TaskAnswer::Identify(_) => TaskAnswer::Identify(IdentifyAnswer {
                     label: "nope".into(),
-                    params: BTreeMap::new(),
                 }),
                 TaskAnswer::Descriptor(_) => {
                     TaskAnswer::Descriptor(bench_core::task::DescriptorAnswer {
@@ -894,14 +891,14 @@ mod tests {
             };
             garbage.push(g);
         }
-        let (_, zero) = grade(&fixtures, &garbage, 0.5, None, 0.5, false).unwrap();
+        let (_, zero) = grade(&fixtures, &garbage, None, 0.5, false).unwrap();
         assert!(zero.write_mean == 0.0);
         assert!(zero.identify_mean == 0.0);
         assert!(zero.optimize_weight_mean == 0.0);
         assert!(zero.tree_mean == 0.0);
 
         // Missing answers counted.
-        let (_, partial) = grade(&fixtures, &responses[..3], 0.5, None, 0.5, false).unwrap();
+        let (_, partial) = grade(&fixtures, &responses[..3], None, 0.5, false).unwrap();
         assert_eq!(partial.missing, fixtures.len() - 3);
 
         // CIs exist and bracket the mean; the perfect run's write CI

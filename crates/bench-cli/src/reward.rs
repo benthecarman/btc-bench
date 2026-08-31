@@ -139,8 +139,6 @@ struct RewardRequest {
     task: Fixture,
     answer: serde_json::Value,
     #[serde(default)]
-    partial_credit: Option<f64>,
-    #[serde(default)]
     shaping: Option<Shaping>,
 }
 
@@ -234,7 +232,6 @@ fn shape_script(graded: f64, c: &Components, s: &Shaping) -> f64 {
 
 fn grade_one(req: RewardRequest, default_shaping: &Shaping) -> Result<RewardResponse> {
     let answer = answer_from_value(req.answer)?;
-    let partial = req.partial_credit.unwrap_or(0.5);
     let shaping = match req.shaping {
         Some(s) => {
             s.validate()?;
@@ -313,8 +310,8 @@ fn grade_one(req: RewardRequest, default_shaping: &Shaping) -> Result<RewardResp
             })
         }
         (Fixture::Identify(i), TaskAnswer::Identify(a)) => {
-            // Identify is already dense (per-param credit): no shaping.
-            let r = grade_identify(i, a, partial);
+            // Identify is label-only and binary: nothing to shape.
+            let r = grade_identify(i, a);
             Ok(RewardResponse {
                 task_id: i.id.clone(),
                 score: r.score,
@@ -487,7 +484,6 @@ mod tests {
             RewardRequest {
                 task: Fixture::Write(write_fixture()),
                 answer: serde_json::Value::String(answer.into()),
-                partial_credit: None,
                 shaping: Some(shaping),
             },
             &Shaping::default(),

@@ -61,7 +61,7 @@ pub fn write_prompt(f: &WriteFixture) -> String {
          Rules:\n\
          - Use exactly the keys listed above; do not invent keys.\n\
          - The script must be a valid, consensus-enforceable script.\n\
-         - Respond by calling the submit_answer tool with the script as a \
+         - Respond by calling the submit_script tool with the script as a \
          hex string or Bitcoin Core asm. In asm, opcode names carry the \
          OP_ prefix (OP_CHECKMULTISIG, not CHECKMULTISIG) and data pushes \
          are raw hex, except that a timelock value written directly \
@@ -74,7 +74,7 @@ pub fn write_prompt(f: &WriteFixture) -> String {
 }
 pub fn optimize_prompt(f: &OptimizeFixture, display: DisplayFormat) -> String {
     format!(
-        "The following Bitcoin Script (a {}) is correct but deliberately unoptimized {}:\n\
+        "The following Bitcoin Script (a {}) is correct but unoptimized {}:\n\
          \n\
          {}\n\
          \n\
@@ -83,7 +83,12 @@ pub fn optimize_prompt(f: &OptimizeFixture, display: DisplayFormat) -> String {
          Script byte size is a secondary metric. The spending semantics must \
          not change.\n\
          \n\
-         Respond by calling the submit_answer tool with the script as a hex string or Bitcoin Core asm.",
+         Respond by calling the submit_script tool with the script as a \
+         hex string or Bitcoin Core asm. In asm, opcode names carry the \
+         OP_ prefix (OP_CHECKMULTISIG, not CHECKMULTISIG) and data pushes \
+         are raw hex, except that a timelock value written directly \
+         before OP_CHECKLOCKTIMEVERIFY or OP_CHECKSEQUENCEVERIFY is \
+         decimal (e.g. 744813 OP_CHECKLOCKTIMEVERIFY).",
         f.context.script_noun(),
         display.label(),
         display.render(&f.baseline_script_hex),
@@ -108,7 +113,7 @@ pub fn tree_prompt(f: &bench_core::task::TreeFixture) -> String {
          the rest into tapleaves.\n\
          - Correctness is the gate; among correct designs, a lower \
          worst-case input weight (script plus witness) scores higher.\n\
-         - Respond by calling the submit_answer tool with a descriptor \
+         - Respond by calling the submit_descriptor tool with a descriptor \
          of the form tr(INTERNAL_KEY,TREE), where TREE nests tapleaf \
          scripts in Miniscript notation with braces, e.g. \
          tr(KEY,{{pk(A),{{and_v(v:pk(B),older(144)),pk(C)}}}}).",
@@ -125,14 +130,16 @@ pub fn identify_prompt(f: &bench_core::task::IdentifyFixture, display: DisplayFo
             display.label(),
             display.render(h)
         ),
-        None => String::new(),
+        // A lone newline keeps the blank line before the call
+        // instruction when there is no inner script.
+        None => "\n".to_string(),
     };
     format!(
         "Identify the following Bitcoin output.\n\
          \n\
          scriptPubKey {}: {}{}\
          \n\
-         Call submit_answer with:\n\
+         Call the submit_identify tool with:\n\
          - label: one of {}",
         display.label(),
         display.render(&f.spk_hex),
@@ -176,7 +183,7 @@ mod tests {
             let p = for_fixture(&f);
             match &f {
                 Fixture::Write(_) => {
-                    assert!(p.contains("submit_answer"));
+                    assert!(p.contains("submit_script"), "prompt names the real tool");
                     assert!(p.contains("Alice's public key:"));
                     assert!(
                         !p.contains("Miniscript"),
@@ -190,14 +197,30 @@ mod tests {
                 Fixture::Optimize(_) => {
                     assert!(p.contains("input weight"));
                     assert!(p.contains("OP_CHECKSIG"), "default display is asm");
+                    assert!(p.contains("submit_script"), "prompt names the real tool");
+                    assert!(
+                        p.contains("OP_ prefix"),
+                        "optimize states the same notation rule as write"
+                    );
+                    assert!(
+                        !p.contains("deliberately"),
+                        "no constructed-artifact framing"
+                    );
                     assert!(
                         !p.contains("Miniscript"),
                         "the decode gate stays implicit by design"
                     );
                 }
-                Fixture::Identify(_) => assert!(p.contains("scriptPubKey")),
+                Fixture::Identify(_) => {
+                    assert!(p.contains("scriptPubKey"));
+                    assert!(p.contains("submit_identify"), "prompt names the real tool");
+                    assert!(!p.contains("params"), "identify is label-only");
+                }
                 Fixture::Tree(_) => {
-                    assert!(p.contains("submit_answer"));
+                    assert!(
+                        p.contains("submit_descriptor"),
+                        "prompt names the real tool"
+                    );
                     assert!(p.contains("tr(INTERNAL_KEY,TREE)"));
                     assert!(p.contains("Unspendable internal key"));
                 }

@@ -205,12 +205,12 @@ pub struct ScriptAnswer {
     pub script: String,
 }
 
-/// A model's answer to an identify task.
+/// A model's answer to an identify task: the family label, nothing
+/// else (identify is label-only by design; fixture params are
+/// metadata). Extra fields in stored answers are ignored on parse.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct IdentifyAnswer {
     pub label: String,
-    #[serde(default)]
-    pub params: BTreeMap<String, ParamValue>,
 }
 
 /// A model's answer to a tree task: one `tr(...)` descriptor.

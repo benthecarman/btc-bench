@@ -8,9 +8,7 @@ use std::path::Path;
 use std::sync::Arc;
 
 use anyhow::{bail, Context, Result};
-use bench_core::task::{
-    Fixture, IdentifyAnswer, ParamValue, ResponseRecord, ScriptAnswer, TaskAnswer,
-};
+use bench_core::task::{Fixture, IdentifyAnswer, ResponseRecord, ScriptAnswer, TaskAnswer};
 use bench_gen::prompt::for_fixture_fmt;
 use futures_util::StreamExt;
 use goose_providers::anthropic::AnthropicProviderBuilder;
@@ -409,10 +407,6 @@ fn submit_identify_tool() -> Tool {
             "label": {
                 "type": "string",
                 "description": "The script family label"
-            },
-            "params": {
-                "type": "object",
-                "description": "Numeric parameters where applicable, e.g. k, n, timeout"
             }
         },
         "required": ["label"]
@@ -624,13 +618,8 @@ fn task_answer_from(
             .get("label")
             .and_then(|v| v.as_str())
             .unwrap_or_default();
-        let params: BTreeMap<String, ParamValue> = args
-            .get("params")
-            .and_then(|v| serde_json::from_value(v.clone()).ok())
-            .unwrap_or_default();
         Some(TaskAnswer::Identify(IdentifyAnswer {
             label: label.to_string(),
-            params,
         }))
     } else {
         None
@@ -728,7 +717,7 @@ fn evaluate(fixture: &Fixture, answer: &TaskAnswer) -> Evaluation {
             }
         }
         (Fixture::Identify(i), TaskAnswer::Identify(a)) => {
-            let r = bench_core::grade_identify(i, a, 0.0);
+            let r = bench_core::grade_identify(i, a);
             if r.score > 0.999 {
                 Evaluation { passed: true, score: r.score, feedback: String::new() }
             } else {
@@ -1650,8 +1639,7 @@ mod tests {
         let record: ResponseRecord =
             serde_json::from_str(text.trim_end()).expect("parse response record");
         assert_eq!(record.task_id, fixtures[0].id());
-        let (_, summary) =
-            grade(&fixtures, &[record.clone()], 0.5, None, 0.5, false).expect("grade");
+        let (_, summary) = grade(&fixtures, &[record.clone()], None, 0.5, false).expect("grade");
         assert_eq!(summary.write_n, 1);
         assert!((summary.write_mean - 1.0).abs() < 1e-9, "{summary:?}");
         let _ = std::fs::remove_dir_all(&out);
@@ -1702,10 +1690,9 @@ mod tests {
         let bodies: Vec<serde_json::Value> = fixtures
             .iter()
             .map(|f| match f {
-                Fixture::Identify(i) => completion_with_tool(
-                    "submit_identify",
-                    json!({ "label": i.family, "params": i.params }),
-                ),
+                Fixture::Identify(i) => {
+                    completion_with_tool("submit_identify", json!({ "label": i.family }))
+                }
                 other => panic!("expected identify fixture, got {}", other.id()),
             })
             .collect();
@@ -1728,7 +1715,7 @@ mod tests {
             .lines()
             .map(|l| serde_json::from_str(l).expect("record"))
             .collect();
-        let (_, summary) = grade(&fixtures, &records, 0.5, None, 0.5, false).expect("grade");
+        let (_, summary) = grade(&fixtures, &records, None, 0.5, false).expect("grade");
         assert_eq!(summary.identify_n, fixtures.len());
         assert!((summary.identify_mean - 1.0).abs() < 1e-9, "{summary:?}");
         let _ = std::fs::remove_dir_all(&out);
@@ -1821,7 +1808,7 @@ mod tests {
             .map(|l| serde_json::from_str(l).expect("record"))
             .collect();
         assert_eq!(records.len(), 4);
-        let (_, summary) = grade(&fixtures, &records, 0.5, None, 0.5, false).expect("grade");
+        let (_, summary) = grade(&fixtures, &records, None, 0.5, false).expect("grade");
         assert_eq!(summary.write_n, 4);
         assert!((summary.write_mean - 1.0).abs() < 1e-9, "{summary:?}");
         let _ = std::fs::remove_dir_all(&out);
@@ -1841,7 +1828,8 @@ mod tests {
         let (name, args) = parse_textual_tool_call(text).expect("parsed");
         assert_eq!(name, "submit_identify");
         assert_eq!(args["label"], "p2wsh_multisig");
-        assert_eq!(args["params"]["k"], 2);
+        // params in a textual call are ignored: identify is label-only.
+        assert_eq!(args["label"], "p2wsh_multisig");
     }
 
     #[tokio::test]

@@ -270,6 +270,5 @@ fn _identify_grader_linked() {
         as fn(
             &bench_core::task::IdentifyFixture,
             &bench_core::task::IdentifyAnswer,
-            f64,
         ) -> bench_core::IdentifyResult;
 }

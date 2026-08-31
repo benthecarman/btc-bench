@@ -372,53 +372,22 @@ pub fn grade_tree(fixture: &crate::task::TreeFixture, answer: &str) -> TreeResul
 #[derive(Clone, Debug)]
 pub struct IdentifyResult {
     pub label_correct: bool,
-    /// Fraction of parameters answered correctly (Jaccard-style: extra
-    /// invented params count against the denominator). 1.0 when the
-    /// fixture has no params.
-    pub param_fraction: f64,
     pub score: f64,
 }
 
-/// Task 3: flat label + per-parameter credit. A wrong label scores 0.
-/// A correct label scores `partial_credit` plus the remaining
-/// `1 - partial_credit` scaled by the fraction of correct parameters,
-/// so exact params still reach 1.0 and each correct param earns
-/// credit. Extra params not in the fixture dilute the fraction, so
-/// spamming keys never pays.
-pub fn grade_identify(
-    fixture: &IdentifyFixture,
-    answer: &IdentifyAnswer,
-    partial_credit: f64,
-) -> IdentifyResult {
+/// Task 3: label-only, binary. Parameters were removed deliberately:
+/// param names were a naming-convention tax (a model that reads 980
+/// off the CSV but says "delay" instead of "to_self_delay" knows the
+/// script; docking it measures vocabulary recall, not comprehension).
+/// Right family or wrong family, nothing else.
+pub fn grade_identify(fixture: &IdentifyFixture, answer: &IdentifyAnswer) -> IdentifyResult {
     let label_correct = answer
         .label
         .trim()
         .eq_ignore_ascii_case(fixture.family.trim());
-    let matched = fixture
-        .params
-        .iter()
-        .filter(|(k, v)| answer.params.get(*k) == Some(v))
-        .count();
-    let extra = answer
-        .params
-        .keys()
-        .filter(|k| !fixture.params.contains_key(*k))
-        .count();
-    let denom = fixture.params.len() + extra;
-    let param_fraction = if denom == 0 {
-        1.0
-    } else {
-        matched as f64 / denom as f64
-    };
-    let score = if label_correct {
-        partial_credit + (1.0 - partial_credit) * param_fraction
-    } else {
-        0.0
-    };
     IdentifyResult {
         label_correct,
-        param_fraction,
-        score,
+        score: if label_correct { 1.0 } else { 0.0 },
     }
 }
 
@@ -606,73 +575,35 @@ mod tests {
     }
 
     #[test]
-    fn identify_partial_credit() {
+    fn identify_is_label_only_and_binary() {
         use crate::task::ParamValue;
         use std::collections::BTreeMap;
         let mut params = BTreeMap::new();
         params.insert("k".to_string(), ParamValue::Int(2));
-        params.insert("n".to_string(), ParamValue::Int(3));
         let f = IdentifyFixture {
             id: "t3-0001".into(),
             family: "p2wsh_multisig".into(),
-            params: params.clone(),
+            params,
             spk_hex: "0020..".into(),
             inner_script_hex: None,
         };
-        let full = grade_identify(
+        // Case-insensitive label match is full marks; fixture params
+        // are metadata and never graded.
+        let hit = grade_identify(
             &f,
             &IdentifyAnswer {
                 label: "P2WSH_Multisig".into(),
-                params: params.clone(),
             },
-            0.5,
         );
-        assert_eq!(full.score, 1.0);
-        // One of two params wrong: label credit plus half the param band.
-        let mut wrong = params.clone();
-        wrong.insert("k".to_string(), ParamValue::Int(3));
-        let half = grade_identify(
-            &f,
-            &IdentifyAnswer {
-                label: "p2wsh_multisig".into(),
-                params: wrong,
-            },
-            0.5,
-        );
-        assert_eq!(half.param_fraction, 0.5);
-        assert_eq!(half.score, 0.75);
-        // No params at all: label credit only.
-        let bare = grade_identify(
-            &f,
-            &IdentifyAnswer {
-                label: "p2wsh_multisig".into(),
-                params: BTreeMap::new(),
-            },
-            0.5,
-        );
-        assert_eq!(bare.score, 0.5);
-        // Spamming an extra invented param dilutes the fraction: two
-        // correct out of three claimed.
-        let mut spam = params.clone();
-        spam.insert("bogus".to_string(), ParamValue::Int(9));
-        let diluted = grade_identify(
-            &f,
-            &IdentifyAnswer {
-                label: "p2wsh_multisig".into(),
-                params: spam,
-            },
-            0.5,
-        );
-        assert!((diluted.param_fraction - 2.0 / 3.0).abs() < 1e-12);
-        assert!(diluted.score < 1.0);
-        let none = grade_identify(
+        assert!(hit.label_correct);
+        assert_eq!(hit.score, 1.0);
+        let miss = grade_identify(
             &f,
             &IdentifyAnswer {
                 label: "p2wpkh".into(),
-                params,
             },
-            0.5,
         );
-        assert_eq!(none.score, 0.0);
+        assert!(!miss.label_correct);
+        assert_eq!(miss.score, 0.0);
     }
 }

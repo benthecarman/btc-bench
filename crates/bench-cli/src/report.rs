@@ -392,7 +392,7 @@ fn pass_vector(fixtures: &[Fixture], responses: &[ResponseRecord]) -> BTreeMap<S
                 bench_core::grade_optimize(o, &a.script).weight_score >= 0.999
             }
             (Fixture::Identify(i), TaskAnswer::Identify(a)) => {
-                bench_core::grade_identify(i, a, 0.5).score >= 0.999
+                bench_core::grade_identify(i, a).score >= 0.999
             }
             (Fixture::Tree(t), TaskAnswer::Descriptor(a)) => {
                 bench_core::grade_tree(t, &a.descriptor).weight_score >= 0.999
@@ -665,7 +665,7 @@ mod tests {
         std::fs::create_dir_all(&rd).unwrap();
         std::fs::write(rd.join("responses.jsonl"), text).unwrap();
         let records = crate::load_responses(&rd.join("responses.jsonl")).unwrap();
-        let (scores, _) = crate::grade(&fixtures, &records, 0.5, None, 0.5, false).unwrap();
+        let (scores, _) = crate::grade(&fixtures, &records, None, 0.5, false).unwrap();
         std::fs::create_dir_all(rd.join("graded")).unwrap();
         std::fs::write(
             rd.join("graded").join("results.json"),
