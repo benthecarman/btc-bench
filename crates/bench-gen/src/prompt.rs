@@ -52,7 +52,7 @@ pub fn write_prompt(f: &WriteFixture) -> String {
     format!(
         "Write a Bitcoin Script for the spending condition below.\n\
          \n\
-         Script type: the {}.\n\
+         Script type: {}.\n\
          \n\
          Keys:\n{}\n\
          \n\
