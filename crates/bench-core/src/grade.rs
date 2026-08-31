@@ -245,12 +245,19 @@ pub fn grade_optimize(fixture: &OptimizeFixture, answer: &str) -> OptimizeResult
 #[derive(Clone, Debug)]
 pub struct IdentifyResult {
     pub label_correct: bool,
+    /// Fraction of parameters answered correctly (Jaccard-style: extra
+    /// invented params count against the denominator). 1.0 when the
+    /// fixture has no params.
+    pub param_fraction: f64,
     pub score: f64,
 }
 
-/// Task 3: flat label + parameters, configurable partial credit
-/// (`partial_credit` is the score for a correct label with wrong params;
-/// default per DESIGN.md is 0.5).
+/// Task 3: flat label + per-parameter credit. A wrong label scores 0.
+/// A correct label scores `partial_credit` plus the remaining
+/// `1 - partial_credit` scaled by the fraction of correct parameters,
+/// so exact params still reach 1.0 and each correct param earns
+/// credit. Extra params not in the fixture dilute the fraction, so
+/// spamming keys never pays.
 pub fn grade_identify(
     fixture: &IdentifyFixture,
     answer: &IdentifyAnswer,
@@ -260,16 +267,30 @@ pub fn grade_identify(
         .label
         .trim()
         .eq_ignore_ascii_case(fixture.family.trim());
-    let params_correct = label_correct && answer.params == fixture.params;
-    let score = if params_correct {
+    let matched = fixture
+        .params
+        .iter()
+        .filter(|(k, v)| answer.params.get(*k) == Some(v))
+        .count();
+    let extra = answer
+        .params
+        .keys()
+        .filter(|k| !fixture.params.contains_key(*k))
+        .count();
+    let denom = fixture.params.len() + extra;
+    let param_fraction = if denom == 0 {
         1.0
-    } else if label_correct {
-        partial_credit
+    } else {
+        matched as f64 / denom as f64
+    };
+    let score = if label_correct {
+        partial_credit + (1.0 - partial_credit) * param_fraction
     } else {
         0.0
     };
     IdentifyResult {
         label_correct,
+        param_fraction,
         score,
     }
 }
@@ -403,6 +424,7 @@ mod tests {
             0.5,
         );
         assert_eq!(full.score, 1.0);
+        // One of two params wrong: label credit plus half the param band.
         let mut wrong = params.clone();
         wrong.insert("k".to_string(), ParamValue::Int(3));
         let half = grade_identify(
@@ -413,7 +435,32 @@ mod tests {
             },
             0.5,
         );
-        assert_eq!(half.score, 0.5);
+        assert_eq!(half.param_fraction, 0.5);
+        assert_eq!(half.score, 0.75);
+        // No params at all: label credit only.
+        let bare = grade_identify(
+            &f,
+            &IdentifyAnswer {
+                label: "p2wsh_multisig".into(),
+                params: BTreeMap::new(),
+            },
+            0.5,
+        );
+        assert_eq!(bare.score, 0.5);
+        // Spamming an extra invented param dilutes the fraction: two
+        // correct out of three claimed.
+        let mut spam = params.clone();
+        spam.insert("bogus".to_string(), ParamValue::Int(9));
+        let diluted = grade_identify(
+            &f,
+            &IdentifyAnswer {
+                label: "p2wsh_multisig".into(),
+                params: spam,
+            },
+            0.5,
+        );
+        assert!((diluted.param_fraction - 2.0 / 3.0).abs() < 1e-12);
+        assert!(diluted.score < 1.0);
         let none = grade_identify(
             &f,
             &IdentifyAnswer {

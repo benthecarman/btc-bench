@@ -96,8 +96,14 @@ Miniscript is part of what the benchmark measures.
    punish models for knowing the templates).
 4. Answer = single flat label + parameters extracted mechanically from
    the script (`k`, `n`, `delay`, `timeout`, `hash_type`, anchors
-   flag). Partial credit: label only = 0.5, label + params = 1.0,
-   configurable. No LLM judge anywhere.
+   flag). Per-parameter credit: a wrong label = 0; a correct label =
+   `partial_credit + (1 − partial_credit) × param_fraction`, where
+   `param_fraction` is correct params over claimed-plus-expected
+   params (Jaccard-style, so invented params dilute — spamming keys
+   never pays). Exact params still = 1.0; `partial_credit` defaults
+   to 0.5. Denser than the old all-or-nothing params bonus, which
+   scored one-wrong-param the same as no params at all — and a denser
+   RLVR signal. No LLM judge anywhere.
 
 ## Correctness oracle
 
