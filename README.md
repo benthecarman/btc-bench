@@ -10,7 +10,7 @@ mechanically, no LLM judge anywhere.
 |------|-------------------|--------|
 | **Write** | Compose a script from an English spending policy | Decode-gated as Miniscript, then proven semantically equivalent by exhaustive truth-table evaluation over the task's closed atom set |
 | **Optimize** | Shrink a deliberately naive baseline script | Equivalence-gated, scored by weight improvement toward the compiler optimum |
-| **Identify** | Label a scriptPubKey (plus redeem/witness script) with its protocol family and parameters | Exact label match + mechanically extracted parameters |
+| **Identify** | Label a scriptPubKey (plus redeem/witness script) with its protocol family and parameters | Exact label match + per-parameter credit (each correct parameter earns a share; invented parameters dilute it) |
 
 Three script contexts: legacy (P2SH redeemScript), segwit v0 (P2WSH
 witnessScript), and taproot (script-path leaf tapscript).
@@ -22,6 +22,13 @@ cargo build --release
 
 # Generate a fixture dataset (deterministic per seed)
 btc-bench gen --out datasets/my-set --seed 42 --write 300 --optimize 300 --identify 18
+
+# Generate a training set: non-eval English phrasings with varied
+# structure, custom tier mix, and no task whose answer key appears in
+# the eval set (family 0 stays bench-only)
+btc-bench gen --out datasets/train --seed 7 --write 5000 --optimize 5000 \
+    --verbal-families 1,2 --vary-structure \
+    --tiers easy,medium,medium,hard --exclude datasets/my-set
 
 # Run against a model (any OpenAI-compatible endpoint)
 btc-bench run --dataset datasets/my-set --config models.toml --model my-model --concurrency 8
@@ -36,13 +43,22 @@ btc-bench grade --dataset datasets/my-set --responses runs/my-run/responses.json
 btc-bench grade --dataset datasets/my-set --responses runs/my-run/responses.jsonl \
     --attempts runs/my-run/attempts.jsonl
 
-# Re-verify a committed dataset (answer keys, weights, spendability)
+# Re-verify a dataset (answer keys, weights, spendability)
 btc-bench audit --dataset datasets/my-set
 
 # Gate insanity findings (malleable, unsafe, ...) instead of just reporting them
 btc-bench grade --dataset datasets/my-set --responses runs/my-run/responses.jsonl \
     --out runs/my-run/graded --standard-mode
 ```
+
+## Datasets
+
+`datasets/` is not tracked in git. The benchmark set is pinned by its
+generator seed plus the dependency versions in the manifest: the same
+seed and the same pins regenerate byte-identical fixtures, and
+`btc-bench audit` re-verifies every answer key after regeneration.
+Ship the fixture files themselves when publishing results, so scores
+stay comparable even if a dependency bump ever shifts compiler output.
 
 ## Model configuration
 
@@ -89,6 +105,36 @@ The correctness oracle is structurally anti-cheat:
 - **No answer leak**: multi-turn feedback names parse errors verbatim
   (they're mechanical facts) but equivalence failures never reveal the
   distinguishing assignment. Test-pinned.
+
+## Train/eval hygiene
+
+- **Template families**: the English verbalizer has multiple
+  hand-written template families per policy node. `--verbal-families`
+  takes an explicit id list, so the train/eval split is enforced at
+  generation time: family 0 is bench-only, training sets list only
+  `1,2`. Every family is authored per AST node, so a paraphrase can
+  never drift from the policy semantics. The sweep report breaks
+  scores down by family to expose phrasing overfit.
+- **Structural variation** (`--vary-structure`): and/or/thresh are
+  commutative, so training prose permutes their children (seeded) and
+  varies the root list shape (inline, numbered, spending-path
+  framing) — the policy and answer key are untouched. This varies the
+  clause tree the model must parse, not just the words; without it, a
+  model can overfit the fixed template skeleton that all families
+  share. Eval structure stays canonical.
+- **Dedup**: `gen --exclude <eval-set>` resamples any task whose
+  answer key appears in the excluded dataset (same-seed reuse is the
+  realistic contamination path).
+- **Canary**: every manifest carries a BIG-bench-style canary GUID. A
+  model that can reproduce it trained on the dataset; scores on it are
+  void.
+- **Difficulty axis**: fixtures record the policy's boolean atom count
+  (`atoms`), so curricula can bucket finer than the three tiers and
+  the report shows score by atom count.
+
+Summaries and sweep reports carry 95% bootstrap CIs and a
+format-vs-reasoning split ("semantic accuracy given well-formed") so
+parse failures are never mistaken for reasoning failures.
 
 ## Identify families
 

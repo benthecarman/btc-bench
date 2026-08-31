@@ -245,8 +245,8 @@ policies must recompile (byte drift that stays oracle-equivalent is a
 warning, non-equivalence is a hard failure); stored weights must match
 freshly computed values; optimize baselines must stay equivalent and
 strictly heavier; manifest pins must match the declared dependency
-versions. Run it in CI whenever a dataset is committed or a dependency
-bumps. A golden grader test (`bench-core/tests/golden`) pins grading
+versions. Run it in CI whenever a dataset is regenerated for release
+or a dependency bumps. A golden grader test (`bench-core/tests/golden`) pins grading
 behavior — scores, reasons, and lint output — against committed
 fixtures and answers.
 
@@ -312,10 +312,15 @@ fixtures and answers.
 
 ## Fixtures and artifacts
 
-Hybrid: committed fixtures under `datasets/` are the headline
-benchmark; the generator supports `--seed` for fresh sets. Sizes v1:
-300 write, 300 optimize, 250 identify (~70% standard / 30% protocol).
-Task IDs are stable and append-only across revisions.
+`datasets/` is gitignored; the headline benchmark is a *pinned seed*,
+not a committed file. The same seed and the same dependency pins
+regenerate byte-identical fixtures, `audit` re-verifies the answer
+keys, and the fixture files ship alongside published results (a
+dependency bump can shift compiler output, and the bytes — not the
+policies — are the answer keys). The generator supports `--seed` for
+fresh sets. Sizes v1: 300 write, 300 optimize, 250 identify (~70%
+standard / 30% protocol). Task IDs are stable and append-only across
+revisions.
 
 Manifest pins: schema version, generator git hash, seed, parameters,
 miniscript / bitcoin versions, bolts commit (task 3). Per-run
@@ -341,7 +346,7 @@ graded per-task JSON, markdown summary.
 3. ✅ Live runner on goose-providers: `btc-bench run` (single-shot,
    submit tools, responses/failures JSONL); verified against a local
    OpenAI-compatible mock server.
-4. First model sweep against a committed dataset.
+4. First model sweep against the pinned dataset.
 5. ✅ Protocol identification corpus: Lightning across all eras
    (P2WSH + taproot) and a structural Liquid peg item, in
    datasets/v2; coinswap and Revault still pending sources.
