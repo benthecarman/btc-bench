@@ -64,7 +64,9 @@ pub fn write_prompt(f: &WriteFixture) -> String {
          - Respond by calling the submit_answer tool with the script as a \
          hex string or Bitcoin Core asm. In asm, opcode names carry the \
          OP_ prefix (OP_CHECKMULTISIG, not CHECKMULTISIG) and data pushes \
-         are raw hex.",
+         are raw hex, except that a timelock value written directly \
+         before OP_CHECKLOCKTIMEVERIFY or OP_CHECKSEQUENCEVERIFY is \
+         decimal (e.g. 744813 OP_CHECKLOCKTIMEVERIFY).",
         f.context.script_noun(),
         key_block(&f.keys),
         f.spec_en,

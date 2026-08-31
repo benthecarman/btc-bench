@@ -72,6 +72,23 @@ impl AuditReport {
         self.warnings.push(msg);
     }
 
+    /// The display/parse dialect guard: the asm this script renders
+    /// as must re-parse to the same bytes, or a model echoing the
+    /// displayed notation is silently misgraded (the even-length
+    /// decimal timelock bug hit 21% of displayed scripts).
+    fn check_display_roundtrip(&mut self, id: &str, script: &ScriptBuf, what: &str) {
+        let asm = bench_core::human_asm::to_human_asm(script.as_script());
+        match bench_core::answer::parse_script_answer(&asm) {
+            Ok(p) if &p == script => {}
+            Ok(_) => self.fail(format!(
+                "{id}: {what} displayed asm re-parses to different bytes ({asm})"
+            )),
+            Err(e) => self.fail(format!(
+                "{id}: {what} displayed asm does not parse: {e} ({asm})"
+            )),
+        }
+    }
+
     fn check_script(
         &mut self,
         id: &str,
@@ -97,6 +114,7 @@ impl AuditReport {
             self.fail(format!("{id}: {what} failed the execution oracle: {e}"));
             return None;
         }
+        self.check_display_roundtrip(id, &script, what);
         Some(script)
     }
 
@@ -391,9 +409,22 @@ pub fn audit_dataset(dir: &Path) -> Result<AuditReport> {
         match f {
             Fixture::Write(w) => report.check_write(w),
             Fixture::Optimize(o) => report.check_optimize(o),
-            Fixture::Identify(_) => {
-                // Identify items carry no compiled answer key; params are
-                // static. Nothing to re-derive.
+            Fixture::Identify(i) => {
+                // Identify items carry no compiled answer key; params
+                // are static. But their scripts render in prompts, so
+                // the display dialect must round-trip.
+                if let Ok(spk) = ScriptBuf::from_hex(&i.spk_hex) {
+                    report.check_display_roundtrip(&i.id, &spk, "scriptPubKey");
+                } else {
+                    report.fail(format!("{}: spk hex invalid", i.id));
+                }
+                if let Some(inner) = &i.inner_script_hex {
+                    if let Ok(inner) = ScriptBuf::from_hex(inner) {
+                        report.check_display_roundtrip(&i.id, &inner, "inner script");
+                    } else {
+                        report.fail(format!("{}: inner script hex invalid", i.id));
+                    }
+                }
             }
             Fixture::Tree(t) => report.check_tree(t),
         }

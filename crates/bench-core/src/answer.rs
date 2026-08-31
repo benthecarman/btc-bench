@@ -6,7 +6,14 @@
 //! lossless. Asm grammar (strict; anything else is malformed):
 //! - `OP_*` opcode names
 //! - bare even-length hex chunks are data pushes, minimally encoded
-//! - all-decimal tokens are integer pushes, minimally encoded
+//! - all-decimal tokens are integer pushes, minimally encoded —
+//!   EXCEPT that an all-digit token is also valid hex, so the
+//!   ambiguity resolves by position, mirroring the display dialect:
+//!   immediately before `OP_CLTV`/`OP_CSV` (or their long names) the
+//!   token is the decimal timelock value a human writes (`744813
+//!   OP_CLTV`); everywhere else even-length digits are raw hex.
+//!   This makes displayed asm round-trip: the renderer emits decimal
+//!   only in that same timelock position.
 //! - `OP_PUSHDATA1/2/4` followed by one hex chunk is an explicit push
 //! - `[hex]` bracket form is accepted for data pushes
 
@@ -324,6 +331,20 @@ fn is_decimal(s: &str) -> bool {
     !s.is_empty() && s.bytes().all(|c| c.is_ascii_digit())
 }
 
+/// Is the next token (bracket-stripped) a timelock opcode? Decides the
+/// decimal-vs-hex reading of an all-digit push, mirroring the display
+/// renderer's numeric-context gate exactly.
+fn timelock_follows(tokens: &[&str], next: usize) -> bool {
+    matches!(
+        tokens.get(next).map(|t| {
+            t.strip_prefix('[')
+                .and_then(|t| t.strip_suffix(']'))
+                .unwrap_or(t)
+        }),
+        Some("OP_CSV" | "OP_CLTV" | "OP_CHECKSEQUENCEVERIFY" | "OP_CHECKLOCKTIMEVERIFY")
+    )
+}
+
 /// Minimal data-push encoding, matching Bitcoin Core's `CScript::operator<<`.
 fn push_data(out: &mut Vec<u8>, data: &[u8]) {
     let n = data.len();
@@ -511,6 +532,21 @@ pub fn parse_script_answer(input: &str) -> Result<ScriptBuf, AnswerError> {
             } else {
                 out.push(op.to_u8());
             }
+        } else if is_decimal(tok) && timelock_follows(&tokens, i) {
+            // All-digit token directly before a timelock opcode: the
+            // decimal value, matching the display dialect (`36 OP_CSV`
+            // means 36, never 0x36). A digit string too large for i64
+            // cannot be a real timelock; fall back to hex when it is
+            // valid hex, else report the integer error.
+            match tok.parse::<i64>() {
+                Ok(v) => push_int(&mut out, v),
+                Err(_) if is_hex_chunk(tok) => push_data(&mut out, &hex_decode(tok)?),
+                Err(_) => {
+                    return Err(AnswerError::BadInteger {
+                        token: tok.to_string(),
+                    })
+                }
+            }
         } else if is_hex_chunk(tok) {
             push_data(&mut out, &hex_decode(tok)?);
         } else if is_decimal(tok) {
@@ -605,6 +641,50 @@ mod tests {
         // matching CScriptNum (0x90 0x00, not 0x90 0x01).
         let parsed = parse_script_answer("144 OP_DROP").unwrap();
         assert_eq!(parsed.as_bytes(), &[0x02, 0x90, 0x00, all::OP_DROP.to_u8()]);
+    }
+
+    /// The decimal/hex ambiguity of all-digit tokens resolves by
+    /// position, mirroring the display renderer: decimal directly
+    /// before a timelock opcode, raw hex everywhere else. This is the
+    /// regression test for the bug where `36 OP_CSV` parsed as hex
+    /// 0x36 = 54 — every even-length decimal timelock (21% of
+    /// displayed scripts) silently changed value on round-trip.
+    #[test]
+    fn digit_tokens_are_decimal_before_timelocks_hex_elsewhere() {
+        // Even-length decimals before every timelock spelling.
+        for op_name in [
+            "OP_CSV",
+            "OP_CLTV",
+            "OP_CHECKSEQUENCEVERIFY",
+            "OP_CHECKLOCKTIMEVERIFY",
+        ] {
+            let parsed = parse_script_answer(&format!("36 {op_name}")).unwrap();
+            // 36 decimal = 0x24, one byte.
+            assert_eq!(parsed.as_bytes()[..2], [0x01, 0x24], "{op_name}");
+            let parsed = parse_script_answer(&format!("744813 {op_name}")).unwrap();
+            // 744813 = 0x0B5D6D -> minimal LE 6d 5d 0b.
+            assert_eq!(
+                parsed.as_bytes()[..4],
+                [0x03, 0x6d, 0x5d, 0x0b],
+                "{op_name}"
+            );
+        }
+        // The same digits NOT before a timelock stay raw hex, per the
+        // stated answer rule.
+        let parsed = parse_script_answer("36 OP_DROP").unwrap();
+        assert_eq!(parsed.as_bytes()[..2], [0x01, 0x36]);
+        // Hex-with-letters before a timelock is untouched (raw hex).
+        let parsed = parse_script_answer("6d5d0b OP_CLTV").unwrap();
+        assert_eq!(parsed.as_bytes()[..4], [0x03, 0x6d, 0x5d, 0x0b]);
+        // A digit string too large for i64 before a timelock falls
+        // back to hex when it is valid hex (pathological, but must
+        // not error out a 32-byte all-digit push).
+        let big = "1234567890".repeat(4); // 40 digits, even length
+        let parsed = parse_script_answer(&format!("{big} OP_CLTV")).unwrap();
+        assert_eq!(parsed.as_bytes()[0], 20, "20-byte hex push");
+        // Bracketed timelock opcode still counts as timelock context.
+        let parsed = parse_script_answer("36 [OP_CSV]").unwrap();
+        assert_eq!(parsed.as_bytes()[..2], [0x01, 0x24]);
     }
 
     #[test]

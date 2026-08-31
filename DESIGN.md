@@ -324,6 +324,19 @@ fixtures and answers.
 - Embedded scripts (optimize baselines, identify scriptPubKeys) render as
   decoded Bitcoin Core asm by default; `--display hex` switches to raw
   hex. Answers are accepted in either notation regardless.
+- Display and answer parsing are ONE dialect, test-enforced: every
+  script the bench displays must re-parse byte-identically
+  (to_human_asm -> parse_script_answer). All-digit push tokens are
+  ambiguous between hex and decimal; they resolve by position exactly
+  as the renderer emits them — decimal directly before
+  OP_CLTV/OP_CSV, raw hex everywhere else. The asymmetry this fixed
+  (`36 OP_CSV` parsing as hex 0x36 = 54) silently misgraded models
+  echoing displayed notation on 21% of displayed scripts. Guarded at
+  three layers: parser unit tests, a generated-fixture round-trip
+  property test (roundtrip.rs, including grade-level assertions that
+  displayed reference asm earns full marks), and the dataset audit,
+  which round-trips every displayed script including identify
+  spk/inner and tree leaves.
 - Providers via `goose-providers` (team choice; alpha, pinned exact):
   `openai` (Responses API), `openai_compatible` (chat/completions against
   any base URL, non-streaming), `anthropic` (Messages API, streaming;

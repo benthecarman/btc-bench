@@ -16,6 +16,17 @@ use std::path::PathBuf;
 use bench_core::task::{Fixture, ResponseRecord, ScriptAnswer, TaskAnswer};
 use bench_core::{grade_identify, grade_optimize, grade_write};
 
+/// The exact notation the bench displays this script as (prompts and
+/// tool reports). Submitting it must grade like submitting the hex —
+/// the golden pin for the display/parse dialect asymmetry bug class.
+fn displayed_asm(hex: &str) -> String {
+    bench_core::human_asm::to_human_asm(
+        bitcoin::ScriptBuf::from_hex(hex)
+            .expect("fixture hex")
+            .as_script(),
+    )
+}
+
 fn dir() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/golden")
 }
@@ -64,6 +75,10 @@ fn answers_for(fixtures: &[Fixture]) -> Vec<ResponseRecord> {
                     w.id.clone(),
                     format!("  {}  ", w.reference_script_hex),
                 ));
+                // Perfect in the bench's own display notation (decimal
+                // timelocks); a model echoing what it is shown must
+                // grade identically to hex.
+                out.push(record(w.id.clone(), displayed_asm(&w.reference_script_hex)));
                 // Always-true attack: decodes, not equivalent.
                 out.push(record(w.id.clone(), "51".into()));
                 // Garbage hex.
@@ -76,8 +91,13 @@ fn answers_for(fixtures: &[Fixture]) -> Vec<ResponseRecord> {
                 // curve (candidate == baseline), carries lint findings
                 // whenever the naive encoding is insane.
                 out.push(record(o.id.clone(), o.baseline_script_hex.clone()));
-                // The known optimum: full marks.
+                // The known optimum: full marks — in hex and in the
+                // displayed notation.
                 out.push(record(o.id.clone(), o.optimal_script_hex.clone()));
+                out.push(record(o.id.clone(), displayed_asm(&o.optimal_script_hex)));
+                // The baseline as displayed in the prompt: equivalent,
+                // zero on the curve, never a parse error.
+                out.push(record(o.id.clone(), displayed_asm(&o.baseline_script_hex)));
                 // Not-equivalent rewrite.
                 out.push(record(o.id.clone(), "51".into()));
             }

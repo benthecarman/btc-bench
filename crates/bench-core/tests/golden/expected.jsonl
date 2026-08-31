@@ -1,8 +1,10 @@
 {"task_id":"t1-0000","score":1.0}
 {"task_id":"t1-0000","score":1.0}
+{"task_id":"t1-0000","score":1.0}
 {"task_id":"t1-0000","score":0.0,"reason":"NotEquivalent","lint":["unsafe: a spend path requires no signature"]}
 {"task_id":"t1-0000","score":0.0,"reason":"invalid hex character 'z' at position 0 (context: \"...zznothex...\")"}
 {"task_id":"t1-0000","score":0.0,"reason":"the answer is empty; submit the script as hex or Bitcoin Core asm"}
+{"task_id":"t1-0001","score":1.0}
 {"task_id":"t1-0001","score":1.0}
 {"task_id":"t1-0001","score":1.0}
 {"task_id":"t1-0001","score":0.0,"reason":"NotEquivalent","lint":["unsafe: a spend path requires no signature"]}
@@ -10,9 +12,11 @@
 {"task_id":"t1-0001","score":0.0,"reason":"the answer is empty; submit the script as hex or Bitcoin Core asm"}
 {"task_id":"t1-0002","score":1.0}
 {"task_id":"t1-0002","score":1.0}
+{"task_id":"t1-0002","score":1.0}
 {"task_id":"t1-0002","score":0.0,"reason":"NotEquivalent","lint":["unsafe: a spend path requires no signature"]}
 {"task_id":"t1-0002","score":0.0,"reason":"invalid hex character 'z' at position 0 (context: \"...zznothex...\")"}
 {"task_id":"t1-0002","score":0.0,"reason":"the answer is empty; submit the script as hex or Bitcoin Core asm"}
+{"task_id":"t1-0003","score":1.0}
 {"task_id":"t1-0003","score":1.0}
 {"task_id":"t1-0003","score":1.0}
 {"task_id":"t1-0003","score":0.0,"reason":"NotEquivalent","lint":["unsafe: a spend path requires no signature"]}
@@ -20,15 +24,23 @@
 {"task_id":"t1-0003","score":0.0,"reason":"the answer is empty; submit the script as hex or Bitcoin Core asm"}
 {"task_id":"t2-0000","score":0.0,"size_score":0.0,"candidate_weight":592,"candidate_size":73}
 {"task_id":"t2-0000","score":1.0,"size_score":1.0,"candidate_weight":588,"candidate_size":72}
+{"task_id":"t2-0000","score":1.0,"size_score":1.0,"candidate_weight":588,"candidate_size":72}
+{"task_id":"t2-0000","score":0.0,"size_score":0.0,"candidate_weight":592,"candidate_size":73}
 {"task_id":"t2-0000","score":0.0,"size_score":0.0,"reason":"the script is valid but not semantically equivalent to the required spending policy","lint":["unsafe: a spend path requires no signature"]}
 {"task_id":"t2-0001","score":0.0,"size_score":0.0,"candidate_weight":148,"candidate_size":73}
 {"task_id":"t2-0001","score":1.0,"size_score":1.0,"candidate_weight":147,"candidate_size":72}
+{"task_id":"t2-0001","score":1.0,"size_score":1.0,"candidate_weight":147,"candidate_size":72}
+{"task_id":"t2-0001","score":0.0,"size_score":0.0,"candidate_weight":148,"candidate_size":73}
 {"task_id":"t2-0001","score":0.0,"size_score":0.0,"reason":"the script is valid but not semantically equivalent to the required spending policy","lint":["unsafe: a spend path requires no signature"]}
 {"task_id":"t2-0002","score":0.0,"size_score":0.0,"candidate_weight":282,"candidate_size":115}
 {"task_id":"t2-0002","score":1.0,"size_score":1.0,"candidate_weight":275,"candidate_size":108}
+{"task_id":"t2-0002","score":1.0,"size_score":1.0,"candidate_weight":275,"candidate_size":108}
+{"task_id":"t2-0002","score":0.0,"size_score":0.0,"candidate_weight":282,"candidate_size":115}
 {"task_id":"t2-0002","score":0.0,"size_score":0.0,"reason":"the script is valid but not semantically equivalent to the required spending policy","lint":["unsafe: a spend path requires no signature"]}
 {"task_id":"t2-0003","score":0.0,"size_score":0.0,"candidate_weight":1724,"candidate_size":174}
 {"task_id":"t2-0003","score":1.0,"size_score":1.0,"candidate_weight":1704,"candidate_size":169}
+{"task_id":"t2-0003","score":1.0,"size_score":1.0,"candidate_weight":1704,"candidate_size":169}
+{"task_id":"t2-0003","score":0.0,"size_score":0.0,"candidate_weight":1724,"candidate_size":174}
 {"task_id":"t2-0003","score":0.0,"size_score":0.0,"reason":"the script is valid but not semantically equivalent to the required spending policy","lint":["unsafe: a spend path requires no signature"]}
 {"task_id":"t4-0000","score":1.0,"candidate_weight":140}
 {"task_id":"t4-0000","score":0.0,"candidate_weight":178}
