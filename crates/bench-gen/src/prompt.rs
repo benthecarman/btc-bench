@@ -61,12 +61,12 @@ pub fn write_prompt(f: &WriteFixture) -> String {
          Rules:\n\
          - Use exactly the keys listed above; do not invent keys.\n\
          - The script must be a valid, consensus-enforceable script.\n\
-         - Respond by calling the submit_script tool with the script as a \
-         hex string or Bitcoin Core asm. In asm, opcode names carry the \
-         OP_ prefix (OP_CHECKMULTISIG, not CHECKMULTISIG) and data pushes \
-         are raw hex, except that a timelock value written directly \
-         before OP_CHECKLOCKTIMEVERIFY or OP_CHECKSEQUENCEVERIFY is \
-         decimal (e.g. 744813 OP_CHECKLOCKTIMEVERIFY).",
+         - Answer with the script as a hex string or \
+         Bitcoin Core asm. In asm, opcode names carry the OP_ prefix \
+         (OP_CHECKMULTISIG, not CHECKMULTISIG) and data pushes are raw \
+         hex, except that a timelock value written directly before \
+         OP_CHECKLOCKTIMEVERIFY or OP_CHECKSEQUENCEVERIFY is decimal \
+         (e.g. 744813 OP_CHECKLOCKTIMEVERIFY).",
         f.context.script_noun(),
         key_block(&f.keys),
         f.spec_en,
@@ -80,15 +80,14 @@ pub fn optimize_prompt(f: &OptimizeFixture, display: DisplayFormat) -> String {
          \n\
          Write a semantically equivalent script with a lower input weight \
          (script plus witness, the quantity transaction fees are paid for). \
-         Script byte size is a secondary metric. The spending semantics must \
-         not change.\n\
+         The spending semantics must not change.\n\
          \n\
-         Respond by calling the submit_script tool with the script as a \
-         hex string or Bitcoin Core asm. In asm, opcode names carry the \
-         OP_ prefix (OP_CHECKMULTISIG, not CHECKMULTISIG) and data pushes \
-         are raw hex, except that a timelock value written directly \
-         before OP_CHECKLOCKTIMEVERIFY or OP_CHECKSEQUENCEVERIFY is \
-         decimal (e.g. 744813 OP_CHECKLOCKTIMEVERIFY).",
+         Answer with the script as a hex string or \
+         Bitcoin Core asm. In asm, opcode names carry the OP_ prefix \
+         (OP_CHECKMULTISIG, not CHECKMULTISIG) and data pushes are raw \
+         hex, except that a timelock value written directly before \
+         OP_CHECKLOCKTIMEVERIFY or OP_CHECKSEQUENCEVERIFY is decimal \
+         (e.g. 744813 OP_CHECKLOCKTIMEVERIFY).",
         f.context.script_noun(),
         display.label(),
         display.render(&f.baseline_script_hex),
@@ -100,23 +99,21 @@ pub fn tree_prompt(f: &bench_core::task::TreeFixture) -> String {
         "Design a Taproot output for the spending condition below.\n\
          \n\
          Keys:\n{}\n\
-         \n\
-         Unspendable internal key (use it as the internal key only if \
-         no listed key deserves the key path): {}\n\
+         - NUMS (provably unspendable): {}\n\
          \n\
          {}\n\
          \n\
          Rules:\n\
          - Use exactly the keys listed above; do not invent keys.\n\
          - You choose the internal key and the script tree: put the \
-         best spending path on the key path when one fits, and split \
-         the rest into tapleaves.\n\
+         best spending path on the key path when one fits, or use NUMS \
+         as the internal key when none fits, and split the rest into \
+         tapleaves.\n\
          - Correctness is the gate; among correct designs, a lower \
          worst-case input weight (script plus witness) scores higher.\n\
-         - Respond by calling the submit_descriptor tool with a descriptor \
-         of the form tr(INTERNAL_KEY,TREE), where TREE nests tapleaf \
-         scripts in Miniscript notation with braces, e.g. \
-         tr(KEY,{{pk(A),{{and_v(v:pk(B),older(144)),pk(C)}}}}).",
+         - Answer with a descriptor of the form tr(INTERNAL_KEY,TREE), \
+         where TREE nests tapleaf scripts in Miniscript notation with \
+         braces, e.g. tr(KEY,{{pk(A),{{and_v(v:pk(B),older(144)),pk(C)}}}}).",
         key_block(&f.keys),
         f.unspendable_key,
         f.spec_en,
@@ -139,8 +136,8 @@ pub fn identify_prompt(f: &bench_core::task::IdentifyFixture, display: DisplayFo
          \n\
          scriptPubKey {}: {}{}\
          \n\
-         Call the submit_identify tool with:\n\
-         - label: one of {}",
+         Call the submit_identify tool with one of the following labels:\n\
+         - {}",
         display.label(),
         display.render(&f.spk_hex),
         inner,
@@ -183,7 +180,10 @@ mod tests {
             let p = for_fixture(&f);
             match &f {
                 Fixture::Write(_) => {
-                    assert!(p.contains("submit_script"), "prompt names the real tool");
+                    assert!(
+                        !p.contains("Respond by calling"),
+                        "tool mechanics live in the system prompt and tool docs"
+                    );
                     assert!(p.contains("Alice's public key:"));
                     assert!(
                         !p.contains("Miniscript"),
@@ -197,10 +197,13 @@ mod tests {
                 Fixture::Optimize(_) => {
                     assert!(p.contains("input weight"));
                     assert!(p.contains("OP_CHECKSIG"), "default display is asm");
-                    assert!(p.contains("submit_script"), "prompt names the real tool");
                     assert!(
                         p.contains("OP_ prefix"),
                         "optimize states the same notation rule as write"
+                    );
+                    assert!(
+                        !p.contains("byte size"),
+                        "script size is folded into weight, not a stated metric"
                     );
                     assert!(
                         !p.contains("deliberately"),
@@ -217,12 +220,15 @@ mod tests {
                     assert!(!p.contains("params"), "identify is label-only");
                 }
                 Fixture::Tree(_) => {
-                    assert!(
-                        p.contains("submit_descriptor"),
-                        "prompt names the real tool"
-                    );
                     assert!(p.contains("tr(INTERNAL_KEY,TREE)"));
-                    assert!(p.contains("Unspendable internal key"));
+                    assert!(
+                        p.contains("- NUMS (provably unspendable):"),
+                        "NUMS is listed with the keys"
+                    );
+                    assert!(
+                        !p.contains("Respond by calling"),
+                        "tool mechanics live in the system prompt and tool docs"
+                    );
                 }
             }
         }

@@ -658,6 +658,19 @@ struct Evaluation {
     feedback: String,
 }
 
+/// Coarse protocol group of an identify label, for bounded multi-turn
+/// feedback: standard output scripts, Lightning, or Liquid.
+fn label_group(label: &str) -> &'static str {
+    let l = label.trim().to_ascii_lowercase();
+    if l.starts_with("ln_") {
+        "Lightning"
+    } else if l.starts_with("liquid_") {
+        "Liquid"
+    } else {
+        "standard output-script"
+    }
+}
+
 /// Grade an answer against its fixture and build mechanical feedback.
 /// Parse errors are passed through verbatim (they name the exact
 /// defect); equivalence failures never leak the distinguishing
@@ -699,8 +712,8 @@ fn evaluate(fixture: &Fixture, answer: &TaskAnswer) -> Evaluation {
                     passed: false,
                     score: r.weight_score,
                     feedback: format!(
-                        "Your script is semantically equivalent, weight {} vs baseline {} and known optimum {}; reduce the weight further. Size score: {:.2}.{}",
-                        w.weight, o.baseline_weight, o.optimal_weight, r.size_score,
+                        "Your script is semantically equivalent, weight {} vs baseline {} and known optimum {}; reduce the weight further.{}",
+                        w.weight, o.baseline_weight, o.optimal_weight,
                         lint_note(&r.lint)
                     ),
                 }
@@ -721,8 +734,31 @@ fn evaluate(fixture: &Fixture, answer: &TaskAnswer) -> Evaluation {
             if r.score > 0.999 {
                 Evaluation { passed: true, score: r.score, feedback: String::new() }
             } else {
-                Evaluation { passed: false, score: 0.0, feedback:
-                    "The family label is incorrect. Study the script structure and try again.".to_string() }
+                // Bounded hint: whether the answer's protocol group
+                // matched. The true group is named only when the model
+                // already guessed it; a wrong-group answer learns only
+                // that its OWN group is wrong, never which is right.
+                let known = bench_gen::corpus::FAMILIES
+                    .iter()
+                    .any(|f| f.eq_ignore_ascii_case(a.label.trim()));
+                let feedback = if !known {
+                    "The label is not one of the listed options; answer with \
+                     one of the listed labels."
+                        .to_string()
+                } else if label_group(&a.label) == label_group(&i.family) {
+                    format!(
+                        "The family label is incorrect, but the {} group is \
+                         right; identify the exact variant.",
+                        label_group(&i.family)
+                    )
+                } else {
+                    format!(
+                        "The family label is incorrect; the script is not a \
+                         {} pattern.",
+                        label_group(&a.label)
+                    )
+                };
+                Evaluation { passed: false, score: 0.0, feedback }
             }
         }
         (Fixture::Tree(t), TaskAnswer::Descriptor(a)) => {
@@ -2232,6 +2268,55 @@ mod tests {
         assert_eq!(models["test"].model, "m1");
         assert_eq!(models["test"].api_key_env.as_deref(), Some("KEY"));
         let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    /// Identify multi-turn feedback: a bounded group hint. Same-group
+    /// misses learn the group was right; cross-group misses learn only
+    /// their OWN group was wrong; unknown labels get the list nudge.
+    #[test]
+    fn identify_feedback_is_group_bounded() {
+        let fixture = Fixture::Identify(bench_core::task::IdentifyFixture {
+            id: "t3-x".into(),
+            family: "ln_offered_htlc".into(),
+            params: Default::default(),
+            spk_hex: "0020".into(),
+            inner_script_hex: None,
+        });
+        let answer = |label: &str| {
+            TaskAnswer::Identify(bench_core::task::IdentifyAnswer {
+                label: label.into(),
+            })
+        };
+        // Same group, wrong variant.
+        let ev = evaluate(&fixture, &answer("ln_to_local"));
+        assert!(!ev.passed);
+        assert!(
+            ev.feedback.contains("Lightning group is right"),
+            "{}",
+            ev.feedback
+        );
+        // Wrong group: names only the model's own group.
+        let ev = evaluate(&fixture, &answer("p2wsh_multisig"));
+        assert!(
+            ev.feedback.contains("not a standard output-script pattern"),
+            "{}",
+            ev.feedback
+        );
+        assert!(
+            !ev.feedback.to_lowercase().contains("lightning"),
+            "must not reveal the true group: {}",
+            ev.feedback
+        );
+        // Unknown label: the list nudge, no group talk.
+        let ev = evaluate(&fixture, &answer("segwit_v2_magic"));
+        assert!(
+            ev.feedback.contains("not one of the listed options"),
+            "{}",
+            ev.feedback
+        );
+        // Correct passes clean.
+        let ev = evaluate(&fixture, &answer("LN_Offered_HTLC"));
+        assert!(ev.passed);
     }
 
     /// The decode-gate requirement is implicit in every prompt

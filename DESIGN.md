@@ -80,7 +80,8 @@ Miniscript is part of what the benchmark measures.
    or/thresh shape requirement are under "Task 2 (refinements from
    implementation)" below.
 3. Prompt hands the model the baseline script and states the metric:
-   input weight primary, script size secondary.
+   input weight (script size folds into it and is tracked internally
+   as a secondary score, but the prompt no longer names it).
 4. Candidate must remain semantically equivalent (Task 1 oracle).
    Score per metric = clamp((base − cand) / (base − optimal), 0, 1);
    headline = weight score; size score reported.
@@ -307,9 +308,15 @@ fixtures and answers.
 
 - Default mode is multi-turn (attempts = 3): after a graded failure
   the model receives mechanical feedback (parse errors and decode-gate
-  rejections verbatim, lint findings, the optimize weight/size gap;
+  rejections verbatim, lint findings, the optimize/tree weight gap;
   never the reference, its keys, or the distinguishing assignment) and
-  may retry. Single-shot (attempts = 1) measures unaided fluency;
+  may retry. Identify feedback carries one deliberate, bounded hint:
+  whether the answer's protocol group (standard / Lightning / Liquid)
+  matched. The true group is named only when the model already guessed
+  it; a cross-group miss learns only that its own group is wrong.
+  Prompts state answer *content* rules only — how to submit lives in
+  the system prompt and tool definitions, so nothing implies the
+  diagnostic tools are off-limits. Single-shot (attempts = 1) measures unaided fluency;
   multi-turn measures feedback-driven recovery. The regression gate
   runs single-shot for speed and noise.
 - Tool-assisted mode (`run --tools basic`): beside the submit tool the
