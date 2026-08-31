@@ -12,6 +12,8 @@ use bench_core::{grade_identify, grade_optimize, grade_write};
 use bench_gen::fixtures::{generate, GenParams};
 use serde::{Deserialize, Serialize};
 
+pub mod audit;
+pub mod report;
 pub mod reward;
 pub mod runner;
 /// Dependency pins recorded in the manifest. Fixtures embed compiled
@@ -131,6 +133,10 @@ pub struct TaskScore {
     /// Secondary metric for optimize tasks.
     pub size_score: Option<f64>,
     pub reason: Option<String>,
+    /// Insanity findings on a decoded write/optimize answer
+    /// (informational; zeroed scores only under --standard-mode).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub lint: Option<Vec<String>>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -197,9 +203,14 @@ pub fn grade(
     partial_credit: f64,
     attempts: Option<&std::collections::BTreeMap<String, (Option<u32>, u32)>>,
     mt_base: f64,
+    standard: bool,
 ) -> Result<(Vec<TaskScore>, Summary)> {
     let by_id: BTreeMap<&str, &Fixture> = fixtures.iter().map(|f| (f.id(), f)).collect();
     let mut seen = std::collections::BTreeSet::new();
+    // Tasks zeroed by --standard-mode: their multi-turn stats must not
+    // count them as solved (the runner's attempts.jsonl records passes
+    // ungated).
+    let mut gated = std::collections::BTreeSet::new();
     let mut scores = Vec::new();
     for r in responses {
         let Some(f) = by_id.get(r.task_id.as_str()) else {
@@ -211,20 +222,40 @@ pub fn grade(
         let ts = match (f, &r.answer) {
             (Fixture::Write(w), TaskAnswer::Script(a)) => {
                 let res = grade_write(w, &a.script);
+                let lint = (!res.lint.is_empty()).then(|| res.lint.clone());
+                let (score, reason) = if standard && !res.lint.is_empty() {
+                    gated.insert(r.task_id.clone());
+                    (0.0, Some(format!("standard mode: {}", res.lint.join("; "))))
+                } else {
+                    (res.score, res.reason)
+                };
                 TaskScore {
                     task_id: r.task_id.clone(),
-                    score: res.score,
+                    score,
                     size_score: None,
-                    reason: res.reason,
+                    reason,
+                    lint,
                 }
             }
             (Fixture::Optimize(o), TaskAnswer::Script(a)) => {
                 let res = grade_optimize(o, &a.script);
+                let lint = (!res.lint.is_empty()).then(|| res.lint.clone());
+                let (weight, size, reason) = if standard && !res.lint.is_empty() {
+                    gated.insert(r.task_id.clone());
+                    (
+                        0.0,
+                        0.0,
+                        Some(format!("standard mode: {}", res.lint.join("; "))),
+                    )
+                } else {
+                    (res.weight_score, res.size_score, res.reason)
+                };
                 TaskScore {
                     task_id: r.task_id.clone(),
-                    score: res.weight_score,
-                    size_score: Some(res.size_score),
-                    reason: res.reason,
+                    score: weight,
+                    size_score: Some(size),
+                    reason,
+                    lint,
                 }
             }
             (Fixture::Identify(i), TaskAnswer::Identify(a)) => {
@@ -234,6 +265,7 @@ pub fn grade(
                     score: res.score,
                     size_score: None,
                     reason: None,
+                    lint: None,
                 }
             }
             (f, a) => bail!(
@@ -294,7 +326,7 @@ pub fn grade(
             let graded = ts.score;
             ts.score *= factor;
             mt_scores_by_id.insert(ts.task_id.clone(), ts.score);
-            if let Some(t) = first_pass {
+            if let Some(t) = first_pass.filter(|_| !gated.contains(&ts.task_id)) {
                 mt_solved += 1.0;
                 mt_solved_count += 1;
                 mt_turns += t as f64;
@@ -513,7 +545,7 @@ mod tests {
                 }),
             }
         }
-        let (scores, summary) = grade(&fixtures, &responses, 0.5, None, 0.5).unwrap();
+        let (scores, summary) = grade(&fixtures, &responses, 0.5, None, 0.5, false).unwrap();
         assert!((summary.write_mean - 1.0).abs() < 1e-9, "{summary:?}");
         assert!((summary.identify_mean - 1.0).abs() < 1e-9, "{summary:?}");
         assert!(
@@ -540,13 +572,13 @@ mod tests {
             };
             garbage.push(g);
         }
-        let (_, zero) = grade(&fixtures, &garbage, 0.5, None, 0.5).unwrap();
+        let (_, zero) = grade(&fixtures, &garbage, 0.5, None, 0.5, false).unwrap();
         assert!(zero.write_mean == 0.0);
         assert!(zero.identify_mean == 0.0);
         assert!(zero.optimize_weight_mean == 0.0);
 
         // Missing answers counted.
-        let (_, partial) = grade(&fixtures, &responses[..3], 0.5, None, 0.5).unwrap();
+        let (_, partial) = grade(&fixtures, &responses[..3], 0.5, None, 0.5, false).unwrap();
         assert_eq!(partial.missing, fixtures.len() - 3);
 
         let _ = fs::remove_dir_all(&dir);

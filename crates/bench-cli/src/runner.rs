@@ -300,12 +300,29 @@ fn submit_identify_tool() -> Tool {
 fn parse_textual_tool_call(
     text: &str,
 ) -> Option<(String, serde_json::Map<String, serde_json::Value>)> {
-    let start = text.find("<tool_call>")?;
-    let end = text[start..].find("</tool_call>")? + start;
-    let body = &text[start + "<tool_call>".len()..end];
-    let body = body.trim();
+    if let Some(start) = text.find("<tool_call>") {
+        if let Some(end_rel) = text[start..].find("</tool_call>") {
+            let end = end_rel + start;
+            let body = text[start + "<tool_call>".len()..end].trim();
+            if let Some(call) = parse_tool_body(body) {
+                return Some(call);
+            }
+        }
+    }
+    // Recoverable bare forms (observed in real traffic): a JSON object
+    // with submit arguments — whole-text, inside a ``` fence, or behind
+    // a `<call_...>`-style wrapper — and the `<request invoke=...>`
+    // XML shape. Strictly machine-parseable: no prose mining.
+    bare_json_call(text)
+        .or_else(|| fenced_json_call(text))
+        .or_else(|| call_wrapper_json(text))
+        .or_else(|| request_invoke_xml(text))
+}
+
+/// `<tool_call>` body: `{"name": ..., "arguments": {...}}` or the
+/// `<function=name><parameter=p>...</parameter>` XML-ish form.
+fn parse_tool_body(body: &str) -> Option<(String, serde_json::Map<String, serde_json::Value>)> {
     if body.trim_start().starts_with('{') {
-        // JSON form: {"name": "...", "arguments": {...}}
         let v: serde_json::Value = serde_json::from_str(body.trim()).ok()?;
         let name = v.get("name")?.as_str()?.to_string();
         let args = match v.get("arguments") {
@@ -335,6 +352,121 @@ fn parse_textual_tool_call(
         }
     }
     Some((name, args))
+}
+
+/// Map a JSON object of submit arguments to the tool it answers:
+/// `{"script": ...}` -> submit_script, `{"label": ...}` ->
+/// submit_identify. Requires the object to parse completely.
+fn json_args_to_call(
+    v: serde_json::Value,
+) -> Option<(String, serde_json::Map<String, serde_json::Value>)> {
+    let obj = v.as_object()?.clone();
+    if obj.contains_key("script") {
+        Some(("submit_script".to_string(), obj))
+    } else if obj.contains_key("label") {
+        Some(("submit_identify".to_string(), obj))
+    } else {
+        None
+    }
+}
+
+/// A JSON object of submit arguments, either as the whole response or
+/// trailing prose ("... Let me do that now.\n\n{\"script\": ...}").
+/// Bounded scan over `{` positions; the object must parse fully and
+/// carry submit keys.
+fn bare_json_call(text: &str) -> Option<(String, serde_json::Map<String, serde_json::Value>)> {
+    let t = text.trim();
+    if t.starts_with('{') {
+        if let Some(v) = serde_json::from_str::<serde_json::Value>(t).ok() {
+            if let Some(call) = json_args_to_call(v) {
+                return Some(call);
+            }
+        }
+    }
+    // Trailing object after prose: take the LAST '{' whose remainder
+    // begins one complete object (prose mentions earlier '{'s first).
+    for (i, _) in t.match_indices('{').rev() {
+        if let Some(Ok(v)) = serde_json::Deserializer::from_str(&t[i..])
+            .into_iter::<serde_json::Value>()
+            .next()
+        {
+            if let Some(call) = json_args_to_call(v) {
+                return Some(call);
+            }
+        }
+    }
+    None
+}
+
+/// A fenced ``` (optionally ```json) block holding submit arguments.
+fn fenced_json_call(text: &str) -> Option<(String, serde_json::Map<String, serde_json::Value>)> {
+    let mut rest = text;
+    while let Some(start) = rest.find("```") {
+        let after = &rest[start + 3..];
+        let after = after.strip_prefix("json").unwrap_or(after);
+        let body_start = after.len() - after.trim_start().len();
+        let body = &after[body_start..];
+        let Some(end) = body.find("```") else {
+            rest = &rest[start + 3..];
+            continue;
+        };
+        let candidate = body[..end].trim();
+        if candidate.starts_with('{') {
+            if let Some(v) = serde_json::from_str::<serde_json::Value>(candidate).ok() {
+                if let Some(call) = json_args_to_call(v) {
+                    return Some(call);
+                }
+            }
+        }
+        rest = &body[end + 3..];
+    }
+    None
+}
+
+/// A `<call_...>`-prefixed wrapper around JSON submit arguments. The
+/// tag may be closed (`<call_X>`) or unclosed (`<call_X{...}` —
+/// observed traffic: the wrapper is `<call_` plus hex, no `>`).
+fn call_wrapper_json(text: &str) -> Option<(String, serde_json::Map<String, serde_json::Value>)> {
+    let t = text.trim_start();
+    let start = t.find("<call_")?;
+    let after = &t[start + "<call_".len()..];
+    let args_at = after.find('{')?;
+    let v: serde_json::Value = serde_json::from_str(after[args_at..].trim()).ok()?;
+    json_args_to_call(v)
+}
+
+/// `<request invoke="submit_answer"><script>...</script></request>` —
+/// child tags become string arguments.
+fn request_invoke_xml(text: &str) -> Option<(String, serde_json::Map<String, serde_json::Value>)> {
+    let start = text.find("<request ")?;
+    let head_end = text[start..].find('>')? + start;
+    let head = &text[start..head_end];
+    if !head.contains("invoke=") {
+        return None;
+    }
+    let body = &text[head_end + 1..];
+    let end = body.find("</request>")?;
+    let body = &body[..end];
+    let mut args = serde_json::Map::new();
+    let mut rest = body;
+    while let Some(ts) = rest.find('<') {
+        let name_start = ts + 1;
+        let name_end = rest[name_start..].find('>')? + name_start;
+        let name = rest[name_start..name_end].trim().to_string();
+        if name.is_empty() || name.starts_with('/') {
+            rest = &rest[name_end + 1..];
+            continue;
+        }
+        let close = format!("</{name}>");
+        let vfrom = name_end + 1;
+        let vto = rest[vfrom..].find(&close)? + vfrom;
+        args.insert(
+            name,
+            serde_json::Value::String(rest[vfrom..vto].trim().to_string()),
+        );
+        rest = &rest[vto + close.len()..];
+    }
+    json_args_to_call(serde_json::Value::Object(args))
 }
 
 fn task_answer_from(
@@ -400,6 +532,16 @@ struct Evaluation {
 /// defect); equivalence failures never leak the distinguishing
 /// assignment.
 fn evaluate(fixture: &Fixture, answer: &TaskAnswer) -> Evaluation {
+    // Mechanical analysis findings (malleability, safety, ...) are facts
+    // about the submitted script, so they are fair multi-turn feedback —
+    // same policy as parse errors.
+    let lint_note = |lint: &[String]| {
+        if lint.is_empty() {
+            String::new()
+        } else {
+            format!(" Miniscript analysis flags: {}.", lint.join("; "))
+        }
+    };
     match (fixture, answer) {
         (Fixture::Write(w), TaskAnswer::Script(a)) => {
             let r = bench_core::grade_write(w, &a.script);
@@ -410,7 +552,11 @@ fn evaluate(fixture: &Fixture, answer: &TaskAnswer) -> Evaluation {
                     Some(reason) => format!("Your answer was rejected: {reason}"),
                     None => "Your answer was rejected.".to_string(),
                 };
-                Evaluation { passed: false, score: 0.0, feedback: detail }
+                Evaluation {
+                    passed: false,
+                    score: 0.0,
+                    feedback: format!("{detail}{}", lint_note(&r.lint)),
+                }
             }
         }
         (Fixture::Optimize(o), TaskAnswer::Script(a)) => {
@@ -422,8 +568,9 @@ fn evaluate(fixture: &Fixture, answer: &TaskAnswer) -> Evaluation {
                     passed: false,
                     score: r.weight_score,
                     feedback: format!(
-                        "Your script is semantically equivalent, weight {} vs baseline {} and known optimum {}; reduce the weight further. Size score: {:.2}.",
-                        w.weight, o.baseline_weight, o.optimal_weight, r.size_score
+                        "Your script is semantically equivalent, weight {} vs baseline {} and known optimum {}; reduce the weight further. Size score: {:.2}.{}",
+                        w.weight, o.baseline_weight, o.optimal_weight, r.size_score,
+                        lint_note(&r.lint)
                     ),
                 }
             } else {
@@ -431,7 +578,10 @@ fn evaluate(fixture: &Fixture, answer: &TaskAnswer) -> Evaluation {
                 Evaluation {
                     passed: false,
                     score: 0.0,
-                    feedback: format!("Your answer was rejected: {reason}"),
+                    feedback: format!(
+                        "Your answer was rejected: {reason}{}",
+                        lint_note(&r.lint)
+                    ),
                 }
             }
         }
@@ -626,6 +776,42 @@ pub async fn run(
 /// Resume skips tasks with answers in responses.jsonl, retries failed
 /// tasks, and appends to all output files. Partial multi-turn attempts
 /// (process died mid-task) restart from scratch.
+/// A defective completion: server fault, not a model choice. Empty
+/// content with no tool call anywhere (observed 65x in one sweep:
+/// dropped streams), or a `tool_calls` finish with no call present
+/// (observed 5x: the call vanishes between API and assembly). These
+/// belong in the transient-retry path, not the graded attempt loop.
+fn response_is_defective(messages: &[Message], finish: &FinishInfo) -> bool {
+    let mut has_text = false;
+    let mut has_call = false;
+    for m in messages {
+        for block in &m.content {
+            match block {
+                MessageContentBlock::Text(t) => {
+                    if !t.text.trim().is_empty() {
+                        has_text = true;
+                    }
+                }
+                MessageContentBlock::Thinking(t) => {
+                    if !t.thinking.trim().is_empty() {
+                        has_text = true;
+                    }
+                }
+                MessageContentBlock::ToolRequest(tr) => {
+                    if tr.tool_call.is_ok() {
+                        has_call = true;
+                    }
+                }
+                _ => {}
+            }
+        }
+    }
+    if !has_text && !has_call {
+        return true;
+    }
+    !has_call && finish.finish_reason.as_deref() == Some("tool_calls")
+}
+
 pub async fn run_resume(
     fixtures: &[Fixture],
     entry: &ModelEntry,
@@ -728,6 +914,7 @@ pub async fn run_resume(
             loop {
                 let f = rx.lock().await.recv().await;
                 let Some(f) = f else { break };
+
                 let prompt = for_fixture_fmt(&f, display);
                 let (tool, is_identify) = match &f {
                     Fixture::Identify(_) => (submit_identify_tool(), true),
@@ -750,8 +937,22 @@ pub async fn run_resume(
                     let retries = entry_retries;
                     let mut tries: u32 = 0;
                     let result = loop {
-                        match backend.complete(&cfg, &history, tool.clone()).await {
+                        let outcome = backend.complete(&cfg, &history, tool.clone()).await;
+                        match outcome {
                             Err(e) if is_transient(&e) && tries < retries => {
+                                let backoff = RETRY_BACKOFF_SECS
+                                    [tries as usize % RETRY_BACKOFF_SECS.len()];
+                                tokio::time::sleep(std::time::Duration::from_secs(backoff))
+                                    .await;
+                                tries += 1;
+                            }
+                            // Server faults that arrive as successful
+                            // HTTP: empty completions and vanishing
+                            // tool calls retry like transport errors
+                            // instead of burning a graded attempt.
+                            Ok(v)
+                                if response_is_defective(&v.0, &v.1) && tries < retries =>
+                            {
                                 let backoff = RETRY_BACKOFF_SECS
                                     [tries as usize % RETRY_BACKOFF_SECS.len()];
                                 tokio::time::sleep(std::time::Duration::from_secs(backoff))
@@ -1043,6 +1244,45 @@ mod tests {
         (format!("http://{addr}/v1"), captured)
     }
 
+    /// Empty completion (dropped stream) must retry like a transport
+    /// error and recover within the same graded attempt, not burn the
+    /// turn as "no tool call".
+    #[tokio::test]
+    async fn empty_completion_is_retried() {
+        let fixtures = generate(&GenParams {
+            seed: 4,
+            write: 1,
+            optimize: 0,
+            identify: 0,
+        });
+        let good = completion_with_tool(
+            "submit_script",
+            json!({ "script": match &fixtures[0] {
+                Fixture::Write(w) => w.reference_script_hex.clone(),
+                other => panic!("expected write fixture, got {}", other.id()),
+            } }),
+        );
+        let empty = json!({
+            "id": "chatcmpl-empty", "object": "chat.completion",
+            "choices": [{"index": 0, "message": {"role": "assistant", "content": ""}, "finish_reason": null}]
+        });
+        // Serve empty first, then the good body. Backoff between tries
+        // is 2s; one retry keeps the test fast.
+        let (base, captured) = spawn_mock(vec![empty, good]);
+        let out = tmpdir("empty-retry");
+        let stats = run(&fixtures, &entry(base), &out, 1, DisplayFormat::Asm, 1)
+            .await
+            .expect("run");
+        assert_eq!(
+            stats.answered, 1,
+            "empty completion must be retried, not unanswered"
+        );
+        assert_eq!(stats.failed, 0);
+        let reqs = captured.lock().expect("lock");
+        assert!(reqs.len() >= 2, "expected a retried request");
+        let _ = std::fs::remove_dir_all(&out);
+    }
+
     fn completion_with_tool(name: &str, args: serde_json::Value) -> serde_json::Value {
         json!({
             "id": "1", "object": "chat.completion", "created": 0, "model": "mock",
@@ -1132,7 +1372,8 @@ mod tests {
         let record: ResponseRecord =
             serde_json::from_str(text.trim_end()).expect("parse response record");
         assert_eq!(record.task_id, fixtures[0].id());
-        let (_, summary) = grade(&fixtures, &[record.clone()], 0.5, None, 0.5).expect("grade");
+        let (_, summary) =
+            grade(&fixtures, &[record.clone()], 0.5, None, 0.5, false).expect("grade");
         assert_eq!(summary.write_n, 1);
         assert!((summary.write_mean - 1.0).abs() < 1e-9, "{summary:?}");
         let _ = std::fs::remove_dir_all(&out);
@@ -1186,16 +1427,62 @@ mod tests {
             .await
             .expect("run");
         assert_eq!(stats.answered, fixtures.len());
-        assert_eq!(stats.failed, 0);
         let text = std::fs::read_to_string(out.join("responses.jsonl")).expect("responses");
         let records: Vec<ResponseRecord> = text
             .lines()
             .map(|l| serde_json::from_str(l).expect("record"))
             .collect();
-        let (_, summary) = grade(&fixtures, &records, 0.5, None, 0.5).expect("grade");
+        let (_, summary) = grade(&fixtures, &records, 0.5, None, 0.5, false).expect("grade");
         assert_eq!(summary.identify_n, fixtures.len());
         assert!((summary.identify_mean - 1.0).abs() < 1e-9, "{summary:?}");
         let _ = std::fs::remove_dir_all(&out);
+    }
+
+    #[test]
+    fn textual_recovered_bare_json() {
+        // Real traffic: model states intent in prose, then emits the
+        // submit arguments as a bare JSON object.
+        let text = "I need to call the submit_answer tool exactly once with the script. Let me do that now.\n\n{\"script\": \"OP_IF 29982b8d OP_ELSE OP_ENDIF\"}";
+        let (name, args) = parse_textual_tool_call(text).expect("parsed");
+        assert_eq!(name, "submit_script");
+        assert!(args["script"].as_str().unwrap().contains("OP_IF"));
+    }
+
+    #[test]
+    fn textual_recovered_fenced_json() {
+        let text = "I'll call the submit tool now with the correct label.\n\n```json\n{\n  \"label\": \"p2pk\"\n}\n```";
+        let (name, args) = parse_textual_tool_call(text).expect("parsed");
+        assert_eq!(name, "submit_identify");
+        assert_eq!(args["label"], "p2pk");
+    }
+
+    #[test]
+    fn textual_recovered_call_wrapper() {
+        let text = "<call_0x746f6f6c5f6e616d653e{\"script\":\"03f8d9 OP_CHECKSIG OP_NOTIF\"}";
+        let (name, args) = parse_textual_tool_call(text).expect("parsed");
+        assert_eq!(name, "submit_script");
+        assert!(args["script"].as_str().unwrap().starts_with("03f8d9"));
+    }
+
+    #[test]
+    fn textual_recovered_request_invoke_xml() {
+        let text = "<request invoke=\"submit_answer\"><script>03b00ad57 OP_CHECKSIGVERIFY 0252 OP_CHECKSIG</script></request>";
+        let (name, args) = parse_textual_tool_call(text).expect("parsed");
+        assert_eq!(name, "submit_script");
+        assert!(args["script"]
+            .as_str()
+            .unwrap()
+            .contains("OP_CHECKSIGVERIFY"));
+    }
+
+    #[test]
+    fn textual_prose_is_not_mined() {
+        // The label appears in prose reasoning, but no machine-
+        // parseable call shape exists: must stay unanswered.
+        let text = "So the label is `p2wsh_multisig`. Let me call the tool.";
+        assert!(parse_textual_tool_call(text).is_none());
+        // JSON without submit keys is not an answer either.
+        assert!(parse_textual_tool_call("{\"analysis\": \"looks like multisig\"}").is_none());
     }
 
     #[tokio::test]
@@ -1229,7 +1516,7 @@ mod tests {
             .map(|l| serde_json::from_str(l).expect("record"))
             .collect();
         assert_eq!(records.len(), 4);
-        let (_, summary) = grade(&fixtures, &records, 0.5, None, 0.5).expect("grade");
+        let (_, summary) = grade(&fixtures, &records, 0.5, None, 0.5, false).expect("grade");
         assert_eq!(summary.write_n, 4);
         assert!((summary.write_mean - 1.0).abs() < 1e-9, "{summary:?}");
         let _ = std::fs::remove_dir_all(&out);
@@ -1420,7 +1707,7 @@ mod tests {
             optimize: 0,
             identify: 0,
         });
-        let hex = match &fixtures[0] {
+        let _hex = match &fixtures[0] {
             Fixture::Write(w) => w.reference_script_hex.clone(),
             other => panic!("expected write fixture, got {}", other.id()),
         };

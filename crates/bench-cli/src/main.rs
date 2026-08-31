@@ -77,8 +77,8 @@ enum Command {
         #[arg(long, default_value = "asm")]
         display: String,
         /// Graded attempts per task with mechanical feedback between
-        /// turns; 1 is single-shot.
-        #[arg(long, default_value_t = 1)]
+        /// turns (the benchmark's default mode); pass 1 for single-shot.
+        #[arg(long, default_value_t = 3)]
         attempts: u32,
         /// Resume an interrupted run: completed tasks are skipped,
         /// failed tasks retried, output files appended.
@@ -106,6 +106,12 @@ enum Command {
         #[arg(long, default_value_t = 9900)]
         port: u16,
     },
+    /// Audit a committed dataset: re-verify every answer key.
+    Audit {
+        /// Dataset directory (fixtures.jsonl + manifest.json).
+        #[arg(long)]
+        dataset: PathBuf,
+    },
     /// Grade responses against a dataset.
     Grade {
         #[arg(long)]
@@ -127,6 +133,40 @@ enum Command {
         /// fraction of the graded score; first try scores it in full.
         #[arg(long, default_value_t = 0.5)]
         mt_base: f64,
+        /// Gate write/optimize scores on miniscript sanity: answers
+        /// with lint findings (malleable, unsafe, repeated keys, ...)
+        /// score 0 with the findings as the reason.
+        #[arg(long, default_value_t = false)]
+        standard_mode: bool,
+    },
+    /// Cross-model sweep report (tier/context cuts, failure taxonomy,
+    /// lint rates, optimize curve).
+    Report {
+        /// Dataset the runs were graded against.
+        #[arg(long)]
+        dataset: PathBuf,
+        /// Run dirs (must contain graded/results.json), comma-separated.
+        #[arg(long, value_delimiter = ',')]
+        runs: Vec<PathBuf>,
+        /// Labels for the runs, comma-separated (defaults to dir names).
+        #[arg(long, value_delimiter = ',')]
+        labels: Vec<String>,
+        /// Output markdown file.
+        #[arg(long)]
+        out: PathBuf,
+    },
+    /// pass@k / pass^k across N sampled runs of one model.
+    Passk {
+        #[arg(long)]
+        dataset: PathBuf,
+        /// Two or more run dirs (responses.jsonl), comma-separated.
+        #[arg(long, value_delimiter = ',')]
+        runs: Vec<PathBuf>,
+        /// Labels, comma-separated (defaults to dir names).
+        #[arg(long, value_delimiter = ',')]
+        labels: Vec<String>,
+        #[arg(long)]
+        out: PathBuf,
     },
 }
 
@@ -277,6 +317,30 @@ fn main() -> Result<()> {
             Ok(())
         }
         Command::RewardServe { port } => bench_cli::reward::serve(port),
+        Command::Audit { dataset } => {
+            let report = bench_cli::audit::audit_dataset(&dataset)?;
+            for w in &report.warnings {
+                println!("warning: {w}");
+            }
+            for f in &report.failures {
+                println!("FAIL: {f}");
+            }
+            println!(
+                "audited {} fixtures: {} failures, {} warnings",
+                report.fixtures_checked,
+                report.failures.len(),
+                report.warnings.len()
+            );
+            if bench_cli::audit::report_ok(&report) {
+                Ok(())
+            } else {
+                bail!(
+                    "dataset {} failed audit ({} failures)",
+                    dataset.display(),
+                    report.failures.len()
+                )
+            }
+        }
         Command::Grade {
             dataset,
             responses,
@@ -284,6 +348,7 @@ fn main() -> Result<()> {
             partial_credit,
             attempts,
             mt_base,
+            standard_mode,
         } => {
             let fixtures = load_dataset(&dataset)?;
             let records = load_responses(&responses)?;
@@ -297,6 +362,7 @@ fn main() -> Result<()> {
                 partial_credit,
                 attempts_map.as_ref(),
                 mt_base,
+                standard_mode,
             )?;
             fs::create_dir_all(&out)?;
             fs::write(
@@ -307,5 +373,50 @@ fn main() -> Result<()> {
             println!("{}", summary_markdown(&summary));
             Ok(())
         }
+        Command::Report {
+            dataset,
+            runs,
+            labels,
+            out,
+        } => {
+            let pairs = label_pairs(runs, labels)?;
+            bench_cli::report::report(&dataset, &pairs, &out)?;
+            println!("wrote {}", out.display());
+            Ok(())
+        }
+        Command::Passk {
+            dataset,
+            runs,
+            labels,
+            out,
+        } => {
+            let pairs = label_pairs(runs, labels)?;
+            bench_cli::report::passk(&dataset, &pairs, &out)?;
+            println!("wrote {}", out.display());
+            Ok(())
+        }
     }
+}
+
+/// Pair run dirs with labels: explicit labels if given, else dir names.
+fn label_pairs(runs: Vec<PathBuf>, labels: Vec<String>) -> Result<Vec<(String, PathBuf)>> {
+    if !labels.is_empty() && labels.len() != runs.len() {
+        bail!(
+            "--labels count ({}) must match --runs count ({})",
+            labels.len(),
+            runs.len()
+        );
+    }
+    Ok(runs
+        .into_iter()
+        .enumerate()
+        .map(|(i, p)| {
+            let label = labels.get(i).cloned().unwrap_or_else(|| {
+                p.file_name()
+                    .map(|n| n.to_string_lossy().to_string())
+                    .unwrap_or_else(|| format!("run{i}"))
+            });
+            (label, p)
+        })
+        .collect())
 }

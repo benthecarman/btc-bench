@@ -13,6 +13,8 @@ path = "src/main.rs"
 [dependencies]
 bench-core = { workspace = true }
 bench-gen = { workspace = true }
+bitcoin = { workspace = true }
+miniscript = { workspace = true }
 goose-providers = { version = "=0.1.0-alpha.7", features = ["rustls-tls"] }
 rmcp = "3"
 tokio = { version = "1", features = ["rt-multi-thread", "macros"] }
