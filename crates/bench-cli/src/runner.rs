@@ -1187,6 +1187,12 @@ pub async fn run_resume(
                 let mut final_finish = FinishInfo::default();
                 let mut transport_error: Option<String> = None;
                 let mut checks_used: u32 = 0;
+                // True conversation cost: tokens summed over every
+                // completion (diagnostic turns and failed attempts
+                // included), not just the final one — tool-assisted
+                // token efficiency is meaningless otherwise.
+                let mut cum_out: Option<i64> = None;
+                let mut cum_in: Option<i64> = None;
 
                 'attempts: for attempt in 1..=max_attempts.max(1) {
                     // Diagnostic loop: check_* calls execute locally and
@@ -1228,6 +1234,12 @@ pub async fn run_resume(
                             break 'attempts;
                         }
                     };
+                    if let Some(t) = finish.output_tokens {
+                        cum_out = Some(cum_out.unwrap_or(0) + t);
+                    }
+                    if let Some(t) = finish.input_tokens {
+                        cum_in = Some(cum_in.unwrap_or(0) + t);
+                    }
                     let (answer, raw, call_id) = extract_answer_with_id(&messages);
                     if answer.is_none() {
                         let checks = extract_check_calls(&messages);
@@ -1294,6 +1306,8 @@ pub async fn run_resume(
                         final_answer = Some(answer);
                     }
                 }
+                final_finish.output_tokens = cum_out;
+                final_finish.input_tokens = cum_in;
                 let _ = res_tx.send(TaskOutcome {
                     fixture: f,
                     is_identify,

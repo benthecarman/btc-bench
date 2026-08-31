@@ -257,6 +257,7 @@ pub fn classify_failure(failure: &Option<String>, reason: &Option<String>) -> &'
             "decode reject" => "decode-gate reject",
             "wrong semantics" => "wrong semantics",
             "unimproved" => "unimproved (equivalent)",
+            "wrong label" => "wrong label",
             "gated" => "gated (standard mode)",
             _ => "other",
         };
@@ -430,7 +431,7 @@ pub fn grade(
                     size_score: None,
                     reason: None,
                     lint: None,
-                    failure: None,
+                    failure: (!res.label_correct).then(|| "wrong label".to_string()),
                 }
             }
             (Fixture::Tree(t), TaskAnswer::Descriptor(a)) => {

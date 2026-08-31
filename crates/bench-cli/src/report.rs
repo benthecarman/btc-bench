@@ -311,7 +311,7 @@ pub fn report(dataset: &Path, runs: &[(String, std::path::PathBuf)], out: &Path)
 
     // Failure taxonomy for zero scores.
     md.push_str("## Zero-score taxonomy\n\n");
-    md.push_str("| model | answer parse error | decode-gate reject | wrong semantics | unimproved | gated | other |\n|---|---|---|---|---|---|---|\n");
+    md.push_str("| model | answer parse error | decode-gate reject | wrong semantics | wrong label | unimproved | gated | other |\n|---|---|---|---|---|---|---|---|\n");
     for (label, g) in &loaded {
         let mut tax: BTreeMap<&str, usize> = BTreeMap::new();
         for t in g {
@@ -321,10 +321,11 @@ pub fn report(dataset: &Path, runs: &[(String, std::path::PathBuf)], out: &Path)
             }
         }
         md.push_str(&format!(
-            "| {label} | {} | {} | {} | {} | {} | {} |\n",
+            "| {label} | {} | {} | {} | {} | {} | {} | {} |\n",
             tax.get("answer parse error").copied().unwrap_or(0),
             tax.get("decode-gate reject").copied().unwrap_or(0),
             tax.get("wrong semantics").copied().unwrap_or(0),
+            tax.get("wrong label").copied().unwrap_or(0),
             tax.get("unimproved (equivalent)").copied().unwrap_or(0),
             tax.get("gated (standard mode)").copied().unwrap_or(0),
             tax.get("other").copied().unwrap_or(0),
