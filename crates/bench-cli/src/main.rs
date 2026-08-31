@@ -152,6 +152,19 @@ enum Command {
         #[arg(long, default_value_t = false)]
         lint_gate: bool,
     },
+    /// Export SFT pairs: one JSONL line per task with the exact
+    /// runner prompt and the reference answer (hex + asm for scripts,
+    /// label + params for identify). Format completions to taste.
+    SftExport {
+        #[arg(long)]
+        dataset: PathBuf,
+        /// Output file; defaults to <dataset>/sft.jsonl.
+        #[arg(long)]
+        out: Option<PathBuf>,
+        /// How embedded scripts are rendered in prompts: hex or asm.
+        #[arg(long, default_value = "asm")]
+        display: String,
+    },
     /// Audit a committed dataset: re-verify every answer key.
     Audit {
         /// Dataset directory (fixtures.jsonl + manifest.json).
@@ -352,6 +365,34 @@ fn main() -> Result<()> {
                     .unwrap_or(0);
                 PathBuf::from(format!("runs/{ts}-{model}"))
             });
+            // Provenance: everything needed to interpret this run
+            // years later without the original shell history — which
+            // dataset (manifest embedded, since datasets/ is not in
+            // git), which model entry, which knobs.
+            fs::create_dir_all(&out)?;
+            let manifest: serde_json::Value = fs::read_to_string(dataset.join("manifest.json"))
+                .ok()
+                .and_then(|t| serde_json::from_str(&t).ok())
+                .unwrap_or(serde_json::Value::Null);
+            let run_meta = serde_json::json!({
+                "model": model,
+                "dataset": dataset.display().to_string(),
+                "dataset_manifest": manifest,
+                "attempts": attempts,
+                "concurrency": concurrency,
+                "display": display,
+                "limit": limit,
+                "resume": resume,
+                "bench_version": env!("CARGO_PKG_VERSION"),
+                "started_unix": std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .map(|d| d.as_secs())
+                    .unwrap_or(0),
+            });
+            fs::write(
+                out.join("run.json"),
+                serde_json::to_string_pretty(&run_meta)?,
+            )?;
             let stats = tokio::runtime::Runtime::new()
                 .context("build tokio runtime")?
                 .block_on(bench_cli::runner::run_resume(
@@ -432,6 +473,51 @@ fn main() -> Result<()> {
                 lint_gate,
             },
         ),
+        Command::SftExport {
+            dataset,
+            out,
+            display,
+        } => {
+            let fixtures = load_dataset(&dataset)?;
+            let display_fmt = match display.as_str() {
+                "hex" => bench_gen::prompt::DisplayFormat::Hex,
+                "asm" => bench_gen::prompt::DisplayFormat::Asm,
+                other => bail!("unknown --display {other:?}; use hex or asm"),
+            };
+            let out = out.unwrap_or_else(|| dataset.join("sft.jsonl"));
+            let mut text = String::new();
+            for f in &fixtures {
+                let prompt = bench_gen::prompt::for_fixture_fmt(f, display_fmt);
+                let asm = |hex: &str| {
+                    bench_core::human_asm::to_human_asm(
+                        bitcoin::ScriptBuf::from_hex(hex)
+                            .expect("fixture hex is valid")
+                            .as_script(),
+                    )
+                };
+                let line = match f {
+                    bench_core::task::Fixture::Write(w) => serde_json::json!({
+                        "task_id": w.id, "kind": "write", "prompt": prompt,
+                        "target_hex": w.reference_script_hex,
+                        "target_asm": asm(&w.reference_script_hex),
+                    }),
+                    bench_core::task::Fixture::Optimize(o) => serde_json::json!({
+                        "task_id": o.id, "kind": "optimize", "prompt": prompt,
+                        "target_hex": o.optimal_script_hex,
+                        "target_asm": asm(&o.optimal_script_hex),
+                    }),
+                    bench_core::task::Fixture::Identify(i) => serde_json::json!({
+                        "task_id": i.id, "kind": "identify", "prompt": prompt,
+                        "target_label": i.family, "target_params": i.params,
+                    }),
+                };
+                text.push_str(&line.to_string());
+                text.push('\n');
+            }
+            fs::write(&out, text).with_context(|| format!("write {}", out.display()))?;
+            println!("wrote {} SFT pairs to {}", fixtures.len(), out.display());
+            Ok(())
+        }
         Command::Audit { dataset } => {
             let report = bench_cli::audit::audit_dataset(&dataset)?;
             for w in &report.warnings {

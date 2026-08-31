@@ -180,6 +180,18 @@ server refuses shaping configs where a non-equivalent answer could
 earn more than 0.5. Requests are handled by a thread pool; grading is
 milliseconds per answer.
 
+## SFT export
+
+```bash
+btc-bench sft-export --dataset datasets/train
+```
+
+Writes one JSONL line per task: the exact runner prompt plus the
+reference answer (`target_hex` + `target_asm` for write/optimize,
+`target_label` + `target_params` for identify). Pair with
+`--verbal-families 1,2 --vary-structure --exclude <eval-set>` at gen
+time for cold-start SFT data that never touches the eval surface.
+
 ## Regression gate
 
 ```bash

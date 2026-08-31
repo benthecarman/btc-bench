@@ -358,7 +358,13 @@ revisions.
 Manifest pins: schema version, generator git hash, seed, parameters,
 miniscript / bitcoin versions, bolts commit (task 3). Per-run
 artifacts in `runs/<timestamp>-<model>/`: raw request/response JSONL,
-graded per-task JSON, markdown summary.
+graded per-task JSON, markdown summary, and `run.json` — the run's
+provenance (model entry name, dataset path with its manifest embedded,
+attempts/concurrency/display knobs, bench version, start time). The
+manifest is embedded, not referenced, because datasets/ is not in git:
+a run must stay interpretable after the dataset directory is
+regenerated. Grading is always re-derivable offline from
+responses.jsonl, so grader changes never require re-running a model.
 
 ## Stack
 
