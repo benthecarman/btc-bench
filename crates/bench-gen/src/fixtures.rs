@@ -1,7 +1,7 @@
 //! Fixture assembly: sample policy, materialize per context, compile,
 //! de-optimize, verify everything with the oracle, and emit fixtures.
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::str::FromStr;
 
 use bench_core::task::{ContextKind, Fixture, KeyVar, OptimizeFixture, Tier, WriteFixture};
@@ -21,6 +21,24 @@ pub struct GenParams {
     pub write: usize,
     pub optimize: usize,
     pub identify: usize,
+    /// Verbalizer template family ids to draw from. Empty = family 0
+    /// only (canonical, byte-identical to historical datasets). List
+    /// only non-eval families (e.g. [1, 2]) when generating training
+    /// sets, so bench-only families never appear in training data.
+    pub verbal_families: Vec<u32>,
+    /// Structural prose variation: seeded permutation of commutative
+    /// children and varied root list shapes. Off = canonical structure
+    /// (the eval setting).
+    pub vary_structure: bool,
+    /// Tier cycle. Empty = the default 40/40/20 easy/medium/hard
+    /// split. Non-empty = round-robin through exactly these tiers
+    /// (repeat a tier to weight it), for curriculum generation.
+    pub tiers: Vec<Tier>,
+    /// Reference script hexes to exclude: any sampled task whose
+    /// answer key lands in this set is resampled. Feed it the answer
+    /// keys of the eval set so training data never contains an eval
+    /// task (same-seed reuse is the realistic contamination path).
+    pub exclude: BTreeSet<String>,
 }
 
 impl Default for GenParams {
@@ -30,16 +48,41 @@ impl Default for GenParams {
             write: 300,
             optimize: 300,
             identify: 250,
+            verbal_families: Vec::new(),
+            vary_structure: false,
+            tiers: Vec::new(),
+            exclude: BTreeSet::new(),
         }
     }
 }
 
-fn tier_for(i: usize) -> Tier {
+fn tier_for(i: usize, tiers: &[Tier]) -> Tier {
+    if !tiers.is_empty() {
+        return tiers[i % tiers.len()];
+    }
     // 40/40/20 split per DESIGN.md, cycling every 5: 2 easy, 2 medium, 1 hard.
     match i % 5 {
         0 | 1 => Tier::Easy,
         2 | 3 => Tier::Medium,
         _ => Tier::Hard,
+    }
+}
+
+/// Prose style for task `i`: family and structure seed derived from a
+/// per-task salt, not the main rng stream, so style choice never
+/// perturbs policy sampling and retries never shift it.
+fn style_for(params: &GenParams, kind_salt: u64, i: usize) -> verbal::Style {
+    let salt = params.seed ^ kind_salt ^ (i as u64).wrapping_mul(0x9E37_79B9_7F4A_7C15);
+    let family = match params.verbal_families.as_slice() {
+        [] => 0,
+        [f] => *f,
+        fs => fs[SeededRng::new(salt).below(fs.len() as u64) as usize],
+    };
+    verbal::Style {
+        family,
+        structure_seed: params
+            .vary_structure
+            .then_some(salt ^ 0xA5A5_A5A5_A5A5_A5A5),
     }
 }
 
@@ -130,6 +173,7 @@ struct Compiled {
     opt_size: usize,
     keys: Vec<KeyVar>,
     spec_en: String,
+    atoms: usize,
     preimages: BTreeMap<String, String>,
 }
 
@@ -138,10 +182,12 @@ fn compile_task(
     tier: Tier,
     context: ContextKind,
     need_baseline: bool,
+    style: verbal::Style,
+    exclude: &BTreeSet<String>,
 ) -> Option<Compiled> {
     // Bounded deterministic retries; a fresh policy each attempt.
     for _ in 0..64 {
-        if let Some(c) = attempt(rng, tier, context, need_baseline) {
+        if let Some(c) = attempt(rng, tier, context, need_baseline, style, exclude) {
             return Some(c);
         }
     }
@@ -153,6 +199,8 @@ fn attempt(
     tier: Tier,
     context: ContextKind,
     need_baseline: bool,
+    style: verbal::Style,
+    exclude: &BTreeSet<String>,
 ) -> Option<Compiled> {
     {
         let mut pre = policy::Preimages::default();
@@ -171,7 +219,7 @@ fn attempt(
         }
         let p_text = policy_string(&abs, &ks, context);
         let kvars = key_vars(&ks, context);
-        let spec = verbal::spec(&abs, &kvars);
+        let spec = verbal::spec_styled(&abs, &kvars, style);
 
         let (ms_text, script, opt_w, naive_script, naive_w) = match context {
             ContextKind::Legacy => {
@@ -207,6 +255,11 @@ fn attempt(
         // bytes carry only a hash and cannot lift; mixed height/relative
         // timelocks in one path are also ungradable). Resample those.
         if check_equivalence(context, &script, &script) != Verdict::Equivalent {
+            return None;
+        }
+        // Contamination dedup: never ship a task whose answer key is in
+        // the excluded set (typically the eval set's answer keys).
+        if !exclude.is_empty() && exclude.contains(&script.to_hex_string()) {
             return None;
         }
         let (opt_weight, opt_size) = (opt_w.weight, opt_w.size);
@@ -247,6 +300,7 @@ fn attempt(
             opt_size,
             keys: kvars,
             spec_en: spec,
+            atoms: abs.atom_count(),
             preimages: preimage_hex_map(&pre),
         });
     }
@@ -294,15 +348,18 @@ pub fn generate(params: &GenParams) -> Vec<Fixture> {
     let mut out = Vec::new();
     let mut rng = SeededRng::new(params.seed);
     for i in 0..params.write {
-        let tier = tier_for(i);
+        let tier = tier_for(i, &params.tiers);
         let ctx = context_for(i);
-        let c = compile_task(&mut rng, tier, ctx, false)
+        let style = style_for(params, 0x51, i);
+        let c = compile_task(&mut rng, tier, ctx, false, style, &params.exclude)
             .unwrap_or_else(|| panic!("write task {i} ({tier:?}/{ctx:?}) failed to generate"));
         out.push(Fixture::Write(WriteFixture {
             id: format!("t1-{i:04}"),
             tier,
             context: ctx,
             spec_en: c.spec_en,
+            spec_family: style.family,
+            atoms: c.atoms,
             keys: c.keys,
             reference_policy: c.policy_text,
             reference_miniscript: c.ms_text,
@@ -311,15 +368,18 @@ pub fn generate(params: &GenParams) -> Vec<Fixture> {
         }));
     }
     for i in 0..params.optimize {
-        let tier = tier_for(i);
+        let tier = tier_for(i, &params.tiers);
         let ctx = context_for(i);
-        let c = compile_task(&mut rng, tier, ctx, true)
+        let style = style_for(params, 0x52, i);
+        let c = compile_task(&mut rng, tier, ctx, true, style, &params.exclude)
             .unwrap_or_else(|| panic!("optimize task {i} ({tier:?}/{ctx:?}) failed to generate"));
         out.push(Fixture::Optimize(OptimizeFixture {
             id: format!("t2-{i:04}"),
             tier,
             context: ctx,
             spec_en: c.spec_en,
+            spec_family: style.family,
+            atoms: c.atoms,
             keys: c.keys,
             baseline_script_hex: c.naive_hex,
             baseline_size: c.naive_size,
@@ -363,6 +423,7 @@ mod tests {
             write: 10,
             optimize: 10,
             identify: 3,
+            ..GenParams::default()
         };
         let fixtures = generate(&params);
         assert_eq!(
@@ -386,10 +447,85 @@ mod tests {
             write: 4,
             optimize: 4,
             identify: 2,
+            ..GenParams::default()
         };
         let a = serde_json::to_string(&generate(&p)).unwrap();
         let b = serde_json::to_string(&generate(&p)).unwrap();
         assert_eq!(a, b);
+    }
+
+    #[test]
+    fn tier_subset_atoms_and_families() {
+        let params = GenParams {
+            seed: 31,
+            write: 6,
+            optimize: 0,
+            identify: 0,
+            verbal_families: vec![1, 2],
+            vary_structure: true,
+            tiers: vec![Tier::Medium, Tier::Hard],
+            ..GenParams::default()
+        };
+        let fixtures = generate(&params);
+        let mut families = std::collections::BTreeSet::new();
+        for (i, f) in fixtures.iter().enumerate() {
+            let Fixture::Write(w) = f else {
+                panic!("write only")
+            };
+            // Tier cycle round-robins through exactly the listed tiers.
+            let expect = [Tier::Medium, Tier::Hard][i % 2];
+            assert_eq!(w.tier, expect, "task {i}");
+            // Atom count is recorded and within the tier budget.
+            let budget = match w.tier {
+                Tier::Easy => 1..=2,
+                Tier::Medium => 2..=6,
+                Tier::Hard => 7..=12,
+            };
+            assert!(budget.contains(&w.atoms), "task {i}: atoms {}", w.atoms);
+            // Only the listed (non-eval) families may appear.
+            assert!([1, 2].contains(&w.spec_family), "family {}", w.spec_family);
+            families.insert(w.spec_family);
+        }
+        // With 3 families over 6 tasks, at least two distinct families
+        // should appear (seed-pinned).
+        assert!(families.len() >= 2, "family draw collapsed: {families:?}");
+    }
+
+    #[test]
+    fn exclusion_resamples_answer_keys() {
+        let base = GenParams {
+            seed: 13,
+            write: 4,
+            optimize: 2,
+            identify: 0,
+            ..GenParams::default()
+        };
+        let eval = generate(&base);
+        let keys: BTreeSet<String> = eval
+            .iter()
+            .filter_map(|f| match f {
+                Fixture::Write(w) => Some(w.reference_script_hex.clone()),
+                Fixture::Optimize(o) => Some(o.optimal_script_hex.clone()),
+                Fixture::Identify(_) => None,
+            })
+            .collect();
+        // Same seed + exclusion: every colliding task must be resampled.
+        let train = generate(&GenParams {
+            exclude: keys.clone(),
+            ..base
+        });
+        for f in &train {
+            let hex = match f {
+                Fixture::Write(w) => &w.reference_script_hex,
+                Fixture::Optimize(o) => &o.optimal_script_hex,
+                Fixture::Identify(_) => continue,
+            };
+            assert!(
+                !keys.contains(hex),
+                "task {} shipped an excluded answer key",
+                f.id()
+            );
+        }
     }
 
     #[test]

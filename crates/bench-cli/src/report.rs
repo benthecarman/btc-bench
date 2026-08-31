@@ -59,6 +59,22 @@ fn ctx_of(f: &Fixture) -> Option<ContextKind> {
 
 use crate::classify_reason as classify;
 
+fn atoms_of(f: &Fixture) -> Option<usize> {
+    match f {
+        Fixture::Write(w) => (w.atoms > 0).then_some(w.atoms),
+        Fixture::Optimize(o) => (o.atoms > 0).then_some(o.atoms),
+        Fixture::Identify(_) => None,
+    }
+}
+
+fn family_of(f: &Fixture) -> Option<u32> {
+    match f {
+        Fixture::Write(w) => Some(w.spec_family),
+        Fixture::Optimize(o) => Some(o.spec_family),
+        Fixture::Identify(_) => None,
+    }
+}
+
 /// The lint rate among perfect answers: equivalent-but-insane scripts.
 /// These score 1.0 by default and 0.0 under --standard-mode.
 fn linted_perfect(t: &GradedTask) -> bool {
@@ -198,6 +214,58 @@ pub fn report(dataset: &Path, runs: &[(String, std::path::PathBuf)], out: &Path)
         }
         for ((k, tier), (s, n)) in &cells {
             md.push_str(&format!("| {k} | {tier} | {n} | {:.3} |\n", s / *n as f64));
+        }
+        md.push('\n');
+    }
+
+    // Atom-count breakdown: the continuous difficulty axis. Rendered
+    // only for datasets whose fixtures record atom counts.
+    if fixtures.iter().any(|f| atoms_of(f).is_some()) {
+        md.push_str("## Atom-count breakdown (write/optimize, mean score)\n\n");
+        for (label, g) in &loaded {
+            md.push_str(&format!("### {label}\n\n"));
+            md.push_str("| kind | atoms | n | mean |\n|---|---|---|---|\n");
+            let mut cells: BTreeMap<(&str, usize), (f64, usize)> = BTreeMap::new();
+            for t in g {
+                let Some(f) = by_id.get(t.task_id.as_str()) else {
+                    continue;
+                };
+                let Some(a) = atoms_of(f) else { continue };
+                let e = cells.entry((kind_of(f), a)).or_insert((0.0, 0));
+                e.0 += t.score;
+                e.1 += 1;
+            }
+            for ((k, a), (s, n)) in &cells {
+                md.push_str(&format!("| {k} | {a} | {n} | {:.3} |\n", s / *n as f64));
+            }
+            md.push('\n');
+        }
+    }
+
+    // Spec-family breakdown: catches template-phrasing overfit (a
+    // model that only solves the canonical family 0 memorized prose,
+    // not semantics). Rendered only when >1 family is present.
+    let families: std::collections::BTreeSet<u32> = fixtures.iter().filter_map(family_of).collect();
+    if families.len() > 1 {
+        md.push_str("## Spec-family breakdown (write/optimize, mean score)\n\n");
+        md.push_str("| model | family | n | mean |\n|---|---|---|---|\n");
+        for (label, g) in &loaded {
+            let mut cells: BTreeMap<u32, (f64, usize)> = BTreeMap::new();
+            for t in g {
+                let Some(f) = by_id.get(t.task_id.as_str()) else {
+                    continue;
+                };
+                let Some(fam) = family_of(f) else { continue };
+                let e = cells.entry(fam).or_insert((0.0, 0));
+                e.0 += t.score;
+                e.1 += 1;
+            }
+            for (fam, (s, n)) in &cells {
+                md.push_str(&format!(
+                    "| {label} | {fam} | {n} | {:.3} |\n",
+                    s / *n as f64
+                ));
+            }
         }
         md.push('\n');
     }
@@ -484,6 +552,7 @@ mod tests {
                 write: 2,
                 optimize: 0,
                 identify: 0,
+                ..bench_gen::fixtures::GenParams::default()
             },
             "test",
         )
@@ -546,6 +615,7 @@ mod tests {
                 write: 2,
                 optimize: 1,
                 identify: 0,
+                ..bench_gen::fixtures::GenParams::default()
             },
             "test",
         )

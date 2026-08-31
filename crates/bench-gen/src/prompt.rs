@@ -138,6 +138,7 @@ mod tests {
             write: 1,
             optimize: 1,
             identify: 1,
+            ..crate::fixtures::GenParams::default()
         };
         for f in crate::fixtures::generate(&params) {
             let p = for_fixture(&f);
@@ -174,6 +175,7 @@ mod tests {
             write: 0,
             optimize: 1,
             identify: 1,
+            ..crate::fixtures::GenParams::default()
         };
         let fixtures = crate::fixtures::generate(&params);
         for f in &fixtures {
@@ -204,6 +206,7 @@ mod tests {
             write: 1,
             optimize: 0,
             identify: 0,
+            ..crate::fixtures::GenParams::default()
         };
         let fixtures = crate::fixtures::generate(&params);
         let f = &fixtures[0];

@@ -41,6 +41,28 @@ enum Command {
         /// Number of identify task groups (each emits one item per family).
         #[arg(long, default_value_t = 25)]
         identify: usize,
+        /// Verbalizer template family ids to draw from,
+        /// comma-separated (default: 0, the canonical benchmark
+        /// phrasing). List only non-eval families (e.g. 1,2) when
+        /// generating training sets, so bench-only families never
+        /// appear in training data.
+        #[arg(long, value_delimiter = ',')]
+        verbal_families: Vec<u32>,
+        /// Vary the prose structure (seeded): permute commutative
+        /// and/or/thresh children and vary the root list shape.
+        /// Training-set setting; the eval structure is canonical.
+        #[arg(long, default_value_t = false)]
+        vary_structure: bool,
+        /// Tier cycle for write/optimize tasks, comma-separated
+        /// (easy,medium,hard). Repeat a tier to weight it. Default:
+        /// the 40/40/20 easy/medium/hard split.
+        #[arg(long, value_delimiter = ',')]
+        tiers: Vec<String>,
+        /// Datasets whose answer keys must not reappear here: any
+        /// sampled task whose reference script matches is resampled.
+        /// Point this at the eval set when generating training data.
+        #[arg(long)]
+        exclude: Vec<PathBuf>,
     },
     /// Emit one JSONL line per fixture: {id, kind, prompt}.
     Prompts {
@@ -179,12 +201,61 @@ fn main() -> Result<()> {
             write,
             optimize,
             identify,
+            verbal_families,
+            vary_structure,
+            tiers,
+            exclude,
         } => {
+            if let Some(f) = verbal_families
+                .iter()
+                .find(|f| **f >= bench_gen::verbal::FAMILIES)
+            {
+                bail!(
+                    "unknown verbal family {f}; known families are 0..{}",
+                    bench_gen::verbal::FAMILIES - 1
+                );
+            }
+            let tiers = tiers
+                .iter()
+                .map(|t| match t.trim().to_ascii_lowercase().as_str() {
+                    "easy" => Ok(bench_core::Tier::Easy),
+                    "medium" => Ok(bench_core::Tier::Medium),
+                    "hard" => Ok(bench_core::Tier::Hard),
+                    other => Err(anyhow::anyhow!(
+                        "unknown tier {other:?}; use easy, medium, or hard"
+                    )),
+                })
+                .collect::<Result<Vec<_>>>()?;
+            let mut excluded = std::collections::BTreeSet::new();
+            for dir in &exclude {
+                for f in load_dataset(dir)? {
+                    match f {
+                        bench_core::task::Fixture::Write(w) => {
+                            excluded.insert(w.reference_script_hex);
+                        }
+                        bench_core::task::Fixture::Optimize(o) => {
+                            excluded.insert(o.optimal_script_hex);
+                        }
+                        bench_core::task::Fixture::Identify(_) => {}
+                    }
+                }
+            }
+            if !excluded.is_empty() {
+                println!(
+                    "excluding {} answer keys from {} dataset(s)",
+                    excluded.len(),
+                    exclude.len()
+                );
+            }
             let params = GenParams {
                 seed,
                 write,
                 optimize,
                 identify,
+                verbal_families,
+                vary_structure,
+                tiers,
+                exclude: excluded,
             };
             let n = gen_dataset(&out, &params, env!("CARGO_PKG_VERSION"))?;
             println!("wrote {n} fixtures to {}", out.display());

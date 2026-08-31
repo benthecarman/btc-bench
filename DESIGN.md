@@ -31,6 +31,26 @@ Rust workspace, three crates:
    distinct vocabulary for relative vs absolute timelocks. Keys appear in
    the prompt as labeled variables ("Alice's key: 02…"), context-correct:
    33-byte compressed for legacy/segwit, 32-byte x-only for taproot.
+   The verbalizer has multiple hand-written template families per AST
+   node (`verbal::FAMILIES`); family 0 is the canonical benchmark
+   phrasing and stays byte-stable (test-pinned). `gen
+   --verbal-families <id,id>` draws per task from an explicit family
+   list, chosen by a per-task seed salt (never the main rng stream, so
+   policy sampling is unaffected). The split is a generation-time
+   guarantee: family 0 is bench-only; training sets list only non-eval
+   families. When a new family is authored, it starts held-out — never
+   trained on — until deliberately released into the training list, so
+   there is always at least one never-trained family to measure
+   phrasing transfer against (the report's spec-family cut).
+   Word swaps alone leave the shared template skeleton learnable, so
+   `--vary-structure` additionally varies the clause tree (seeded, per
+   task): and/or/thresh children are permuted in the prose — they are
+   commutative, so the policy, reference, and oracle are untouched —
+   and the root list renders inline, numbered, or as lettered spending
+   paths. Eval structure stays canonical. No LLM paraphrasing
+   anywhere: every variant is authored per node, so prose can never
+   drift from policy semantics, and timelock/hash vocabulary stays
+   distinct in every family and shape (test-pinned).
 4. Model returns one script (hex or asm). Grading:
    - Parse answer to bytes; malformed = 0.
    - Gate: `Miniscript::decode_consensus` with the task's context.
@@ -260,6 +280,24 @@ fixtures and answers.
   it counts as unanswered at grading time.
   If goose-providers embedding ever becomes genuinely blocked, we
   surface exactly what is missing and decide — no silent fallback.
+
+## Reporting statistics
+
+- Grade summaries and the sweep report's headline means carry 95%
+  percentile-bootstrap CIs (1000 resamples over tasks, seeded and
+  deterministic). A regression is only a regression when the CIs say
+  so.
+- Format vs reasoning split: an answer is *well-formed* when it
+  cleared the parse and decode gates (its failure, if any, is
+  semantic). Summaries report the well-formed count and "semantic
+  accuracy given well-formed" — sweeps showed parse/decode failures
+  were ~2/3 of zero scores, a different capability than wrong
+  semantics.
+- Write/optimize fixtures record the policy's boolean atom count
+  (`atoms`), the continuous difficulty axis under the tiers; the
+  report breaks scores down by atom count. `gen --tiers` overrides the
+  default 40/40/20 cycle with an explicit tier round-robin (repeat a
+  tier to weight it) for curriculum sets.
 
 ## Fixtures and artifacts
 

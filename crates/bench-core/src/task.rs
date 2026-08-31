@@ -46,6 +46,15 @@ pub struct KeyVar {
     pub pubkey: String,
 }
 
+/// Serde helper: omit zero-valued additive fields so fixtures written
+/// before the field existed stay byte-identical on regeneration.
+fn is_zero_u32(v: &u32) -> bool {
+    *v == 0
+}
+fn is_zero_usize(v: &usize) -> bool {
+    *v == 0
+}
+
 /// Task 1: write the inner script satisfying the English spec.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct WriteFixture {
@@ -54,6 +63,15 @@ pub struct WriteFixture {
     pub context: ContextKind,
     /// Deterministic English specification (from the verbalizer).
     pub spec_en: String,
+    /// Verbalizer template family that produced `spec_en` (0 = the
+    /// canonical benchmark phrasing).
+    #[serde(default, skip_serializing_if = "is_zero_u32")]
+    pub spec_family: u32,
+    /// Boolean atom count of the policy (keys + hash preimages) — the
+    /// continuous difficulty axis under the tier. 0 = unrecorded
+    /// (fixture predates the field).
+    #[serde(default, skip_serializing_if = "is_zero_usize")]
+    pub atoms: usize,
     /// Keys available to the script, labels referenced by `spec_en`.
     pub keys: Vec<KeyVar>,
     /// Concrete policy string (diagnostic aid; answer keys are the bytes).
@@ -76,6 +94,12 @@ pub struct OptimizeFixture {
     pub tier: Tier,
     pub context: ContextKind,
     pub spec_en: String,
+    /// Verbalizer template family for `spec_en` (0 = canonical).
+    #[serde(default, skip_serializing_if = "is_zero_u32")]
+    pub spec_family: u32,
+    /// Boolean atom count of the policy; 0 = unrecorded.
+    #[serde(default, skip_serializing_if = "is_zero_usize")]
+    pub atoms: usize,
     pub keys: Vec<KeyVar>,
     /// Deliberately naive but correct script handed to the model.
     pub baseline_script_hex: String,

@@ -347,6 +347,7 @@ mod tests {
                 write: 4,
                 optimize: 4,
                 identify: 1,
+                ..GenParams::default()
             },
             "audit-test",
         )
@@ -374,6 +375,7 @@ mod tests {
                 write: 2,
                 optimize: 2,
                 identify: 1,
+                ..GenParams::default()
             },
             "audit-test",
         )
@@ -418,6 +420,7 @@ mod tests {
                 write: 2,
                 optimize: 2,
                 identify: 1,
+                ..GenParams::default()
             },
             "audit-test",
         )
@@ -455,6 +458,7 @@ mod tests {
                 write: 1,
                 optimize: 1,
                 identify: 1,
+                ..GenParams::default()
             },
             "audit-test",
         )

@@ -307,6 +307,8 @@ mod tests {
             tier: Tier::Easy,
             context: ContextKind::SegwitV0,
             spec_en: "unused".into(),
+            spec_family: 0,
+            atoms: 0,
             keys: vec![],
             reference_policy: String::new(),
             reference_miniscript: String::new(),
@@ -377,6 +379,8 @@ mod tests {
             tier: Tier::Easy,
             context: ContextKind::SegwitV0,
             spec_en: String::new(),
+            spec_family: 0,
+            atoms: 0,
             keys: vec![KeyVar {
                 label: "A".into(),
                 pubkey: "0279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798".into(),

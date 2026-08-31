@@ -1254,6 +1254,7 @@ mod tests {
             write: 1,
             optimize: 0,
             identify: 0,
+            ..GenParams::default()
         });
         let good = completion_with_tool(
             "submit_script",
@@ -1340,6 +1341,7 @@ mod tests {
             write: 1,
             optimize: 0,
             identify: 0,
+            ..GenParams::default()
         });
         let hex = match &fixtures[0] {
             Fixture::Write(w) => w.reference_script_hex.clone(),
@@ -1386,6 +1388,7 @@ mod tests {
             write: 1,
             optimize: 0,
             identify: 0,
+            ..GenParams::default()
         });
         let (base, _) = spawn_mock(vec![completion_text("I would rather not.")]);
         let out = tmpdir("no-tool");
@@ -1410,6 +1413,7 @@ mod tests {
             write: 0,
             optimize: 0,
             identify: 1,
+            ..GenParams::default()
         });
         let bodies: Vec<serde_json::Value> = fixtures
             .iter()
@@ -1492,6 +1496,7 @@ mod tests {
             write: 4,
             optimize: 0,
             identify: 0,
+            ..GenParams::default()
         });
         let bodies: Vec<serde_json::Value> = fixtures
             .iter()
@@ -1546,6 +1551,7 @@ mod tests {
             write: 1,
             optimize: 0,
             identify: 0,
+            ..GenParams::default()
         });
         let hex = match &fixtures[0] {
             Fixture::Write(w) => w.reference_script_hex.clone(),
@@ -1577,6 +1583,7 @@ mod tests {
             write: 1,
             optimize: 0,
             identify: 0,
+            ..GenParams::default()
         });
         let hex = match &fixtures[0] {
             Fixture::Write(w) => w.reference_script_hex.clone(),
@@ -1608,6 +1615,7 @@ mod tests {
             write: 1,
             optimize: 0,
             identify: 0,
+            ..GenParams::default()
         });
         let (base, captured) = spawn_mock_scenario(usize::MAX, 500, json!({}));
         let out = tmpdir("retry-exhaust");
@@ -1634,6 +1642,7 @@ mod tests {
             write: 2,
             optimize: 0,
             identify: 0,
+            ..GenParams::default()
         });
         let answers: Vec<_> = fixtures
             .iter()
@@ -1676,6 +1685,7 @@ mod tests {
             write: 1,
             optimize: 0,
             identify: 0,
+            ..GenParams::default()
         });
         let hex = match &fixtures[0] {
             Fixture::Write(w) => w.reference_script_hex.clone(),
@@ -1706,6 +1716,7 @@ mod tests {
             write: 1,
             optimize: 0,
             identify: 0,
+            ..GenParams::default()
         });
         let _hex = match &fixtures[0] {
             Fixture::Write(w) => w.reference_script_hex.clone(),
@@ -1758,6 +1769,7 @@ mod tests {
             write: 1,
             optimize: 0,
             identify: 0,
+            ..GenParams::default()
         });
         let hex = match &fixtures[0] {
             Fixture::Write(w) => w.reference_script_hex.clone(),
@@ -1787,6 +1799,7 @@ mod tests {
             write: 4,
             optimize: 0,
             identify: 0,
+            ..GenParams::default()
         });
         let answers: Vec<_> = fixtures
             .iter()
