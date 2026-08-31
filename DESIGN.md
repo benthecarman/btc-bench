@@ -310,6 +310,39 @@ fixtures and answers.
   (`bench_cli::CANARY`). Identify templates are public knowledge (this
   is a recall benchmark for them), so identify items are not deduped.
 
+## RL reward shaping
+
+The reward service serves two scores per answer: `score` (the
+benchmark score, unchanged) and `shaped` (the training reward). All
+shaping lives in the service layer — the graders and the benchmark
+never change, so training reward experiments cannot drift the
+leaderboard metric.
+
+Shaping components, each a server flag with a per-request override:
+
+- Parse and decode rungs: small fixed credit for clearing the answer
+  parser and the miniscript decode gate. Gets syntax learned fast at
+  the start of training; anneal toward zero from the trainer side by
+  overriding per request.
+- Agreement band: scaled by *balanced* truth-table agreement — the
+  mean of agreement rates on reference-true and reference-false rows,
+  computed by the same exhaustive walk as the oracle. Balanced is the
+  hack-resistance property: a constant script (OP_1 / always-false)
+  agrees perfectly on one side and never on the other, so it caps at
+  exactly 0.5 however skewed the table is; the band normalizes 0.5 to
+  zero, so constants earn none of it. 1.0 iff equivalent
+  (test-pinned).
+- Equivalence floor (optimize): the weight curve scores an
+  equivalent-but-unimproved rewrite 0; during training, reaching
+  equivalence at all deserves reward.
+- Lint penalty / gate: the training analog of `grade
+  --standard-mode`, so RL cannot converge to malleable-but-equivalent
+  encodings unnoticed.
+
+Guardrail: the service rejects configs where parse + decode +
+agreement exceeds 0.5 — a non-equivalent answer must never approach
+full credit, or the shaping itself becomes the reward hack.
+
 ## Fixtures and artifacts
 
 `datasets/` is gitignored; the headline benchmark is a *pinned seed*,

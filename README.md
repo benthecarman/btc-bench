@@ -151,13 +151,34 @@ TR offered/accepted HTLC timeout tapleaves.
 ## Reward service for RL
 
 ```bash
-btc-bench reward-serve --port 9900
+# Unshaped: shaped == benchmark score
+btc-bench reward-serve --bind 0.0.0.0:9900 --threads 8
+
+# Shaped for training: rungs for parse/decode, a band paid by
+# balanced truth-table agreement, and a lint penalty
+btc-bench reward-serve --bind 0.0.0.0:9900 \
+    --shape-parse 0.05 --shape-decode 0.10 --shape-agreement 0.25 \
+    --shape-equivalent-floor 0.3 --lint-penalty 0.05
 ```
 
-POST `/reward` with `{"task": <fixture>, "answer": "..."}` returns
-`{"score": 0.0-1.0, "reason": "..."}`. Wraps the same graders the
-benchmark uses — designed as the verifiable reward for RLVR training
-loops.
+POST `/reward` with `{"task": <fixture>, "answer": "...", "shaping"?: {...}}`
+(also `/reward/batch` and GET `/health`). Every response carries:
+
+- `score` — the benchmark score, identical to `btc-bench grade`;
+- `shaped` — the training reward: score plus the configured shaping
+  (per-request `shaping` overrides the server default, so one server
+  can serve eval and training at once);
+- `components` — the raw signals (parsed / decoded / equivalent /
+  agreement / lint count) for logging or custom recombination.
+
+The agreement band uses *balanced* truth-table agreement: the mean of
+the agreement rates on reference-true and reference-false rows.
+Constant scripts (`OP_1`, always-false) cap at 0.5 regardless of table
+skew, and the band normalizes 0.5 to zero — so the dense signal pays
+only for real semantic progress, never for the always-true hack. The
+server refuses shaping configs where a non-equivalent answer could
+earn more than 0.5. Requests are handled by a thread pool; grading is
+milliseconds per answer.
 
 ## Regression gate
 

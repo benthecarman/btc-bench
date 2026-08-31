@@ -125,8 +125,32 @@ enum Command {
     },
     /// Serve the graders over HTTP for RL training loops.
     RewardServe {
-        #[arg(long, default_value_t = 9900)]
-        port: u16,
+        /// Address to bind (use 0.0.0.0:PORT to serve a remote trainer).
+        #[arg(long, default_value = "127.0.0.1:9900")]
+        bind: String,
+        /// Worker threads handling requests.
+        #[arg(long, default_value_t = 8)]
+        threads: usize,
+        /// Shaping rung for a parseable answer.
+        #[arg(long, default_value_t = 0.0)]
+        shape_parse: f64,
+        /// Shaping rung for clearing the miniscript decode gate.
+        #[arg(long, default_value_t = 0.0)]
+        shape_decode: f64,
+        /// Shaping band scaled by balanced truth-table agreement
+        /// (constant scripts earn none of it).
+        #[arg(long, default_value_t = 0.0)]
+        shape_agreement: f64,
+        /// Floor for an equivalent-but-unimproved optimize answer.
+        #[arg(long, default_value_t = 0.0)]
+        shape_equivalent_floor: f64,
+        /// Penalty per lint finding on the shaped score.
+        #[arg(long, default_value_t = 0.0)]
+        lint_penalty: f64,
+        /// Zero the shaped score of linted answers (training analog of
+        /// grade --standard-mode).
+        #[arg(long, default_value_t = false)]
+        lint_gate: bool,
     },
     /// Audit a committed dataset: re-verify every answer key.
     Audit {
@@ -387,7 +411,27 @@ fn main() -> Result<()> {
             );
             Ok(())
         }
-        Command::RewardServe { port } => bench_cli::reward::serve(port),
+        Command::RewardServe {
+            bind,
+            threads,
+            shape_parse,
+            shape_decode,
+            shape_agreement,
+            shape_equivalent_floor,
+            lint_penalty,
+            lint_gate,
+        } => bench_cli::reward::serve(
+            &bind,
+            threads,
+            bench_cli::reward::Shaping {
+                parse: shape_parse,
+                decode: shape_decode,
+                agreement: shape_agreement,
+                equivalent_floor: shape_equivalent_floor,
+                lint_penalty,
+                lint_gate,
+            },
+        ),
         Command::Audit { dataset } => {
             let report = bench_cli::audit::audit_dataset(&dataset)?;
             for w in &report.warnings {
