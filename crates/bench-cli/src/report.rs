@@ -38,6 +38,7 @@ fn kind_of(f: &Fixture) -> &'static str {
         Fixture::Write(_) => "write",
         Fixture::Optimize(_) => "optimize",
         Fixture::Identify(_) => "identify",
+        Fixture::Tree(_) => "tree",
     }
 }
 
@@ -46,6 +47,7 @@ fn tier_of(f: &Fixture) -> Option<Tier> {
         Fixture::Write(w) => Some(w.tier),
         Fixture::Optimize(o) => Some(o.tier),
         Fixture::Identify(_) => None,
+        Fixture::Tree(t) => Some(t.tier),
     }
 }
 
@@ -54,6 +56,9 @@ fn ctx_of(f: &Fixture) -> Option<ContextKind> {
         Fixture::Write(w) => Some(w.context),
         Fixture::Optimize(o) => Some(o.context),
         Fixture::Identify(_) => None,
+        // Tree tasks are taproot by definition; keeping them out of
+        // the context table keeps it a write/optimize comparison.
+        Fixture::Tree(_) => None,
     }
 }
 
@@ -64,6 +69,7 @@ fn atoms_of(f: &Fixture) -> Option<usize> {
         Fixture::Write(w) => (w.atoms > 0).then_some(w.atoms),
         Fixture::Optimize(o) => (o.atoms > 0).then_some(o.atoms),
         Fixture::Identify(_) => None,
+        Fixture::Tree(t) => (t.atoms > 0).then_some(t.atoms),
     }
 }
 
@@ -72,6 +78,7 @@ fn family_of(f: &Fixture) -> Option<u32> {
         Fixture::Write(w) => Some(w.spec_family),
         Fixture::Optimize(o) => Some(o.spec_family),
         Fixture::Identify(_) => None,
+        Fixture::Tree(t) => Some(t.spec_family),
     }
 }
 
@@ -92,8 +99,8 @@ pub fn report(dataset: &Path, runs: &[(String, std::path::PathBuf)], out: &Path)
 
     // Headline table. Means are over answered tasks; the 95% CI is a
     // percentile bootstrap over the same per-task scores.
-    md.push_str("| model | write | optimize (w) | optimize (s) | identify | unanswered | linted-perfect |\n");
-    md.push_str("|---|---|---|---|---|---|---|\n");
+    md.push_str("| model | write | optimize (w) | optimize (s) | identify | tree (w) | unanswered | linted-perfect |\n");
+    md.push_str("|---|---|---|---|---|---|---|---|\n");
     let mut loaded: Vec<(String, Vec<GradedTask>)> = Vec::new();
     for (label, dir) in runs {
         let g = load_graded(dir)?;
@@ -141,12 +148,13 @@ pub fn report(dataset: &Path, runs: &[(String, std::path::PathBuf)], out: &Path)
             }
         };
         md.push_str(&format!(
-            "| {} | {} | {} | {:.3} | {} | {} | {}/{} |\n",
+            "| {} | {} | {} | {:.3} | {} | {} | {} | {}/{} |\n",
             label,
             cell("write", 1),
             cell("optimize_w", 2),
             mean("optimize_s"),
             cell("identify", 3),
+            cell("tree", 4),
             unanswered,
             linted,
             perfect,
@@ -189,7 +197,10 @@ pub fn report(dataset: &Path, runs: &[(String, std::path::PathBuf)], out: &Path)
         };
         let (wwf, wsem) = render("write");
         let (owf, osem) = render("optimize");
-        md.push_str(&format!("| {label} | {wwf} | {wsem} | {owf} | {osem} |\n"));
+        let (twf, tsem) = render("tree");
+        md.push_str(&format!(
+            "| {label} | {wwf} | {wsem} | {owf} | {osem} | {twf} | {tsem} |\n"
+        ));
     }
     md.push('\n');
 
@@ -380,6 +391,9 @@ fn pass_vector(fixtures: &[Fixture], responses: &[ResponseRecord]) -> BTreeMap<S
             (Fixture::Identify(i), TaskAnswer::Identify(a)) => {
                 bench_core::grade_identify(i, a, 0.5).score >= 0.999
             }
+            (Fixture::Tree(t), TaskAnswer::Descriptor(a)) => {
+                bench_core::grade_tree(t, &a.descriptor).weight_score >= 0.999
+            }
             _ => false,
         };
         out.insert(r.task_id.clone(), solved);
@@ -563,7 +577,7 @@ mod tests {
         let perfect_answer = |f: &Fixture| match f {
             Fixture::Write(w) => w.reference_script_hex.clone(),
             Fixture::Optimize(o) => o.optimal_script_hex.clone(),
-            Fixture::Identify(_) => unreachable!(),
+            Fixture::Identify(_) | Fixture::Tree(_) => unreachable!(),
         };
 
         for (label, sabotage) in [("a", false), ("b", true)] {
@@ -633,7 +647,7 @@ mod tests {
                     }
                 }
                 Fixture::Optimize(o) => o.optimal_script_hex.clone(),
-                Fixture::Identify(_) => unreachable!(),
+                Fixture::Identify(_) | Fixture::Tree(_) => unreachable!(),
             };
             text.push_str(
                 &serde_json::json!({

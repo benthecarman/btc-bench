@@ -125,6 +125,48 @@ Miniscript is part of what the benchmark measures.
    scored one-wrong-param the same as no params at all — and a denser
    RLVR signal. No LLM judge anywhere.
 
+### Task 4 — design a taproot tree
+
+1. Generator samples a root-level disjunction: one bare-key branch
+   (the key-path candidate) plus 1-5 compound branches (key+key,
+   key+timelock, key+hash, one thresh at most), tiered by branch
+   count (easy 2, medium 3-4, hard 5-6) inside the oracle's atom
+   budget. Every branch requires a signature.
+2. The answer is a `tr(INTERNAL_KEY,TREE)` descriptor string — the
+   model chooses the key path and the leaf split, which a single-leaf
+   tapscript task cannot measure. The prompt supplies the BIP-341
+   NUMS point for policies where no key deserves the key path.
+3. Reference = hand-built: the bare-key branch becomes the internal
+   key, every other branch compiles to its own leaf
+   (`Concrete::compile::<Tap>`), leaves form a balanced binary tree
+   (equal odds make that the Huffman shape, and it minimizes
+   worst-case control-block depth — the scored metric). NOT
+   `compile_tr`: miniscript 13.1's TapTree Display emits closing
+   braces after the next leaf instead of before it, so any tree with
+   a depth decrease between consecutive leaves prints as a malformed
+   string its own parser rejects; answer keys must round-trip as
+   strings because model answers are strings. Baseline = the whole
+   policy as one leaf under the NUMS key; the generator requires
+   baseline weight strictly above reference weight, so the task is
+   never vacuous.
+4. Grading: parse (must be `tr()`), lift both sides
+   (`Tr::lift` = or(internal key, leaves)), truth-table equivalence
+   with the fixture's unspendable key *pinned false* on both sides —
+   dropped from the enumerated atom set, so it evaluates
+   unsatisfied. Pinning is what makes NUMS-vs-extracted-key designs
+   comparable: a NUMS atom is genuinely unspendable, so formula
+   equivalence after pinning is real-world equivalence. Equivalent
+   answers score on the optimize curve between baseline and
+   reference weight; beating the reference (possible — worst-case
+   and expected-cost optima differ) clamps to 1.0. Per-leaf lint is
+   reported; every reference leaf passes the execution oracle; the
+   audit re-derives descriptors, weights, and the strictly-heavier
+   gate from the stored policy.
+5. Runner: a `submit_descriptor` tool; multi-turn feedback mirrors
+   optimize (weight gap for correct designs, verbatim parse reasons,
+   never the reference). Reward service: same shaping rungs, with
+   agreement computed on the lifted policies.
+
 ## Correctness oracle
 
 Judge-free, complete for our task distribution:
@@ -389,7 +431,8 @@ responses.jsonl, so grader changes never require re-running a model.
 5. ✅ Protocol identification corpus: Lightning across all eras
    (P2WSH + taproot) and a structural Liquid peg item, in
    datasets/v2; coinswap and Revault still pending sources.
-6. Taproot tree-tier tasks, pass^k reporting, tool-assisted mode.
+6. ✅ Taproot tree-tier tasks (t4) and pass^k reporting; tool-assisted
+   mode still pending.
 7. Extension tier: arbitrary (non-miniscript) scripts — needs an
    execution engine (bitcoin-scriptexec / bitcoin-circle-stf /
    bitcoind regtest) since the decode gate no longer applies.

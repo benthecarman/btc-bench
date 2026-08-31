@@ -4,10 +4,19 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::str::FromStr;
 
-use bench_core::task::{ContextKind, Fixture, KeyVar, OptimizeFixture, Tier, WriteFixture};
+use bench_core::task::{
+    ContextKind, Fixture, KeyVar, OptimizeFixture, Tier, TreeFixture, WriteFixture,
+};
 use bench_core::{check_equivalence, Verdict};
 use bitcoin::{PublicKey, XOnlyPublicKey};
-use miniscript::{policy::Concrete, Legacy, Miniscript, Segwitv0, Tap};
+use miniscript::{policy::Concrete, Descriptor, Legacy, Miniscript, Segwitv0, Tap};
+
+/// BIP-341 NUMS point: SHA-256 of the generator's compressed encoding,
+/// lifted to a curve point — provably no one knows its discrete log.
+/// Offered in tree prompts as the internal key for policies with no
+/// key-path-worthy branch.
+pub const UNSPENDABLE_KEY: &str =
+    "50929b74c1a04954b78b4b6035e97a5e078a5a0f28ec96d547bfee9ace803ac0";
 
 use crate::keys::{self, KeySet};
 use crate::naive;
@@ -21,6 +30,9 @@ pub struct GenParams {
     pub write: usize,
     pub optimize: usize,
     pub identify: usize,
+    /// Number of taproot tree-design tasks (t4). Appended after the
+    /// other kinds, so adding trees never disturbs t1-t3 for a seed.
+    pub tree: usize,
     /// Verbalizer template family ids to draw from. Empty = family 0
     /// only (canonical, byte-identical to historical datasets). List
     /// only non-eval families (e.g. [1, 2]) when generating training
@@ -48,6 +60,7 @@ impl Default for GenParams {
             write: 300,
             optimize: 300,
             identify: 250,
+            tree: 0,
             verbal_families: Vec::new(),
             vary_structure: false,
             tiers: Vec::new(),
@@ -306,6 +319,196 @@ fn attempt(
     }
 }
 
+/// Flatten a concrete policy's root-level or-chain into branches.
+fn flatten_or(p: &Concrete<XOnlyPublicKey>, out: &mut Vec<Concrete<XOnlyPublicKey>>) {
+    if let Concrete::Or(subs) = p {
+        for (_odds, sub) in subs {
+            flatten_or(sub, out);
+        }
+    } else {
+        out.push(p.clone());
+    }
+}
+
+/// Balanced binary tap tree *string* over compiled leaves. With equal
+/// branch odds this is the shape a Huffman tree would give, and it
+/// minimizes the worst-case control-block depth — the metric tree
+/// tasks score.
+///
+/// The string is built by hand because miniscript 13.1's `TapTree`
+/// Display is broken: it emits closing braces after the next leaf
+/// instead of before it, so any tree with a depth decrease between
+/// consecutive leaves (e.g. `{{A,B},C}`) prints as a malformed string
+/// its own parser rejects. The answer key must be a parseable string
+/// — models answer in text — so we serialize the tree ourselves and
+/// re-parse it as the source of truth.
+fn balanced_tree_string(leaves: &[Miniscript<XOnlyPublicKey, Tap>]) -> String {
+    match leaves.len() {
+        0 => unreachable!("caller guarantees leaves"),
+        1 => leaves[0].to_string(),
+        n => {
+            let (l, r) = leaves.split_at(n.div_ceil(2));
+            format!(
+                "{{{},{}}}",
+                balanced_tree_string(l),
+                balanced_tree_string(r)
+            )
+        }
+    }
+}
+
+/// Re-derive a tree task's reference and baseline descriptors from its
+/// concrete policy string. Used by generation and by the dataset
+/// audit, so the answer key is always reconstructible from first
+/// principles.
+///
+/// NOT `compile_tr`: its Huffman `TapTree` hits the same broken
+/// Display (see [`balanced_tree_string`]), so its output cannot
+/// round-trip through a string. Instead: the policy's single bare-key
+/// branch becomes the internal key, every other branch compiles to
+/// its own leaf, and the leaves form a balanced binary tree. The
+/// baseline is the whole policy as one leaf under the unspendable
+/// key. Returns (reference, baseline) descriptor strings, both
+/// verified to parse.
+pub fn tree_descriptors_for_policy(
+    policy: &str,
+    unspendable_key: &str,
+) -> Result<(String, String), String> {
+    let concrete = Concrete::<XOnlyPublicKey>::from_str(policy).map_err(|e| e.to_string())?;
+    let mut branches = Vec::new();
+    flatten_or(&concrete, &mut branches);
+    let key_at = branches
+        .iter()
+        .position(|b| matches!(b, Concrete::Key(_)))
+        .ok_or("no bare-key branch for the key path")?;
+    let Concrete::Key(internal) = branches.remove(key_at) else {
+        unreachable!("position matched a key branch")
+    };
+    let leaves = branches
+        .iter()
+        .map(|b| b.compile::<Tap>().map_err(|e| e.to_string()))
+        .collect::<Result<Vec<_>, _>>()?;
+    let reference = if leaves.is_empty() {
+        format!("tr({internal})")
+    } else {
+        format!("tr({internal},{})", balanced_tree_string(&leaves))
+    };
+    let single = concrete.compile::<Tap>().map_err(|e| e.to_string())?;
+    let baseline = format!("tr({unspendable_key},{single})");
+    for s in [&reference, &baseline] {
+        s.parse::<Descriptor<XOnlyPublicKey>>()
+            .map_err(|e| format!("built descriptor does not parse ({s}): {e}"))?;
+    }
+    Ok((reference, baseline))
+}
+
+/// One tree task's verified artifacts.
+struct TreeCompiled {
+    policy_text: String,
+    reference_descriptor: String,
+    reference_weight: usize,
+    baseline_descriptor: String,
+    baseline_weight: usize,
+    keys: Vec<KeyVar>,
+    spec_en: String,
+    atoms: usize,
+    preimages: BTreeMap<String, String>,
+}
+
+fn compile_tree_task(
+    rng: &mut SeededRng,
+    tier: Tier,
+    style: verbal::Style,
+    exclude: &BTreeSet<String>,
+) -> Option<TreeCompiled> {
+    for _ in 0..64 {
+        if let Some(c) = tree_attempt(rng, tier, style, exclude) {
+            return Some(c);
+        }
+    }
+    None
+}
+
+fn tree_attempt(
+    rng: &mut SeededRng,
+    tier: Tier,
+    style: verbal::Style,
+    exclude: &BTreeSet<String>,
+) -> Option<TreeCompiled> {
+    let mut pre = policy::Preimages::default();
+    let abs = policy::sample_tree(rng, tier, &mut pre);
+    let ks = keys::generate(rng, abs.key_count().max(1));
+    let p_text = policy_string(&abs, &ks, ContextKind::Tap);
+    let kvars = key_vars(&ks, ContextKind::Tap);
+    let spec = verbal::spec_styled(&abs, &kvars, style);
+
+    let (reference, baseline) = tree_descriptors_for_policy(&p_text, UNSPENDABLE_KEY).ok()?;
+    let weight_of = |s: &str| -> Option<usize> {
+        s.parse::<Descriptor<XOnlyPublicKey>>()
+            .ok()?
+            .max_weight_to_satisfy()
+            .ok()
+            .map(|w| w.to_wu() as usize)
+    };
+    let reference_weight = weight_of(&reference)?;
+    let baseline_weight = weight_of(&baseline)?;
+    // The task must have something to design: the tree must strictly
+    // beat the single leaf on the metric.
+    if baseline_weight <= reference_weight {
+        return None;
+    }
+    if !exclude.is_empty() && exclude.contains(&reference.to_string()) {
+        return None;
+    }
+    // Self-check: the fixture must grade its own answer key at full
+    // marks, and every reference leaf must be executable (the same
+    // dual-oracle discipline as write/optimize, applied per leaf).
+    let fixture = TreeFixture {
+        id: String::new(),
+        tier,
+        spec_en: spec.clone(),
+        spec_family: style.family,
+        atoms: abs.atom_count(),
+        keys: kvars.clone(),
+        unspendable_key: UNSPENDABLE_KEY.to_string(),
+        reference_policy: p_text.clone(),
+        reference_descriptor: reference,
+        reference_weight,
+        baseline_descriptor: baseline,
+        baseline_weight,
+        hash_preimages: preimage_hex_map(&pre),
+    };
+    let self_grade = bench_core::grade_tree(&fixture, &fixture.reference_descriptor);
+    if !self_grade.verdict.is_equivalent() || self_grade.weight_score < 1.0 {
+        return None;
+    }
+    let typed = typed_preimages(&pre);
+    let Ok(Descriptor::Tr(tr)) = fixture
+        .reference_descriptor
+        .parse::<Descriptor<XOnlyPublicKey>>()
+    else {
+        return None;
+    };
+    for leaf in tr.leaves() {
+        if bench_core::execution_check(ContextKind::Tap, &leaf.miniscript().encode(), &typed)
+            .is_err()
+        {
+            return None;
+        }
+    }
+    Some(TreeCompiled {
+        policy_text: p_text,
+        reference_descriptor: fixture.reference_descriptor,
+        reference_weight,
+        baseline_descriptor: fixture.baseline_descriptor,
+        baseline_weight,
+        keys: kvars,
+        spec_en: spec,
+        atoms: abs.atom_count(),
+        preimages: preimage_hex_map(&pre),
+    })
+}
+
 fn hex(bytes: &[u8]) -> String {
     bytes.iter().map(|b| format!("{b:02x}")).collect()
 }
@@ -408,6 +611,27 @@ pub fn generate(params: &GenParams) -> Vec<Fixture> {
             out.push(Fixture::Identify(all[idx].clone()));
         }
     }
+    for i in 0..params.tree {
+        let tier = tier_for(i, &params.tiers);
+        let style = style_for(params, 0x54, i);
+        let c = compile_tree_task(&mut rng, tier, style, &params.exclude)
+            .unwrap_or_else(|| panic!("tree task {i} ({tier:?}) failed to generate"));
+        out.push(Fixture::Tree(TreeFixture {
+            id: format!("t4-{i:04}"),
+            tier,
+            spec_en: c.spec_en,
+            spec_family: style.family,
+            atoms: c.atoms,
+            keys: c.keys,
+            unspendable_key: UNSPENDABLE_KEY.to_string(),
+            reference_policy: c.policy_text,
+            reference_descriptor: c.reference_descriptor,
+            reference_weight: c.reference_weight,
+            baseline_descriptor: c.baseline_descriptor,
+            baseline_weight: c.baseline_weight,
+            hash_preimages: c.preimages,
+        }));
+    }
     out
 }
 
@@ -498,6 +722,7 @@ mod tests {
             write: 4,
             optimize: 2,
             identify: 0,
+            tree: 2,
             ..GenParams::default()
         };
         let eval = generate(&base);
@@ -506,6 +731,7 @@ mod tests {
             .filter_map(|f| match f {
                 Fixture::Write(w) => Some(w.reference_script_hex.clone()),
                 Fixture::Optimize(o) => Some(o.optimal_script_hex.clone()),
+                Fixture::Tree(t) => Some(t.reference_descriptor.clone()),
                 Fixture::Identify(_) => None,
             })
             .collect();
@@ -518,6 +744,7 @@ mod tests {
             let hex = match f {
                 Fixture::Write(w) => &w.reference_script_hex,
                 Fixture::Optimize(o) => &o.optimal_script_hex,
+                Fixture::Tree(t) => &t.reference_descriptor,
                 Fixture::Identify(_) => continue,
             };
             assert!(
@@ -525,6 +752,44 @@ mod tests {
                 "task {} shipped an excluded answer key",
                 f.id()
             );
+        }
+    }
+
+    #[test]
+    fn trees_append_without_disturbing_other_kinds() {
+        let base = GenParams {
+            seed: 9,
+            write: 3,
+            optimize: 2,
+            identify: 1,
+            tree: 0,
+            ..GenParams::default()
+        };
+        let without = generate(&base);
+        let with = generate(&GenParams { tree: 2, ..base });
+        // t1-t3 fixtures are byte-identical; trees are appended.
+        assert_eq!(with.len(), without.len() + 2);
+        for (a, b) in without.iter().zip(with.iter()) {
+            assert_eq!(
+                serde_json::to_string(a).unwrap(),
+                serde_json::to_string(b).unwrap(),
+                "adding trees disturbed {}",
+                a.id()
+            );
+        }
+        for (i, f) in with[without.len()..].iter().enumerate() {
+            let Fixture::Tree(t) = f else {
+                panic!("appended fixture is not a tree")
+            };
+            assert_eq!(t.id, format!("t4-{i:04}"));
+            // The answer key self-grades at full marks and the
+            // baseline is strictly heavier (the task is non-vacuous).
+            let r = bench_core::grade_tree(t, &t.reference_descriptor);
+            assert_eq!(r.weight_score, 1.0, "{:?}", r.reason);
+            assert!(t.baseline_weight > t.reference_weight);
+            let b = bench_core::grade_tree(t, &t.baseline_descriptor);
+            assert!(b.verdict.is_equivalent());
+            assert_eq!(b.weight_score, 0.0);
         }
     }
 

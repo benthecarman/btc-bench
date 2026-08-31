@@ -249,6 +249,37 @@ fn grade_one(req: RewardRequest, default_shaping: &Shaping) -> Result<RewardResp
                 components: c,
             })
         }
+        (Fixture::Tree(t), TaskAnswer::Descriptor(_) | TaskAnswer::Script(_)) => {
+            // Accept a script-shaped or bare-string answer as descriptor
+            // text: completion-style rollouts send plain strings.
+            let text = match &answer {
+                TaskAnswer::Descriptor(d) => d.descriptor.clone(),
+                TaskAnswer::Script(s) => s.script.clone(),
+                TaskAnswer::Identify(_) => unreachable!(),
+            };
+            let r = bench_core::grade_tree(t, &text);
+            let parsed = bench_core::parse_tr_answer(&text).is_ok();
+            let c = Components {
+                parsed,
+                decoded: parsed,
+                equivalent: r.verdict.is_equivalent(),
+                agreement: if parsed {
+                    bench_core::tree_agreement(t, &text)
+                } else {
+                    None
+                },
+                lint_count: r.lint.len(),
+            };
+            Ok(RewardResponse {
+                task_id: t.id.clone(),
+                score: r.weight_score,
+                shaped: shape_script(r.weight_score, &c, &shaping),
+                size_score: None,
+                reason: r.reason,
+                lint: r.lint,
+                components: c,
+            })
+        }
         (Fixture::Identify(i), TaskAnswer::Identify(a)) => {
             // Identify is already dense (per-param credit): no shaping.
             let r = grade_identify(i, a, partial);

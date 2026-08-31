@@ -15,13 +15,16 @@ pub mod task;
 pub mod truth;
 
 pub use grade::{
-    grade_identify, grade_optimize, grade_write, lint_report, weights_for, IdentifyResult,
-    OptimizeResult, Weights, WriteResult,
+    grade_identify, grade_optimize, grade_tree, grade_write, lint_report, parse_tr_answer,
+    tree_agreement, weights_for, IdentifyResult, OptimizeResult, TreeResult, Weights, WriteResult,
 };
-pub use oracle::{check_equivalence, decodes_in_context, semantic_agreement, Verdict};
+pub use oracle::{
+    agreement_semantic, check_equivalence, check_semantic, decodes_in_context, semantic_agreement,
+    Verdict,
+};
 pub use task::{
-    ContextKind, Fixture, IdentifyAnswer, IdentifyFixture, KeyVar, OptimizeFixture, ParamValue,
-    ResponseRecord, TaskAnswer, Tier, WriteFixture,
+    ContextKind, DescriptorAnswer, Fixture, IdentifyAnswer, IdentifyFixture, KeyVar,
+    OptimizeFixture, ParamValue, ResponseRecord, TaskAnswer, Tier, TreeFixture, WriteFixture,
 };
 
 pub use exec::{execution_check, HashPreimages, PreimageMap};

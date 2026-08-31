@@ -243,6 +243,128 @@ pub fn grade_optimize(fixture: &OptimizeFixture, answer: &str) -> OptimizeResult
 }
 
 #[derive(Clone, Debug)]
+pub struct TreeResult {
+    pub verdict: Verdict,
+    /// Headline: the optimize curve between the single-leaf baseline
+    /// and the compiler tree's weight, gated on equivalence. Beating
+    /// the compiler (possible: Huffman optimizes expected cost, the
+    /// metric is worst-case) clamps to 1.0.
+    pub weight_score: f64,
+    /// Max satisfaction weight of the candidate descriptor, when it
+    /// parsed and proved equivalent.
+    pub candidate_weight: Option<usize>,
+    pub reason: Option<String>,
+    /// Union of insanity findings across the candidate's leaves.
+    pub lint: Vec<String>,
+}
+
+/// Parse a `tr(...)` descriptor answer. Descriptor checksums are
+/// accepted but not required.
+pub fn parse_tr_answer(answer: &str) -> Result<miniscript::descriptor::Tr<XOnlyPublicKey>, String> {
+    let text = answer.trim().trim_matches('`').trim();
+    let desc: Descriptor<XOnlyPublicKey> = text
+        .parse()
+        .map_err(|e| format!("not a valid descriptor: {e}"))?;
+    match desc {
+        Descriptor::Tr(tr) => Ok(tr),
+        _ => Err("the answer must be a tr() descriptor".to_string()),
+    }
+}
+
+/// Balanced truth-table agreement of a tree answer against the
+/// reference descriptor, unspendable key pinned false. None when the
+/// answer does not parse as a tr() descriptor.
+pub fn tree_agreement(fixture: &crate::task::TreeFixture, answer: &str) -> Option<f64> {
+    use miniscript::policy::Liftable as _;
+    let tr = parse_tr_answer(answer).ok()?;
+    let reference: Descriptor<XOnlyPublicKey> = fixture
+        .reference_descriptor
+        .parse()
+        .expect("fixture descriptor is valid");
+    let sem_ref = reference.lift().expect("fixture descriptor lifts");
+    let sem_cand = tr.lift().ok()?;
+    crate::oracle::agreement_semantic(&sem_ref, &sem_cand, Some(&fixture.unspendable_key))
+}
+
+/// Task 4: parse a tr() descriptor, prove the lifted semantics
+/// equivalent to the reference (with the unspendable key pinned
+/// false on both sides), then score tree quality on the weight curve.
+pub fn grade_tree(fixture: &crate::task::TreeFixture, answer: &str) -> TreeResult {
+    use miniscript::policy::Liftable as _;
+    let tr = match parse_tr_answer(answer) {
+        Ok(t) => t,
+        Err(e) => {
+            return TreeResult {
+                verdict: Verdict::InvalidScript(e.clone()),
+                weight_score: 0.0,
+                candidate_weight: None,
+                reason: Some(e),
+                lint: Vec::new(),
+            }
+        }
+    };
+    let mut lint: Vec<String> = Vec::new();
+    for leaf in tr.leaves() {
+        for l in lint_report(ContextKind::Tap, &leaf.miniscript().encode()) {
+            let l = l.to_string();
+            if !lint.contains(&l) {
+                lint.push(l);
+            }
+        }
+    }
+    let reference: Descriptor<XOnlyPublicKey> = fixture
+        .reference_descriptor
+        .parse()
+        .expect("fixture descriptor is valid");
+    let (sem_ref, sem_cand) = match (reference.lift(), tr.lift()) {
+        (Ok(r), Ok(c)) => (r, c),
+        (_, Err(e)) => {
+            let e = format!("descriptor failed to lift: {e}");
+            return TreeResult {
+                verdict: Verdict::InvalidScript(e.clone()),
+                weight_score: 0.0,
+                candidate_weight: None,
+                reason: Some(e),
+                lint,
+            };
+        }
+        (Err(e), _) => unreachable!("fixture descriptor lifts: {e}"),
+    };
+    let verdict =
+        crate::oracle::check_semantic(&sem_ref, &sem_cand, Some(&fixture.unspendable_key));
+    if !verdict.is_equivalent() {
+        let reason = verdict.to_string();
+        return TreeResult {
+            verdict,
+            weight_score: 0.0,
+            candidate_weight: None,
+            reason: Some(reason),
+            lint,
+        };
+    }
+    let weight = match Descriptor::Tr(tr).max_weight_to_satisfy() {
+        Ok(w) => w.to_wu() as usize,
+        Err(e) => {
+            let e = format!("satisfaction weight not computable: {e}");
+            return TreeResult {
+                verdict: Verdict::InvalidScript(e.clone()),
+                weight_score: 0.0,
+                candidate_weight: None,
+                reason: Some(e),
+                lint,
+            };
+        }
+    };
+    TreeResult {
+        verdict,
+        weight_score: curve(fixture.baseline_weight, weight, fixture.reference_weight),
+        candidate_weight: Some(weight),
+        reason: None,
+        lint,
+    }
+}
+
+#[derive(Clone, Debug)]
 pub struct IdentifyResult {
     pub label_correct: bool,
     /// Fraction of parameters answered correctly (Jaccard-style: extra
@@ -403,6 +525,77 @@ mod tests {
         let bad = grade_optimize(&f, "51");
         assert_eq!(bad.weight_score, 0.0);
         assert!(!bad.verdict.is_equivalent());
+    }
+
+    #[test]
+    fn grade_tree_curve_and_nums_pinning() {
+        use crate::task::TreeFixture;
+        use std::str::FromStr as _;
+        let nums = "50929b74c1a04954b78b4b6035e97a5e078a5a0f28ec96d547bfee9ace803ac0";
+        let (a, b, c) = (
+            "79be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798",
+            "c6047f9441ed7d6d3045406e95c07cd85c778e4b8cef3ca7abac09b95c709ee5",
+            "f9308a019258c31049344f85f89d5229b531c845836f99b08601f113bce036f9",
+        );
+        // or(pk(A), or(and(pk(B), older(144)), and(pk(C), after(700000))))
+        let policy = format!("or(pk({a}),or(and(pk({b}),older(144)),and(pk({c}),after(700000))))");
+        let concrete = miniscript::policy::Concrete::<XOnlyPublicKey>::from_str(&policy).unwrap();
+        let nums_key = XOnlyPublicKey::from_str(nums).unwrap();
+        let reference = concrete.compile_tr(Some(nums_key)).unwrap();
+        let reference_weight = reference.max_weight_to_satisfy().unwrap().to_wu() as usize;
+        let single = concrete.compile::<Tap>().unwrap();
+        let baseline =
+            miniscript::Descriptor::new_tr(nums_key, Some(TapTree::leaf(single))).unwrap();
+        let baseline_weight = baseline.max_weight_to_satisfy().unwrap().to_wu() as usize;
+        assert!(baseline_weight > reference_weight, "task would be vacuous");
+        let f = TreeFixture {
+            id: "t4-0000".into(),
+            tier: Tier::Easy,
+            spec_en: String::new(),
+            spec_family: 0,
+            atoms: 3,
+            keys: vec![],
+            unspendable_key: nums.into(),
+            reference_policy: policy.clone(),
+            reference_descriptor: reference.to_string(),
+            reference_weight,
+            baseline_descriptor: baseline.to_string(),
+            baseline_weight,
+            hash_preimages: Default::default(),
+        };
+        // The compiler's own tree: full credit. Note compile_tr
+        // extracts pk(A) as the internal key here.
+        let perfect = grade_tree(&f, &reference.to_string());
+        assert!(perfect.verdict.is_equivalent());
+        assert_eq!(perfect.weight_score, 1.0);
+        // The single-leaf baseline: equivalent, zero on the curve —
+        // and NUMS pinning makes it equivalent even though the
+        // reference's lift has pk(A) as internal key while the
+        // baseline's lift has the NUMS atom instead.
+        let base = grade_tree(&f, &baseline.to_string());
+        assert!(base.verdict.is_equivalent(), "{:?}", base.reason);
+        assert_eq!(base.weight_score, 0.0);
+        // A hand-built two-leaf tree with NUMS internal: equivalent,
+        // partial-or-better credit.
+        let hand = format!(
+            "tr({nums},{{pk({a}),{{and_v(v:pk({b}),older(144)),and_v(v:pk({c}),after(700000))}}}})"
+        );
+        let r = grade_tree(&f, &hand);
+        assert!(r.verdict.is_equivalent(), "{:?}", r.reason);
+        assert!(r.weight_score > 0.0, "{:?}", r);
+        // A tree that drops a branch: not equivalent.
+        let wrong = format!("tr({nums},pk({a}))");
+        let r = grade_tree(&f, &wrong);
+        assert!(!r.verdict.is_equivalent());
+        assert_eq!(r.weight_score, 0.0);
+        // Not a descriptor at all / not tr(): rejected with reasons.
+        assert!(grade_tree(&f, "garbage").reason.is_some());
+        let wsh = format!("wsh(pk(02{b}))");
+        assert!(grade_tree(&f, &wsh).reason.is_some());
+        // Agreement: perfect = 1.0; dropped-branch sits in (0.5, 1).
+        assert_eq!(tree_agreement(&f, &reference.to_string()), Some(1.0));
+        let g = tree_agreement(&f, &wrong).unwrap();
+        assert!(g > 0.5 && g < 1.0, "{g}");
     }
 
     #[test]

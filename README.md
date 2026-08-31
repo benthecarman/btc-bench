@@ -11,6 +11,7 @@ mechanically, no LLM judge anywhere.
 | **Write** | Compose a script from an English spending policy | Decode-gated as Miniscript, then proven semantically equivalent by exhaustive truth-table evaluation over the task's closed atom set |
 | **Optimize** | Shrink a deliberately naive baseline script | Equivalence-gated, scored by weight improvement toward the compiler optimum |
 | **Identify** | Label a scriptPubKey (plus redeem/witness script) with its protocol family and parameters | Exact label match + per-parameter credit (each correct parameter earns a share; invented parameters dilute it) |
+| **Tree** | Design a full Taproot output — internal key + script tree — as a `tr()` descriptor | Lifted-semantics equivalence (unspendable key pinned false), then scored on worst-case weight between a single-leaf baseline and a balanced reference tree |
 
 Three script contexts: legacy (P2SH redeemScript), segwit v0 (P2WSH
 witnessScript), and taproot (script-path leaf tapscript).
@@ -21,7 +22,7 @@ witnessScript), and taproot (script-path leaf tapscript).
 cargo build --release
 
 # Generate a fixture dataset (deterministic per seed)
-btc-bench gen --out datasets/my-set --seed 42 --write 300 --optimize 300 --identify 18
+btc-bench gen --out datasets/my-set --seed 42 --write 300 --optimize 300 --identify 18 --tree 150
 
 # Generate a training set: non-eval English phrasings with varied
 # structure, custom tier mix, and no task whose answer key appears in
@@ -105,6 +106,13 @@ The correctness oracle is structurally anti-cheat:
 - **No answer leak**: multi-turn feedback names parse errors verbatim
   (they're mechanical facts) but equivalence failures never reveal the
   distinguishing assignment. Test-pinned.
+- **Tree tasks**: the answer is a `tr()` descriptor, so grading lifts
+  both sides to semantic policies and runs the same truth-table
+  equivalence — with the provided unspendable (NUMS) internal key
+  pinned unsatisfiable on both sides, since it can never sign. A
+  correct design then earns credit for tree quality: worst-case input
+  weight between the single-leaf baseline and a balanced reference
+  tree (beating the reference clamps to full marks).
 
 ## Train/eval hygiene
 

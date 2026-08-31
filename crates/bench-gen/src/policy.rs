@@ -337,6 +337,61 @@ pub(crate) fn timelock_in_thresh(rng: &mut SeededRng) -> Abs {
     )
 }
 
+/// Sample a taproot tree-task policy: a root-level disjunction whose
+/// branches become the key path and tapleaves. Every branch carries at
+/// least one key (compile_tr rejects signature-free paths), exactly
+/// one branch is a bare key (the key-path candidate), and branch
+/// counts scale with tier while staying inside the oracle's boolean
+/// atom budget (<= 12; the NUMS internal key is pinned out).
+pub fn sample_tree(rng: &mut SeededRng, tier: Tier, pre: &mut Preimages) -> Abs {
+    let mut used = Vec::new();
+    let branch =
+        |rng: &mut SeededRng, used: &mut Vec<usize>, pre: &mut Preimages, allow_thresh: bool| {
+            match rng.below(if allow_thresh { 5 } else { 4 }) {
+                0 => Abs::And(vec![key(rng, used), key(rng, used)]),
+                1 => Abs::And(vec![key(rng, used), Abs::Older(sample_older(rng))]),
+                2 => Abs::And(vec![key(rng, used), Abs::After(sample_after(rng))]),
+                3 => {
+                    let h = if rng.bool() {
+                        sha(rng, pre)
+                    } else {
+                        h160(rng, pre)
+                    };
+                    Abs::And(vec![key(rng, used), h])
+                }
+                _ => {
+                    let n = 3;
+                    let k = rng.range(2, 3) as usize;
+                    let mut ks = Vec::with_capacity(n);
+                    for _ in 0..n {
+                        ks.push(used.len());
+                        used.push(used.len());
+                    }
+                    Abs::Thresh(k, ks)
+                }
+            }
+        };
+    let n_branches = match tier {
+        Tier::Easy => 2,
+        Tier::Medium => rng.range(3, 4) as usize,
+        Tier::Hard => rng.range(5, 6) as usize,
+    };
+    let mut branches = Vec::with_capacity(n_branches);
+    // One bare-key branch: the key-path candidate compile_tr extracts.
+    branches.push(key(rng, &mut used));
+    let mut thresh_used = false;
+    for _ in 1..n_branches {
+        // At most one thresh branch keeps hard policies inside the
+        // atom budget (thresh carries 3 keys; other branches <= 2).
+        let allow = !thresh_used && tier != Tier::Easy;
+        let b = branch(rng, &mut used, pre, allow);
+        thresh_used |= matches!(b, Abs::Thresh(..));
+        branches.push(b);
+    }
+    shuffle(rng, &mut branches);
+    Abs::Or(branches)
+}
+
 // Helper trait for fluent pattern building
 trait AbsExt {
     fn combine_with(self, other: Abs, rng: &mut SeededRng) -> Abs;
@@ -442,5 +497,36 @@ mod tests {
         let mut a = SeededRng::new(5);
         let mut b = SeededRng::new(5);
         assert_eq!(sample(&mut a, Tier::Hard), sample(&mut b, Tier::Hard));
+    }
+
+    #[test]
+    fn tree_policies_shape_and_budget() {
+        let mut rng = SeededRng::new(41);
+        let mut pre = Preimages::default();
+        for _ in 0..100 {
+            for (tier, branches) in [
+                (Tier::Easy, 2..=2),
+                (Tier::Medium, 3..=4),
+                (Tier::Hard, 5..=6),
+            ] {
+                let p = sample_tree(&mut rng, tier, &mut pre);
+                let Abs::Or(v) = &p else {
+                    panic!("tree policy must be a root or: {p:?}")
+                };
+                assert!(
+                    branches.contains(&v.len()),
+                    "{tier:?}: {} branches",
+                    v.len()
+                );
+                assert!(p.atom_count() <= 12, "over budget: {p:?}");
+                // Exactly one bare-key branch (the key-path candidate);
+                // every branch requires a signature.
+                let bare = v.iter().filter(|b| matches!(b, Abs::Key(_))).count();
+                assert_eq!(bare, 1, "{p:?}");
+                for b in v {
+                    assert!(b.key_count() >= 1, "signature-free branch: {b:?}");
+                }
+            }
+        }
     }
 }

@@ -142,6 +142,55 @@ fn agreement_in_context<Ctx: ScriptContext>(
     Some(exhaustive_agreement(&sem_ref, &sem_cand, &atoms).balanced())
 }
 
+/// Equivalence of two already-lifted semantic policies, with an
+/// optional key pinned unsatisfiable on both sides. Used for taproot
+/// tree grading: `Tr::lift` includes the internal key as a spend
+/// path, and a provably unspendable (NUMS) internal key must compare
+/// as false — otherwise a correct NUMS-keyed design would grade
+/// non-equivalent against a reference that places the same key
+/// differently. Pinning works by dropping the key from the enumerated
+/// atom set: absent atoms evaluate unsatisfied in the truth walk.
+pub fn check_semantic<Pk: miniscript::MiniscriptKey>(
+    reference: &miniscript::policy::semantic::Policy<Pk>,
+    candidate: &miniscript::policy::semantic::Policy<Pk>,
+    pin_false: Option<&str>,
+) -> Verdict {
+    let mut atoms = Atoms::default();
+    Atoms::collect(reference, &mut atoms);
+    Atoms::collect(candidate, &mut atoms);
+    if let Some(k) = pin_false {
+        atoms.keys.remove(k);
+    }
+    if atoms.boolean_count() > MAX_BOOLEAN_ATOMS {
+        return Verdict::TooLarge;
+    }
+    if exhaustive_equivalent(reference, candidate, &atoms) {
+        Verdict::Equivalent
+    } else {
+        Verdict::NotEquivalent
+    }
+}
+
+/// Balanced agreement (see [`semantic_agreement`]) of two lifted
+/// policies, with an optional pinned-false key — the tree-task analog
+/// of the script-level signal.
+pub fn agreement_semantic<Pk: miniscript::MiniscriptKey>(
+    reference: &miniscript::policy::semantic::Policy<Pk>,
+    candidate: &miniscript::policy::semantic::Policy<Pk>,
+    pin_false: Option<&str>,
+) -> Option<f64> {
+    let mut atoms = Atoms::default();
+    Atoms::collect(reference, &mut atoms);
+    Atoms::collect(candidate, &mut atoms);
+    if let Some(k) = pin_false {
+        atoms.keys.remove(k);
+    }
+    if atoms.boolean_count() > MAX_BOOLEAN_ATOMS {
+        return None;
+    }
+    Some(exhaustive_agreement(reference, candidate, &atoms).balanced())
+}
+
 /// Balanced truth-table agreement of `candidate` against `reference`
 /// in [0, 1]: mean of the agreement rates on reference-true and
 /// reference-false rows. Exactly 1.0 iff equivalent; constant scripts

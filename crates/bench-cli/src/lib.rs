@@ -159,6 +159,12 @@ pub struct Summary {
     pub optimize_n: usize,
     pub identify_mean: f64,
     pub identify_n: usize,
+    /// Taproot tree-design tasks (t4): weight-curve score, gated on
+    /// semantic equivalence.
+    #[serde(default)]
+    pub tree_mean: f64,
+    #[serde(default)]
+    pub tree_n: usize,
     pub missing: usize,
     /// 95% bootstrap CIs over tasks (missing counted as zeros), per
     /// headline mean. None when the kind has no tasks.
@@ -168,6 +174,8 @@ pub struct Summary {
     pub optimize_weight_ci: Option<(f64, f64)>,
     #[serde(default)]
     pub identify_ci: Option<(f64, f64)>,
+    #[serde(default)]
+    pub tree_ci: Option<(f64, f64)>,
     /// Format vs reasoning split: an answer is well-formed when it
     /// clears the parse and decode gates (its failure, if any, is
     /// semantic). `sem_mean` is the mean score among well-formed
@@ -180,6 +188,10 @@ pub struct Summary {
     pub optimize_wellformed_n: usize,
     #[serde(default)]
     pub optimize_sem_mean: f64,
+    #[serde(default)]
+    pub tree_wellformed_n: usize,
+    #[serde(default)]
+    pub tree_sem_mean: f64,
     /// Multi-turn columns, present when attempts were supplied:
     /// first_try = solved on attempt 1; solved = solved on any attempt;
     /// mt = graded score x turn factor (1.0 first try, linear to the
@@ -348,6 +360,23 @@ pub fn grade(
                     lint: None,
                 }
             }
+            (Fixture::Tree(t), TaskAnswer::Descriptor(a)) => {
+                let res = bench_core::grade_tree(t, &a.descriptor);
+                let lint = (!res.lint.is_empty()).then(|| res.lint.clone());
+                let (score, reason) = if standard && !res.lint.is_empty() {
+                    gated.insert(r.task_id.clone());
+                    (0.0, Some(format!("standard mode: {}", res.lint.join("; "))))
+                } else {
+                    (res.weight_score, res.reason)
+                };
+                TaskScore {
+                    task_id: r.task_id.clone(),
+                    score,
+                    size_score: None,
+                    reason,
+                    lint,
+                }
+            }
             (f, a) => bail!(
                 "task {} is {} but answer is {}",
                 r.task_id,
@@ -364,8 +393,11 @@ pub fn grade(
     // Per-kind score vectors (missing = 0) for the bootstrap CIs, and
     // the format-vs-reasoning split for write/optimize.
     let (mut w_scores, mut o_scores, mut i_scores) = (Vec::new(), Vec::new(), Vec::new());
+    let mut t_scores = Vec::new();
     let (mut w_wf_sum, mut w_wf_n) = (0.0, 0usize);
     let (mut o_wf_sum, mut o_wf_n) = (0.0, 0usize);
+    let (mut t_sum, mut t_n) = (0.0, 0usize);
+    let (mut t_wf_sum, mut t_wf_n) = (0.0, 0usize);
     for f in fixtures {
         let id = f.id();
         if !seen.contains(id) {
@@ -381,6 +413,10 @@ pub fn grade(
                 Fixture::Identify(_) => {
                     i_n += 1;
                     i_scores.push(0.0);
+                }
+                Fixture::Tree(_) => {
+                    t_n += 1;
+                    t_scores.push(0.0);
                 }
             }
             continue;
@@ -413,6 +449,15 @@ pub fn grade(
                 i_sum += ts.score;
                 i_n += 1;
                 i_scores.push(ts.score);
+            }
+            Fixture::Tree(_) => {
+                t_sum += ts.score;
+                t_n += 1;
+                t_scores.push(ts.score);
+                if is_wellformed(ts.score, &ts.reason) {
+                    t_wf_sum += ts.score;
+                    t_wf_n += 1;
+                }
             }
         }
     }
@@ -502,14 +547,19 @@ pub fn grade(
         optimize_n: o_n,
         identify_mean: div(i_sum, i_n),
         identify_n: i_n,
+        tree_mean: div(t_sum, t_n),
+        tree_n: t_n,
         missing,
         write_ci: bootstrap_ci(&w_scores, 1000, 1),
         optimize_weight_ci: bootstrap_ci(&o_scores, 1000, 2),
         identify_ci: bootstrap_ci(&i_scores, 1000, 3),
+        tree_ci: bootstrap_ci(&t_scores, 1000, 4),
         write_wellformed_n: w_wf_n,
         write_sem_mean: div(w_wf_sum, w_wf_n),
         optimize_wellformed_n: o_wf_n,
         optimize_sem_mean: div(o_wf_sum, o_wf_n),
+        tree_wellformed_n: t_wf_n,
+        tree_sem_mean: div(t_wf_sum, t_wf_n),
         multi_turn,
         token_efficiency,
     };
@@ -521,6 +571,7 @@ fn f_kind(f: &Fixture) -> &'static str {
         Fixture::Write(_) => "write",
         Fixture::Optimize(_) => "optimize",
         Fixture::Identify(_) => "identify",
+        Fixture::Tree(_) => "tree",
     }
 }
 
@@ -528,6 +579,7 @@ fn a_kind(a: &TaskAnswer) -> &'static str {
     match a {
         TaskAnswer::Script(_) => "script",
         TaskAnswer::Identify(_) => "identify",
+        TaskAnswer::Descriptor(_) => "descriptor",
     }
 }
 
@@ -543,7 +595,8 @@ pub fn summary_markdown(s: &Summary) -> String {
          | write | {:.3} | {} | {} |\n\
          | optimize (weight) | {:.3} | {} | {} |\n\
          | optimize (size) | {:.3} | | {} |\n\
-         | identify | {:.3} | {} | {} |\n\n\
+         | identify | {:.3} | {} | {} |\n\
+         | tree (weight) | {:.3} | {} | {} |\n\n\
          Unanswered tasks counted as zero: {}\n",
         s.write_mean,
         ci(&s.write_ci),
@@ -556,6 +609,9 @@ pub fn summary_markdown(s: &Summary) -> String {
         s.identify_mean,
         ci(&s.identify_ci),
         s.identify_n,
+        s.tree_mean,
+        ci(&s.tree_ci),
+        s.tree_n,
         s.missing,
     );
     if s.write_wellformed_n > 0 || s.optimize_wellformed_n > 0 {
@@ -637,6 +693,7 @@ mod tests {
             write: 6,
             optimize: 6,
             identify: 2,
+            tree: 2,
             ..GenParams::default()
         };
         let n = gen_dataset(&dir, &params, "test").unwrap();
@@ -675,6 +732,15 @@ mod tests {
                     finish_reason: None,
                     output_tokens: None,
                 }),
+                Fixture::Tree(t) => responses.push(ResponseRecord {
+                    task_id: t.id.clone(),
+                    answer: TaskAnswer::Descriptor(bench_core::task::DescriptorAnswer {
+                        descriptor: t.reference_descriptor.clone(),
+                    }),
+                    raw: None,
+                    finish_reason: None,
+                    output_tokens: None,
+                }),
             }
         }
         let (scores, summary) = grade(&fixtures, &responses, 0.5, None, 0.5, false).unwrap();
@@ -684,6 +750,8 @@ mod tests {
             (summary.optimize_weight_mean - 1.0).abs() < 1e-9,
             "{summary:?}"
         );
+        assert!((summary.tree_mean - 1.0).abs() < 1e-9, "{summary:?}");
+        assert_eq!(summary.tree_n, 2);
         assert_eq!(summary.missing, 0);
         for s in &scores {
             assert!(s.score >= 0.999, "{s:?}");
@@ -701,6 +769,11 @@ mod tests {
                     label: "nope".into(),
                     params: BTreeMap::new(),
                 }),
+                TaskAnswer::Descriptor(_) => {
+                    TaskAnswer::Descriptor(bench_core::task::DescriptorAnswer {
+                        descriptor: "garbage".into(),
+                    })
+                }
             };
             garbage.push(g);
         }
@@ -708,6 +781,7 @@ mod tests {
         assert!(zero.write_mean == 0.0);
         assert!(zero.identify_mean == 0.0);
         assert!(zero.optimize_weight_mean == 0.0);
+        assert!(zero.tree_mean == 0.0);
 
         // Missing answers counted.
         let (_, partial) = grade(&fixtures, &responses[..3], 0.5, None, 0.5, false).unwrap();

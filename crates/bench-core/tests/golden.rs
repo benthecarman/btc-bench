@@ -81,10 +81,29 @@ fn answers_for(fixtures: &[Fixture]) -> Vec<ResponseRecord> {
                 // Not-equivalent rewrite.
                 out.push(record(o.id.clone(), "51".into()));
             }
+            Fixture::Tree(t) => {
+                // The compiler's own tree: full marks.
+                out.push(tr_record(t.id.clone(), t.reference_descriptor.clone()));
+                // The single-leaf baseline: equivalent, scores 0 on
+                // the curve.
+                out.push(tr_record(t.id.clone(), t.baseline_descriptor.clone()));
+                // Not a descriptor.
+                out.push(tr_record(t.id.clone(), "not a descriptor".into()));
+            }
             Fixture::Identify(_) => {}
         }
     }
     out
+}
+
+fn tr_record(task_id: String, descriptor: String) -> ResponseRecord {
+    ResponseRecord {
+        task_id,
+        answer: TaskAnswer::Descriptor(bench_core::task::DescriptorAnswer { descriptor }),
+        raw: None,
+        output_tokens: None,
+        finish_reason: None,
+    }
 }
 
 fn record(task_id: String, script: String) -> ResponseRecord {
@@ -125,6 +144,18 @@ fn grade_all(fixtures: &[Fixture], responses: &[ResponseRecord]) -> Vec<GoldenSc
                     size_score: Some(res.size_score),
                     candidate_weight: res.candidate.map(|c| c.weight),
                     candidate_size: res.candidate.map(|c| c.size),
+                    reason: res.reason,
+                    lint: (!res.lint.is_empty()).then_some(res.lint),
+                }
+            }
+            (Fixture::Tree(t), TaskAnswer::Descriptor(a)) => {
+                let res = bench_core::grade_tree(t, &a.descriptor);
+                GoldenScore {
+                    task_id: r.task_id.clone(),
+                    score: res.weight_score,
+                    size_score: None,
+                    candidate_weight: res.candidate_weight,
+                    candidate_size: None,
                     reason: res.reason,
                     lint: (!res.lint.is_empty()).then_some(res.lint),
                 }

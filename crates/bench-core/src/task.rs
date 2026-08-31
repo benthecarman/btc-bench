@@ -117,6 +117,46 @@ pub struct OptimizeFixture {
     pub hash_preimages: PreimageMap,
 }
 
+/// Task 4: design a full Taproot output (internal key + script tree)
+/// for the English spec. The answer is a `tr(...)` descriptor, so the
+/// model chooses the key path and the leaf split — the parts of
+/// taproot design a single-leaf task cannot measure.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct TreeFixture {
+    pub id: String,
+    pub tier: Tier,
+    /// Deterministic English specification (from the verbalizer).
+    pub spec_en: String,
+    /// Verbalizer template family for `spec_en` (0 = canonical).
+    #[serde(default, skip_serializing_if = "is_zero_u32")]
+    pub spec_family: u32,
+    /// Boolean atom count of the policy (excluding the unspendable
+    /// key).
+    #[serde(default, skip_serializing_if = "is_zero_usize")]
+    pub atoms: usize,
+    /// Keys available to the design (x-only hex), labels referenced by
+    /// `spec_en`.
+    pub keys: Vec<KeyVar>,
+    /// Provably unspendable internal key (x-only hex) offered in the
+    /// prompt for policies with no key-path-worthy branch. The oracle
+    /// pins this atom false on both sides before comparing.
+    pub unspendable_key: String,
+    /// Concrete policy string (diagnostic aid).
+    pub reference_policy: String,
+    /// Answer key: the compiler's tr() descriptor (`compile_tr`).
+    pub reference_descriptor: String,
+    /// Max satisfaction weight of the reference descriptor.
+    pub reference_weight: usize,
+    /// Naive single-leaf tr() over the whole policy — the weight-curve
+    /// baseline a designed tree must beat.
+    pub baseline_descriptor: String,
+    pub baseline_weight: usize,
+    /// Known preimages for the policy's hash atoms (see
+    /// [`WriteFixture::hash_preimages`]).
+    #[serde(default)]
+    pub hash_preimages: PreimageMap,
+}
+
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum ParamValue {
@@ -145,6 +185,7 @@ pub enum Fixture {
     Write(WriteFixture),
     Optimize(OptimizeFixture),
     Identify(IdentifyFixture),
+    Tree(TreeFixture),
 }
 
 impl Fixture {
@@ -153,6 +194,7 @@ impl Fixture {
             Fixture::Write(f) => &f.id,
             Fixture::Optimize(f) => &f.id,
             Fixture::Identify(f) => &f.id,
+            Fixture::Tree(f) => &f.id,
         }
     }
 }
@@ -171,11 +213,18 @@ pub struct IdentifyAnswer {
     pub params: BTreeMap<String, ParamValue>,
 }
 
+/// A model's answer to a tree task: one `tr(...)` descriptor.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct DescriptorAnswer {
+    pub descriptor: String,
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(tag = "task", rename_all = "lowercase")]
 pub enum TaskAnswer {
     Script(ScriptAnswer),
     Identify(IdentifyAnswer),
+    Descriptor(DescriptorAnswer),
 }
 
 /// One line of a responses JSONL file consumed by the grader.

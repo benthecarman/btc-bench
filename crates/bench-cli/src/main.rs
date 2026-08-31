@@ -41,6 +41,11 @@ enum Command {
         /// Number of identify task groups (each emits one item per family).
         #[arg(long, default_value_t = 25)]
         identify: usize,
+        /// Number of taproot tree-design tasks (t4). Appended after
+        /// the other kinds, so adding trees to an existing seed never
+        /// disturbs t1-t3.
+        #[arg(long, default_value_t = 0)]
+        tree: usize,
         /// Verbalizer template family ids to draw from,
         /// comma-separated (default: 0, the canonical benchmark
         /// phrasing). List only non-eval families (e.g. 1,2) when
@@ -238,6 +243,7 @@ fn main() -> Result<()> {
             write,
             optimize,
             identify,
+            tree,
             verbal_families,
             vary_structure,
             tiers,
@@ -273,6 +279,9 @@ fn main() -> Result<()> {
                         bench_core::task::Fixture::Optimize(o) => {
                             excluded.insert(o.optimal_script_hex);
                         }
+                        bench_core::task::Fixture::Tree(t) => {
+                            excluded.insert(t.reference_descriptor);
+                        }
                         bench_core::task::Fixture::Identify(_) => {}
                     }
                 }
@@ -289,6 +298,7 @@ fn main() -> Result<()> {
                 write,
                 optimize,
                 identify,
+                tree,
                 verbal_families,
                 vary_structure,
                 tiers,
@@ -316,6 +326,7 @@ fn main() -> Result<()> {
                     bench_core::task::Fixture::Write(_) => "write",
                     bench_core::task::Fixture::Optimize(_) => "optimize",
                     bench_core::task::Fixture::Identify(_) => "identify",
+                    bench_core::task::Fixture::Tree(_) => "tree",
                 };
                 let line = serde_json::json!({
                     "id": f.id(),
@@ -509,6 +520,10 @@ fn main() -> Result<()> {
                     bench_core::task::Fixture::Identify(i) => serde_json::json!({
                         "task_id": i.id, "kind": "identify", "prompt": prompt,
                         "target_label": i.family, "target_params": i.params,
+                    }),
+                    bench_core::task::Fixture::Tree(t) => serde_json::json!({
+                        "task_id": t.id, "kind": "tree", "prompt": prompt,
+                        "target_descriptor": t.reference_descriptor,
                     }),
                 };
                 text.push_str(&line.to_string());

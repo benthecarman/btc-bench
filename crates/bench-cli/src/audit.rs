@@ -244,6 +244,84 @@ impl AuditReport {
             Err(e) => self.fail(format!("{}: policy no longer compiles: {e}", o.id)),
         }
     }
+
+    fn check_tree(&mut self, t: &bench_core::task::TreeFixture) {
+        use miniscript::Descriptor;
+        let pre = self.check_preimages(&t.id, &t.hash_preimages);
+        // The stored answer key must self-grade at full marks.
+        let r = bench_core::grade_tree(t, &t.reference_descriptor);
+        if !r.verdict.is_equivalent() || r.weight_score < 1.0 {
+            self.fail(format!(
+                "{}: reference descriptor no longer grades 1.0 against itself ({:?})",
+                t.id, r.reason
+            ));
+            return;
+        }
+        if r.candidate_weight != Some(t.reference_weight) {
+            self.fail(format!(
+                "{}: reference weight drift: stored {}, computed {:?}",
+                t.id, t.reference_weight, r.candidate_weight
+            ));
+        }
+        // Baseline must stay equivalent and strictly heavier.
+        let b = bench_core::grade_tree(t, &t.baseline_descriptor);
+        if !b.verdict.is_equivalent() {
+            self.fail(format!("{}: baseline no longer equivalent", t.id));
+        }
+        match b.candidate_weight {
+            Some(w) if w != t.baseline_weight => self.fail(format!(
+                "{}: baseline weight drift: stored {}, computed {w}",
+                t.id, t.baseline_weight
+            )),
+            Some(w) if w <= t.reference_weight => self.fail(format!(
+                "{}: baseline no longer strictly heavier (tree task would be vacuous)",
+                t.id
+            )),
+            None => self.fail(format!("{}: baseline weight no longer computable", t.id)),
+            _ => {}
+        }
+        // Every reference leaf must still pass the execution oracle.
+        match t.reference_descriptor.parse::<Descriptor<XOnlyPublicKey>>() {
+            Ok(Descriptor::Tr(tr)) => {
+                for leaf in tr.leaves() {
+                    if let Err(e) =
+                        execution_check(ContextKind::Tap, &leaf.miniscript().encode(), &pre)
+                    {
+                        self.fail(format!(
+                            "{}: reference leaf failed the execution oracle: {e}",
+                            t.id
+                        ));
+                    }
+                }
+            }
+            _ => self.fail(format!("{}: reference descriptor unparseable", t.id)),
+        }
+        // Recompile drift on the answer key, same policy as the others
+        // (via the shared reference builder, not compile_tr — see
+        // tree_descriptors_for_policy).
+        match bench_gen::fixtures::tree_descriptors_for_policy(
+            &t.reference_policy,
+            &t.unspendable_key,
+        ) {
+            Ok((recompiled, _)) => {
+                if recompiled.to_string() != t.reference_descriptor {
+                    let rg = bench_core::grade_tree(t, &recompiled.to_string());
+                    if rg.verdict.is_equivalent() {
+                        self.warn(format!(
+                            "{}: recompiled descriptor differs but stays equivalent (dependency drift)",
+                            t.id
+                        ));
+                    } else {
+                        self.fail(format!(
+                            "{}: recompiled policy is NOT equivalent to the stored descriptor",
+                            t.id
+                        ));
+                    }
+                }
+            }
+            Err(e) => self.fail(format!("{}: policy no longer compiles: {e}", t.id)),
+        }
+    }
 }
 
 use std::str::FromStr as _;
@@ -289,6 +367,7 @@ pub fn audit_dataset(dir: &Path) -> Result<AuditReport> {
             Fixture::Write(_) => "t1",
             Fixture::Optimize(_) => "t2",
             Fixture::Identify(_) => "t3",
+            Fixture::Tree(_) => "t4",
         };
         *seen_counts.entry(kind.to_string()).or_insert(0) += 1;
     }
@@ -316,6 +395,7 @@ pub fn audit_dataset(dir: &Path) -> Result<AuditReport> {
                 // Identify items carry no compiled answer key; params are
                 // static. Nothing to re-derive.
             }
+            Fixture::Tree(t) => report.check_tree(t),
         }
     }
     Ok(report)

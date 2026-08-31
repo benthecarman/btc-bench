@@ -88,6 +88,34 @@ pub fn optimize_prompt(f: &OptimizeFixture, display: DisplayFormat) -> String {
     )
 }
 
+pub fn tree_prompt(f: &bench_core::task::TreeFixture) -> String {
+    format!(
+        "Design a Taproot output for the spending condition below.\n\
+         \n\
+         Keys:\n{}\n\
+         \n\
+         Unspendable internal key (use it as the internal key only if \
+         no listed key deserves the key path): {}\n\
+         \n\
+         {}\n\
+         \n\
+         Rules:\n\
+         - Use exactly the keys listed above; do not invent keys.\n\
+         - You choose the internal key and the script tree: put the \
+         best spending path on the key path when one fits, and split \
+         the rest into tapleaves.\n\
+         - Correctness is the gate; among correct designs, a lower \
+         worst-case input weight (script plus witness) scores higher.\n\
+         - Respond by calling the submit_answer tool with a descriptor \
+         of the form tr(INTERNAL_KEY,TREE), where TREE nests tapleaf \
+         scripts in Miniscript notation with braces, e.g. \
+         tr(KEY,{{pk(A),{{and_v(v:pk(B),older(144)),pk(C)}}}}).",
+        key_block(&f.keys),
+        f.unspendable_key,
+        f.spec_en,
+    )
+}
+
 pub fn identify_prompt(f: &bench_core::task::IdentifyFixture, display: DisplayFormat) -> String {
     let inner = match &f.inner_script_hex {
         Some(h) => format!(
@@ -120,6 +148,7 @@ pub fn for_fixture_fmt(f: &Fixture, display: DisplayFormat) -> String {
         Fixture::Write(w) => write_prompt(w),
         Fixture::Optimize(o) => optimize_prompt(o, display),
         Fixture::Identify(i) => identify_prompt(i, display),
+        Fixture::Tree(t) => tree_prompt(t),
     }
 }
 
@@ -138,6 +167,7 @@ mod tests {
             write: 1,
             optimize: 1,
             identify: 1,
+            tree: 1,
             ..crate::fixtures::GenParams::default()
         };
         for f in crate::fixtures::generate(&params) {
@@ -164,6 +194,11 @@ mod tests {
                     );
                 }
                 Fixture::Identify(_) => assert!(p.contains("scriptPubKey")),
+                Fixture::Tree(_) => {
+                    assert!(p.contains("submit_answer"));
+                    assert!(p.contains("tr(INTERNAL_KEY,TREE)"));
+                    assert!(p.contains("Unspendable internal key"));
+                }
             }
         }
     }
@@ -175,6 +210,7 @@ mod tests {
             write: 0,
             optimize: 1,
             identify: 1,
+            tree: 1,
             ..crate::fixtures::GenParams::default()
         };
         let fixtures = crate::fixtures::generate(&params);
@@ -194,6 +230,11 @@ mod tests {
                     assert_ne!(hex_prompt, asm_prompt);
                 }
                 Fixture::Write(_) => unreachable!("no write fixtures generated"),
+                Fixture::Tree(_) => {
+                    // Tree prompts embed no rendered script; the
+                    // display toggle must not change them.
+                    assert_eq!(hex_prompt, asm_prompt);
+                }
             }
         }
     }

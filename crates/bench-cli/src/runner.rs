@@ -270,6 +270,24 @@ fn submit_script_tool() -> Tool {
     )
 }
 
+fn submit_descriptor_tool() -> Tool {
+    let schema = json!({
+        "type": "object",
+        "properties": {
+            "descriptor": {
+                "type": "string",
+                "description": "The Taproot descriptor, tr(INTERNAL_KEY,TREE)"
+            }
+        },
+        "required": ["descriptor"]
+    });
+    Tool::new(
+        "submit_descriptor",
+        "Submit your final Taproot descriptor answer.",
+        Arc::new(schema.as_object().expect("object schema").clone()),
+    )
+}
+
 fn submit_identify_tool() -> Tool {
     let schema = json!({
         "type": "object",
@@ -363,6 +381,8 @@ fn json_args_to_call(
     let obj = v.as_object()?.clone();
     if obj.contains_key("script") {
         Some(("submit_script".to_string(), obj))
+    } else if obj.contains_key("descriptor") {
+        Some(("submit_descriptor".to_string(), obj))
     } else if obj.contains_key("label") {
         Some(("submit_identify".to_string(), obj))
     } else {
@@ -477,6 +497,12 @@ fn task_answer_from(
         args.get("script").and_then(|v| v.as_str()).map(|script| {
             TaskAnswer::Script(ScriptAnswer {
                 script: script.to_string(),
+            })
+        })
+    } else if name == "submit_descriptor" {
+        args.get("descriptor").and_then(|v| v.as_str()).map(|d| {
+            TaskAnswer::Descriptor(bench_core::task::DescriptorAnswer {
+                descriptor: d.to_string(),
             })
         })
     } else if name == "submit_identify" {
@@ -594,12 +620,37 @@ fn evaluate(fixture: &Fixture, answer: &TaskAnswer) -> Evaluation {
                     "The family label is incorrect. Study the script structure and try again.".to_string() }
             }
         }
+        (Fixture::Tree(t), TaskAnswer::Descriptor(a)) => {
+            let r = bench_core::grade_tree(t, &a.descriptor);
+            if r.weight_score > 0.999 {
+                Evaluation { passed: true, score: r.weight_score, feedback: String::new() }
+            } else if let Some(w) = r.candidate_weight {
+                Evaluation {
+                    passed: false,
+                    score: r.weight_score,
+                    feedback: format!(
+                        "Your design is semantically correct, worst-case weight {} vs single-leaf baseline {} and known optimum {}; improve the key path or tree shape.{}",
+                        w, t.baseline_weight, t.reference_weight, lint_note(&r.lint)
+                    ),
+                }
+            } else {
+                let reason = r.reason.unwrap_or_default();
+                Evaluation {
+                    passed: false,
+                    score: 0.0,
+                    feedback: format!(
+                        "Your answer was rejected: {reason}{}",
+                        lint_note(&r.lint)
+                    ),
+                }
+            }
+        }
         (f, _) => Evaluation {
             passed: false,
             score: 0.0,
             feedback: format!(
                 "Wrong answer shape for this {} task; answer with the submit tool appropriate to the task.",
-                match f { Fixture::Write(_) => "write", Fixture::Optimize(_) => "optimize", Fixture::Identify(_) => "identify" }
+                match f { Fixture::Write(_) => "write", Fixture::Optimize(_) => "optimize", Fixture::Identify(_) => "identify", Fixture::Tree(_) => "tree" }
             ),
         },
     }
@@ -918,6 +969,7 @@ pub async fn run_resume(
                 let prompt = for_fixture_fmt(&f, display);
                 let (tool, is_identify) = match &f {
                     Fixture::Identify(_) => (submit_identify_tool(), true),
+                    Fixture::Tree(_) => (submit_descriptor_tool(), false),
                     _ => (submit_script_tool(), false),
                 };
                 // Multi-turn attempt loop: after a graded failure the

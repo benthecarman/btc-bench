@@ -11,3 +11,8 @@ miniscript = { workspace = true }
 bitcoin = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
+
+[dev-dependencies]
+# The tree-grading tests build reference descriptors with compile_tr;
+# the library itself only parses and lifts.
+miniscript = { workspace = true, features = ["compiler"] }

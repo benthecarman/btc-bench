@@ -30,3 +30,12 @@
 {"task_id":"t2-0003","score":0.0,"size_score":0.0,"candidate_weight":1724,"candidate_size":174}
 {"task_id":"t2-0003","score":1.0,"size_score":1.0,"candidate_weight":1704,"candidate_size":169}
 {"task_id":"t2-0003","score":0.0,"size_score":0.0,"reason":"the script is valid but not semantically equivalent to the required spending policy","lint":["unsafe: a spend path requires no signature"]}
+{"task_id":"t4-0000","score":1.0,"candidate_weight":140}
+{"task_id":"t4-0000","score":0.0,"candidate_weight":178}
+{"task_id":"t4-0000","score":0.0,"reason":"not a valid descriptor: unrecognized name 'not a descriptor'"}
+{"task_id":"t4-0001","score":1.0,"candidate_weight":299}
+{"task_id":"t4-0001","score":0.0,"candidate_weight":437,"lint":["raw pkh fragment without a corresponding key"]}
+{"task_id":"t4-0001","score":0.0,"reason":"not a valid descriptor: unrecognized name 'not a descriptor'"}
+{"task_id":"t4-0002","score":1.0,"candidate_weight":299}
+{"task_id":"t4-0002","score":0.0,"candidate_weight":419,"lint":["raw pkh fragment without a corresponding key"]}
+{"task_id":"t4-0002","score":0.0,"reason":"not a valid descriptor: unrecognized name 'not a descriptor'"}
