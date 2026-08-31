@@ -61,6 +61,15 @@ impl ScriptCheck {
         match (&self.decode_error, &self.miniscript) {
             (Some(e), _) => {
                 out.push_str(&format!("miniscript decode gate: FAIL — {e}\n"));
+                // Compiler-style orientation note: the library parses
+                // scripts from the END, so its "unexpected «X»" names
+                // a position models otherwise repair from the wrong
+                // side. Mechanical documentation, not a hint.
+                out.push_str(
+                    "note: Miniscript decodes scripts from the end; the reported \
+                     token is where structure stopped matching, counting from \
+                     the end of the script.\n",
+                );
                 return out.trim_end().to_string();
             }
             (None, Some(ms)) => out.push_str(&format!("miniscript: {ms}\n")),
