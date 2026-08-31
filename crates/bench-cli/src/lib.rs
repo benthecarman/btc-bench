@@ -717,16 +717,19 @@ pub fn summary_markdown(s: &Summary) -> String {
         s.tree_n,
         s.missing,
     );
-    if s.write_wellformed_n > 0 || s.optimize_wellformed_n > 0 {
+    if s.write_wellformed_n > 0 || s.optimize_wellformed_n > 0 || s.tree_wellformed_n > 0 {
         out.push_str(&format!(
             "Well-formed (cleared parse + decode gates): write {}/{} (semantic accuracy {:.3}), \
-             optimize {}/{} (semantic accuracy {:.3})\n",
+             optimize {}/{} (semantic accuracy {:.3}), tree {}/{} (semantic accuracy {:.3})\n",
             s.write_wellformed_n,
             s.write_n,
             s.write_sem_mean,
             s.optimize_wellformed_n,
             s.optimize_n,
             s.optimize_sem_mean,
+            s.tree_wellformed_n,
+            s.tree_n,
+            s.tree_sem_mean,
         ));
     }
     if let Some(te) = &s.token_efficiency {
