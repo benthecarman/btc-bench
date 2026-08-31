@@ -299,6 +299,17 @@ fixtures and answers.
   default 40/40/20 cycle with an explicit tier round-robin (repeat a
   tier to weight it) for curriculum sets.
 
+## Train/eval contamination controls
+
+- `gen --exclude <dataset>` collects the excluded set's answer keys
+  (write reference / optimize optimal script hexes) and resamples any
+  sampled task that lands on one. Random keys make cross-seed
+  collisions astronomically unlikely; the realistic path is same-seed
+  reuse, which exclusion kills.
+- Every manifest embeds a BIG-bench-style canary GUID
+  (`bench_cli::CANARY`). Identify templates are public knowledge (this
+  is a recall benchmark for them), so identify items are not deduped.
+
 ## Fixtures and artifacts
 
 Hybrid: committed fixtures under `datasets/` are the headline
