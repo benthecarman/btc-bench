@@ -25,9 +25,17 @@ use rmcp::model::{CallToolResult, ContentBlock as McpContentBlock, TextContent};
 use serde::Deserialize;
 use serde_json::json;
 
-pub const SYSTEM_PROMPT: &str = "You are solving Bitcoin Script tasks in a \
-benchmark. Read the task carefully, decide your answer, then call the \
-provided tool exactly once with your final answer. Do not ask questions.";
+// Deliberately neutral framing: no "benchmark", no grading language.
+// Eval-aware models change behavior when told they are being tested,
+// which confounds the measurement, and the word becomes a spurious
+// conditioning token when the same prompts drive RL training
+// rollouts. Only the operational contract is stated. Worded to fit
+// both tool modes: diagnostic tools (check_*) may be called freely;
+// the submit tool ends the task.
+pub const SYSTEM_PROMPT: &str = "Solve the following Bitcoin Script task. \
+Decide your answer, then submit it by calling the submit tool exactly \
+once. You are in an automated pipeline: there is no one to ask, so do \
+not ask questions.";
 
 /// One `[[model.<name>]]` entry from models.toml.
 #[derive(Clone, Debug, Deserialize)]
