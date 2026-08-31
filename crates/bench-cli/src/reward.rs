@@ -56,9 +56,13 @@ pub struct Shaping {
     /// Constant scripts (OP_1) normalize to 0, so the band pays for
     /// semantic progress only.
     pub agreement: f64,
-    /// Floor for an equivalent-but-unimproved optimize answer (the
-    /// weight curve alone scores it 0; equivalence is worth reward
-    /// during training).
+    /// Floor for an equivalent-but-unimproved optimize/tree answer
+    /// (the weight curve alone scores it 0; equivalence is worth
+    /// reward during training). For optimize tasks the floor is paid
+    /// only for a DISTINCT rewrite no heavier than the baseline: the
+    /// baseline sits in the prompt, and a real run showed 80% of
+    /// answers echoing it verbatim — an unconditional floor would
+    /// teach copy-the-prompt as the dominant strategy.
     pub equivalent_floor: f64,
     /// Subtracted per lint finding (malleable, unsafe, ...) from the
     /// shaped score.
@@ -203,10 +207,16 @@ fn script_components(
 
 /// Shaped reward for a write/optimize answer. `graded` is the
 /// benchmark score (equivalence-gated; for optimize, the weight
-/// curve).
-fn shape_script(graded: f64, c: &Components, s: &Shaping) -> f64 {
+/// curve). `floor_eligible` gates the equivalence floor: false for
+/// an optimize answer that echoes the given baseline (or bloats it),
+/// so the floor rewards rewrite skill, never prompt copying.
+fn shape_script(graded: f64, c: &Components, s: &Shaping, floor_eligible: bool) -> f64 {
     let mut shaped = if c.equivalent {
-        graded.max(s.equivalent_floor)
+        if floor_eligible {
+            graded.max(s.equivalent_floor)
+        } else {
+            graded
+        }
     } else {
         let mut v = 0.0;
         if c.parsed {
@@ -252,7 +262,7 @@ fn grade_one(req: RewardRequest, default_shaping: &Shaping) -> Result<RewardResp
             Ok(RewardResponse {
                 task_id: w.id.clone(),
                 score: r.score,
-                shaped: shape_script(r.score, &c, &shaping),
+                shaped: shape_script(r.score, &c, &shaping, true),
                 size_score: None,
                 reason: r.reason,
                 lint: r.lint,
@@ -268,10 +278,18 @@ fn grade_one(req: RewardRequest, default_shaping: &Shaping) -> Result<RewardResp
                 r.verdict.is_equivalent(),
                 r.lint.len(),
             );
+            // Echo guard: the floor is earned by a distinct rewrite no
+            // heavier than the given baseline, never by copying it.
+            let floor_eligible = match (parse_script_answer(&a.script), &r.candidate) {
+                (Ok(script), Some(w)) => {
+                    script.to_hex_string() != o.baseline_script_hex && w.weight <= o.baseline_weight
+                }
+                _ => false,
+            };
             Ok(RewardResponse {
                 task_id: o.id.clone(),
                 score: r.weight_score,
-                shaped: shape_script(r.weight_score, &c, &shaping),
+                shaped: shape_script(r.weight_score, &c, &shaping, floor_eligible),
                 size_score: Some(r.size_score),
                 reason: r.reason,
                 lint: r.lint,
@@ -302,7 +320,9 @@ fn grade_one(req: RewardRequest, default_shaping: &Shaping) -> Result<RewardResp
             Ok(RewardResponse {
                 task_id: t.id.clone(),
                 score: r.weight_score,
-                shaped: shape_script(r.weight_score, &c, &shaping),
+                // Tree tasks never see their baseline, so any
+                // equivalent design earns the floor.
+                shaped: shape_script(r.weight_score, &c, &shaping, true),
                 size_score: None,
                 reason: r.reason,
                 lint: r.lint,
@@ -552,6 +572,61 @@ mod tests {
         let r = reward("51", pen);
         assert_eq!(r.components.lint_count, 1);
         assert!((r.shaped - 0.10).abs() < 1e-12, "{}", r.shaped);
+    }
+
+    /// The equivalence floor must reward rewrite skill, never prompt
+    /// copying: 80% of a real run's optimize answers echoed the
+    /// baseline verbatim, and an unconditional floor would make that
+    /// the dominant RL strategy.
+    #[test]
+    fn optimize_floor_rejects_baseline_echo() {
+        use bench_gen::fixtures::{generate, GenParams};
+        let fixtures = generate(&GenParams {
+            seed: 11,
+            write: 0,
+            optimize: 1,
+            identify: 0,
+            ..GenParams::default()
+        });
+        let Fixture::Optimize(o) = &fixtures[0] else {
+            panic!("optimize fixture")
+        };
+        let shaping = Shaping {
+            equivalent_floor: 0.3,
+            ..Default::default()
+        };
+        let reward = |answer: &str| {
+            grade_one(
+                RewardRequest {
+                    task: fixtures[0].clone(),
+                    answer: serde_json::Value::String(answer.into()),
+                    shaping: Some(shaping),
+                },
+                &Shaping::default(),
+            )
+            .unwrap()
+        };
+        // Echoing the baseline: equivalent, zero benchmark score, and
+        // NO floor — the hack pays nothing.
+        let echo = reward(&o.baseline_script_hex);
+        assert!(echo.components.equivalent);
+        assert_eq!(echo.score, 0.0);
+        assert_eq!(echo.shaped, 0.0, "baseline echo must not earn the floor");
+        // A distinct equivalent rewrite (the optimum) scores above the
+        // floor via the curve; floor eligibility is moot at 1.0.
+        let opt = reward(&o.optimal_script_hex);
+        assert_eq!(opt.shaped, 1.0);
+        // Same echo in asm notation is still an echo (bytes compare).
+        let asm = bench_core::human_asm::to_human_asm(
+            ScriptBuf::from_hex(&o.baseline_script_hex)
+                .unwrap()
+                .as_script(),
+        );
+        let echo_asm = reward(&asm);
+        assert_eq!(
+            echo_asm.shaped, 0.0,
+            "asm-notation echo must not earn the floor"
+        );
     }
 
     #[test]

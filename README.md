@@ -201,6 +201,12 @@ carries:
 - `components` — the raw signals (parsed / decoded / equivalent /
   agreement / lint count) for logging or custom recombination.
 
+The optimize equivalence floor is paid only for a *distinct* rewrite
+no heavier than the given baseline — echoing the prompt's baseline
+back earns nothing, so the floor rewards rewrite skill, never
+copying. (Tree tasks never see their baseline, so any equivalent
+design earns it.)
+
 The agreement band uses *balanced* truth-table agreement: the mean of
 the agreement rates on reference-true and reference-false rows.
 Constant scripts (`OP_1`, always-false) cap at 0.5 regardless of table

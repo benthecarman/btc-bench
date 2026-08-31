@@ -421,9 +421,16 @@ Shaping components, each a server flag with a per-request override:
   exactly 0.5 however skewed the table is; the band normalizes 0.5 to
   zero, so constants earn none of it. 1.0 iff equivalent
   (test-pinned).
-- Equivalence floor (optimize): the weight curve scores an
+- Equivalence floor (optimize/tree): the weight curve scores an
   equivalent-but-unimproved rewrite 0; during training, reaching
-  equivalence at all deserves reward.
+  equivalence at all deserves reward. For optimize the floor is
+  gated: it pays only for a distinct rewrite no heavier than the
+  baseline. The baseline sits in the prompt, and the first real run
+  showed 80% of optimize answers echoing it verbatim — an
+  unconditional floor would make copy-the-prompt strictly dominate
+  attempted rewrites (which risk gate failures worth less than the
+  floor), collapsing the policy onto echoing. Tree tasks never see
+  their baseline, so any equivalent design earns the floor.
 - Lint penalty / gate: the training analog of `grade
   --standard-mode`, so RL cannot converge to malleable-but-equivalent
   encodings unnoticed.
