@@ -200,6 +200,11 @@ pub struct Summary {
     pub multi_turn: Option<MultiTurnSummary>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub token_efficiency: Option<TokenEfficiency>,
+    /// Diagnostic tool-call efficiency for tool-assisted runs (mean
+    /// check_* calls, solved vs unsolved). None when the run carried
+    /// no tool_calls counts.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub tool_use: Option<ToolUse>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -219,6 +224,16 @@ pub struct MultiTurnSummary {
 pub struct TokenEfficiency {
     pub solved_mean_tokens: Option<f64>,
     pub unsolved_mean_tokens: Option<f64>,
+    pub solved_n: usize,
+    pub unsolved_n: usize,
+}
+
+/// Tool-call efficiency: mean diagnostic calls for solved vs unsolved
+/// tasks in a tool-assisted run.
+#[derive(Serialize, Deserialize, Clone, Debug, Default)]
+pub struct ToolUse {
+    pub solved_mean_calls: Option<f64>,
+    pub unsolved_mean_calls: Option<f64>,
     pub solved_n: usize,
     pub unsolved_n: usize,
 }
@@ -525,6 +540,36 @@ pub fn grade(
         }
     };
 
+    // Tool-call efficiency from tool_calls on responses.
+    let tool_use = {
+        let mut solved: Vec<f64> = Vec::new();
+        let mut unsolved: Vec<f64> = Vec::new();
+        for ts in &scores {
+            let record = responses.iter().find(|r| r.task_id == ts.task_id);
+            if let Some(r) = record {
+                if let Some(c) = r.tool_calls {
+                    if ts.score >= 0.999 {
+                        solved.push(c as f64);
+                    } else {
+                        unsolved.push(c as f64);
+                    }
+                }
+            }
+        }
+        if solved.is_empty() && unsolved.is_empty() {
+            None
+        } else {
+            let mean =
+                |v: &Vec<f64>| (!v.is_empty()).then(|| v.iter().sum::<f64>() / v.len() as f64);
+            Some(ToolUse {
+                solved_mean_calls: mean(&solved),
+                unsolved_mean_calls: mean(&unsolved),
+                solved_n: solved.len(),
+                unsolved_n: unsolved.len(),
+            })
+        }
+    };
+
     let multi_turn = attempts.map(|a| {
         let n = a.len().max(1);
         MultiTurnSummary {
@@ -562,6 +607,7 @@ pub fn grade(
         tree_sem_mean: div(t_wf_sum, t_wf_n),
         multi_turn,
         token_efficiency,
+        tool_use,
     };
     Ok((scores, summary))
 }
@@ -633,6 +679,15 @@ pub fn summary_markdown(s: &Summary) -> String {
             te.solved_n,
             te.unsolved_mean_tokens.unwrap_or(0.0),
             te.unsolved_n,
+        ));
+    }
+    if let Some(tu) = &s.tool_use {
+        out.push_str(&format!(
+            "Tool use: solved {:.1} calls (n={}), unsolved {:.1} calls (n={})\n",
+            tu.solved_mean_calls.unwrap_or(0.0),
+            tu.solved_n,
+            tu.unsolved_mean_calls.unwrap_or(0.0),
+            tu.unsolved_n,
         ));
     }
     if let Some(mt) = &s.multi_turn {
@@ -712,6 +767,7 @@ mod tests {
                     raw: None,
                     finish_reason: None,
                     output_tokens: None,
+                    tool_calls: None,
                 }),
                 Fixture::Optimize(o) => responses.push(ResponseRecord {
                     task_id: o.id.clone(),
@@ -721,6 +777,7 @@ mod tests {
                     raw: None,
                     finish_reason: None,
                     output_tokens: None,
+                    tool_calls: None,
                 }),
                 Fixture::Identify(i) => responses.push(ResponseRecord {
                     task_id: i.id.clone(),
@@ -731,6 +788,7 @@ mod tests {
                     raw: None,
                     finish_reason: None,
                     output_tokens: None,
+                    tool_calls: None,
                 }),
                 Fixture::Tree(t) => responses.push(ResponseRecord {
                     task_id: t.id.clone(),
@@ -740,6 +798,7 @@ mod tests {
                     raw: None,
                     finish_reason: None,
                     output_tokens: None,
+                    tool_calls: None,
                 }),
             }
         }

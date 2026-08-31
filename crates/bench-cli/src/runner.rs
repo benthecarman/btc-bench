@@ -187,7 +187,7 @@ impl Backend {
         &self,
         cfg: &ModelConfig,
         history: &[Message],
-        tool: Tool,
+        tools: &[Tool],
     ) -> Result<(Vec<Message>, FinishInfo), ProviderError> {
         use goose_providers::base::MessageStream;
         let stream: MessageStream = match self {
@@ -198,7 +198,7 @@ impl Backend {
                     &cfg.model_name,
                     SYSTEM_PROMPT,
                     history,
-                    &[tool],
+                    tools,
                 )
                 .await?
             }
@@ -209,12 +209,12 @@ impl Backend {
                     &cfg.model_name,
                     SYSTEM_PROMPT,
                     history,
-                    &[tool],
+                    tools,
                 )
                 .await?
             }
             Backend::Anthropic(p) => {
-                p.stream_for_model(cfg, &cfg.model_name, SYSTEM_PROMPT, history, &[tool])
+                p.stream_for_model(cfg, &cfg.model_name, SYSTEM_PROMPT, history, tools)
                     .await?
             }
         };
@@ -250,6 +250,107 @@ pub struct FinishInfo {
     pub finish_reason: Option<String>,
     pub output_tokens: Option<i64>,
     pub input_tokens: Option<i64>,
+}
+
+/// Tool-assisted mode: which diagnostic tools the model gets beside
+/// the submit tool. Diagnostics are pure functions of model-supplied
+/// input (see bench_core::toolbox) — they can never leak a reference.
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Default)]
+pub enum ToolMode {
+    /// Submit tool only (the classic benchmark headline).
+    #[default]
+    None,
+    /// check_script / check_descriptor: the compiler-and-lint loop a
+    /// human developer has. Measures mechanical recovery within one
+    /// attempt; the semantic translation stays unaided.
+    Basic,
+}
+
+impl std::str::FromStr for ToolMode {
+    type Err = String;
+    fn from_str(s: &str) -> Result<Self, String> {
+        match s {
+            "none" => Ok(ToolMode::None),
+            "basic" => Ok(ToolMode::Basic),
+            other => Err(format!("unknown tool mode {other:?}; use none or basic")),
+        }
+    }
+}
+
+impl std::fmt::Display for ToolMode {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(match self {
+            ToolMode::None => "none",
+            ToolMode::Basic => "basic",
+        })
+    }
+}
+
+/// Diagnostic calls allowed per task across all attempts. Bounds the
+/// tool loop so a check-forever policy cannot stall a run.
+const MAX_TOOL_CALLS: u32 = 16;
+
+fn check_script_tool() -> Tool {
+    let schema = json!({
+        "type": "object",
+        "properties": {
+            "script": {
+                "type": "string",
+                "description": "The candidate script to diagnose, hex or Bitcoin Core asm"
+            }
+        },
+        "required": ["script"]
+    });
+    Tool::new(
+        "check_script",
+        "Diagnose a candidate script you wrote: parse it, run the          Miniscript decode gate, report analysis findings and          satisfaction weight. Purely mechanical facts about YOUR          input; it does not compare against any answer. Call it to          debug before you submit.",
+        Arc::new(schema.as_object().expect("object schema").clone()),
+    )
+}
+
+fn check_descriptor_tool() -> Tool {
+    let schema = json!({
+        "type": "object",
+        "properties": {
+            "descriptor": {
+                "type": "string",
+                "description": "The candidate tr(INTERNAL_KEY,TREE) descriptor to diagnose"
+            }
+        },
+        "required": ["descriptor"]
+    });
+    Tool::new(
+        "check_descriptor",
+        "Diagnose a candidate Taproot descriptor you wrote: parse it,          count tapleaves, report analysis findings and worst-case          satisfaction weight. Purely mechanical facts about YOUR          input; it does not compare against any answer. Call it to          debug before you submit.",
+        Arc::new(schema.as_object().expect("object schema").clone()),
+    )
+}
+
+/// Execute a diagnostic call locally. Context comes from the task;
+/// everything else is model-supplied input.
+fn run_check(
+    fixture: &Fixture,
+    name: &str,
+    args: &serde_json::Map<String, serde_json::Value>,
+) -> String {
+    match (name, fixture) {
+        ("check_script", Fixture::Write(w)) => {
+            let text = args.get("script").and_then(|v| v.as_str()).unwrap_or("");
+            bench_core::toolbox::check_script(w.context, text).render()
+        }
+        ("check_script", Fixture::Optimize(o)) => {
+            let text = args.get("script").and_then(|v| v.as_str()).unwrap_or("");
+            bench_core::toolbox::check_script(o.context, text).render()
+        }
+        ("check_descriptor", Fixture::Tree(_)) => {
+            let text = args
+                .get("descriptor")
+                .and_then(|v| v.as_str())
+                .unwrap_or("");
+            bench_core::toolbox::check_descriptor(text).render()
+        }
+        _ => "this diagnostic tool is not available for this task".to_string(),
+    }
 }
 
 fn submit_script_tool() -> Tool {
@@ -544,6 +645,8 @@ struct TaskOutcome {
     final_raw: String,
     final_finish: FinishInfo,
     transport_error: Option<String>,
+    /// Diagnostic calls used (Some only in tool-assisted runs).
+    tool_calls: Option<u32>,
 }
 
 /// Local grading verdict plus the feedback string for the next turn.
@@ -704,6 +807,48 @@ fn extract_answer_with_id(messages: &[Message]) -> (Option<TaskAnswer>, String, 
     }
 }
 
+/// Extract diagnostic (check_*) calls from an assistant turn:
+/// structured tool requests first, textual fallback second. Returns
+/// (name, args, call_id) triples in order.
+fn extract_check_calls(
+    messages: &[Message],
+) -> Vec<(
+    String,
+    serde_json::Map<String, serde_json::Value>,
+    Option<String>,
+)> {
+    let mut out = Vec::new();
+    let mut raw = String::new();
+    for m in messages {
+        for block in &m.content {
+            match block {
+                MessageContentBlock::Text(t) => raw.push_str(&t.text),
+                MessageContentBlock::Thinking(t) => raw.push_str(&t.thinking),
+                MessageContentBlock::ToolRequest(tr) => {
+                    if let Ok(params) = &tr.tool_call {
+                        if params.name.starts_with("check_") {
+                            out.push((
+                                params.name.to_string(),
+                                params.arguments.clone().unwrap_or_default(),
+                                Some(tr.id.clone()),
+                            ));
+                        }
+                    }
+                }
+                _ => {}
+            }
+        }
+    }
+    if out.is_empty() {
+        if let Some((name, args)) = parse_textual_tool_call(&raw) {
+            if name.starts_with("check_") {
+                out.push((name, args, None));
+            }
+        }
+    }
+    out
+}
+
 #[derive(Clone, Debug, serde::Serialize)]
 pub struct RunStats {
     pub answered: usize,
@@ -726,6 +871,7 @@ pub async fn rerun(
     run_dir: &Path,
     concurrency: usize,
     display: bench_gen::prompt::DisplayFormat,
+    tools: ToolMode,
 ) -> Result<RerunStats> {
     let failures_path = run_dir.join("failures.jsonl");
     let old_failures_text = std::fs::read_to_string(&failures_path)
@@ -759,7 +905,7 @@ pub async fn rerun(
 
     let tmp = run_dir.join("rerun-tmp");
     let _ = std::fs::remove_dir_all(&tmp);
-    let stats = run(&subset, entry, &tmp, concurrency, display, 1).await?;
+    let stats = run(&subset, entry, &tmp, concurrency, display, 1, tools).await?;
 
     // Merge: append recovered answers; keep only still-failing records.
     let new_responses = std::fs::read_to_string(tmp.join("responses.jsonl")).unwrap_or_default();
@@ -810,6 +956,7 @@ pub async fn run(
     concurrency: usize,
     display: bench_gen::prompt::DisplayFormat,
     max_attempts: u32,
+    tools: ToolMode,
 ) -> Result<RunStats> {
     run_resume(
         fixtures,
@@ -818,6 +965,7 @@ pub async fn run(
         concurrency,
         display,
         max_attempts,
+        tools,
         false,
     )
     .await
@@ -863,6 +1011,7 @@ fn response_is_defective(messages: &[Message], finish: &FinishInfo) -> bool {
     !has_call && finish.finish_reason.as_deref() == Some("tool_calls")
 }
 
+#[allow(clippy::too_many_arguments)]
 pub async fn run_resume(
     fixtures: &[Fixture],
     entry: &ModelEntry,
@@ -870,6 +1019,7 @@ pub async fn run_resume(
     concurrency: usize,
     display: bench_gen::prompt::DisplayFormat,
     max_attempts: u32,
+    tools: ToolMode,
     resume: bool,
 ) -> Result<RunStats> {
     std::fs::create_dir_all(out_dir)?;
@@ -961,17 +1111,31 @@ pub async fn run_resume(
         let cfg = cfg.clone();
         let res_tx = res_tx.clone();
         let display = display;
+        let tool_mode = tools;
         set.spawn(async move {
             loop {
                 let f = rx.lock().await.recv().await;
                 let Some(f) = f else { break };
 
                 let prompt = for_fixture_fmt(&f, display);
-                let (tool, is_identify) = match &f {
+                let (submit, is_identify) = match &f {
                     Fixture::Identify(_) => (submit_identify_tool(), true),
                     Fixture::Tree(_) => (submit_descriptor_tool(), false),
                     _ => (submit_script_tool(), false),
                 };
+                let mut tools = vec![submit];
+                if tool_mode == ToolMode::Basic {
+                    match &f {
+                        Fixture::Write(_) | Fixture::Optimize(_) => {
+                            tools.push(check_script_tool())
+                        }
+                        Fixture::Tree(_) => tools.push(check_descriptor_tool()),
+                        // Identify stays tool-less: the asm decode is
+                        // already in the prompt, and anything more
+                        // would trivialize the recall task.
+                        Fixture::Identify(_) => {}
+                    }
+                }
                 // Multi-turn attempt loop: after a graded failure the
                 // model receives mechanical feedback and may retry, up
                 // to max_attempts (1 = single-shot).
@@ -984,12 +1148,17 @@ pub async fn run_resume(
                 let mut final_raw = String::new();
                 let mut final_finish = FinishInfo::default();
                 let mut transport_error: Option<String> = None;
+                let mut checks_used: u32 = 0;
 
                 'attempts: for attempt in 1..=max_attempts.max(1) {
+                    // Diagnostic loop: check_* calls execute locally and
+                    // continue the same graded attempt; only a submit
+                    // (or a no-call response) ends the turn.
+                    let (messages, finish, answer, raw, call_id) = 'turn: loop {
                     let retries = entry_retries;
                     let mut tries: u32 = 0;
                     let result = loop {
-                        let outcome = backend.complete(&cfg, &history, tool.clone()).await;
+                        let outcome = backend.complete(&cfg, &history, &tools).await;
                         match outcome {
                             Err(e) if is_transient(&e) && tries < retries => {
                                 let backoff = RETRY_BACKOFF_SECS
@@ -1022,6 +1191,29 @@ pub async fn run_resume(
                         }
                     };
                     let (answer, raw, call_id) = extract_answer_with_id(&messages);
+                    if answer.is_none() {
+                        let checks = extract_check_calls(&messages);
+                        if !checks.is_empty() {
+                            history.extend(messages);
+                            for (name, args, id) in checks {
+                                let reply = if checks_used >= MAX_TOOL_CALLS {
+                                    "Diagnostic budget exhausted; call the \
+                                     submit tool with your final answer."
+                                        .to_string()
+                                } else {
+                                    checks_used += 1;
+                                    run_check(&f, &name, &args)
+                                };
+                                history.push(feedback_message(
+                                    id.as_deref().unwrap_or("0"),
+                                    &reply,
+                                ));
+                            }
+                            continue 'turn;
+                        }
+                    }
+                    break 'turn (messages, finish, answer, raw, call_id);
+                    };
                     // Keep the assistant turn in history for the next round.
                     history.extend(messages);
                     let Some(answer) = answer else {
@@ -1072,6 +1264,7 @@ pub async fn run_resume(
                     final_raw,
                     final_finish,
                     transport_error,
+                    tool_calls: (tool_mode != ToolMode::None).then_some(checks_used),
                 });
             }
         });
@@ -1117,6 +1310,7 @@ pub async fn run_resume(
                 final_raw,
                 final_finish,
                 transport_error,
+                tool_calls,
             } = out;
             for t in &attempts {
                 writeln!(
@@ -1158,6 +1352,7 @@ pub async fn run_resume(
                         },
                         finish_reason: final_finish.finish_reason,
                         output_tokens: final_finish.output_tokens,
+                        tool_calls,
                     };
                     writeln!(responses, "{}", serde_json::to_string(&record)?)?;
                     stats.answered += 1;
@@ -1323,9 +1518,17 @@ mod tests {
         // is 2s; one retry keeps the test fast.
         let (base, captured) = spawn_mock(vec![empty, good]);
         let out = tmpdir("empty-retry");
-        let stats = run(&fixtures, &entry(base), &out, 1, DisplayFormat::Asm, 1)
-            .await
-            .expect("run");
+        let stats = run(
+            &fixtures,
+            &entry(base),
+            &out,
+            1,
+            DisplayFormat::Asm,
+            1,
+            ToolMode::None,
+        )
+        .await
+        .expect("run");
         assert_eq!(
             stats.answered, 1,
             "empty completion must be retried, not unanswered"
@@ -1404,9 +1607,17 @@ mod tests {
             json!({ "script": hex }),
         )]);
         let out = tmpdir("e2e");
-        let stats = run(&fixtures, &entry(base), &out, 1, DisplayFormat::Hex, 1)
-            .await
-            .expect("run");
+        let stats = run(
+            &fixtures,
+            &entry(base),
+            &out,
+            1,
+            DisplayFormat::Hex,
+            1,
+            ToolMode::None,
+        )
+        .await
+        .expect("run");
         assert_eq!(stats.answered, 1);
         assert_eq!(stats.failed, 0);
 
@@ -1444,9 +1655,17 @@ mod tests {
         });
         let (base, _) = spawn_mock(vec![completion_text("I would rather not.")]);
         let out = tmpdir("no-tool");
-        let stats = run(&fixtures, &entry(base), &out, 1, DisplayFormat::Hex, 1)
-            .await
-            .expect("run");
+        let stats = run(
+            &fixtures,
+            &entry(base),
+            &out,
+            1,
+            DisplayFormat::Hex,
+            1,
+            ToolMode::None,
+        )
+        .await
+        .expect("run");
         assert_eq!(stats.answered, 0);
         assert_eq!(stats.failed, 1);
         let failures = std::fs::read_to_string(out.join("failures.jsonl")).expect("failures");
@@ -1479,9 +1698,17 @@ mod tests {
             .collect();
         let (base, _) = spawn_mock(bodies);
         let out = tmpdir("identify");
-        let stats = run(&fixtures, &entry(base), &out, 1, DisplayFormat::Hex, 1)
-            .await
-            .expect("run");
+        let stats = run(
+            &fixtures,
+            &entry(base),
+            &out,
+            1,
+            DisplayFormat::Hex,
+            1,
+            ToolMode::None,
+        )
+        .await
+        .expect("run");
         assert_eq!(stats.answered, fixtures.len());
         let text = std::fs::read_to_string(out.join("responses.jsonl")).expect("responses");
         let records: Vec<ResponseRecord> = text
@@ -1562,9 +1789,17 @@ mod tests {
             .collect();
         let (base, _) = spawn_mock(bodies);
         let out = tmpdir("concurrent");
-        let stats = run(&fixtures, &entry(base), &out, 4, DisplayFormat::Hex, 1)
-            .await
-            .expect("run");
+        let stats = run(
+            &fixtures,
+            &entry(base),
+            &out,
+            4,
+            DisplayFormat::Hex,
+            1,
+            ToolMode::None,
+        )
+        .await
+        .expect("run");
         assert_eq!(stats.answered, 4);
         assert_eq!(stats.failed, 0);
         let text = std::fs::read_to_string(out.join("responses.jsonl")).expect("responses");
@@ -1614,9 +1849,17 @@ mod tests {
         );
         let (base, _) = spawn_mock(vec![completion_text(&content)]);
         let out = tmpdir("text-tool");
-        let stats = run(&fixtures, &entry(base), &out, 1, DisplayFormat::Hex, 1)
-            .await
-            .expect("run");
+        let stats = run(
+            &fixtures,
+            &entry(base),
+            &out,
+            1,
+            DisplayFormat::Hex,
+            1,
+            ToolMode::None,
+        )
+        .await
+        .expect("run");
         assert_eq!(stats.answered, 1);
         assert_eq!(stats.failed, 0);
         let text = std::fs::read_to_string(out.join("responses.jsonl")).expect("responses");
@@ -1648,9 +1891,17 @@ mod tests {
             completion_with_tool("submit_script", json!({ "script": hex })),
         );
         let out = tmpdir("retry");
-        let stats = run(&fixtures, &entry(base), &out, 1, DisplayFormat::Hex, 1)
-            .await
-            .expect("run");
+        let stats = run(
+            &fixtures,
+            &entry(base),
+            &out,
+            1,
+            DisplayFormat::Hex,
+            1,
+            ToolMode::None,
+        )
+        .await
+        .expect("run");
         assert_eq!(stats.answered, 1);
         assert_eq!(stats.failed, 0);
         assert!(
@@ -1671,9 +1922,17 @@ mod tests {
         });
         let (base, captured) = spawn_mock_scenario(usize::MAX, 500, json!({}));
         let out = tmpdir("retry-exhaust");
-        let stats = run(&fixtures, &entry(base), &out, 1, DisplayFormat::Hex, 1)
-            .await
-            .expect("run");
+        let stats = run(
+            &fixtures,
+            &entry(base),
+            &out,
+            1,
+            DisplayFormat::Hex,
+            1,
+            ToolMode::None,
+        )
+        .await
+        .expect("run");
         assert_eq!(stats.answered, 0);
         assert_eq!(stats.failed, 1);
         // 1 initial attempt + 3 retries from our layer (goose may add
@@ -1706,9 +1965,17 @@ mod tests {
         // First run: everything fails (all 500s).
         let (base_bad, _) = spawn_mock_scenario(usize::MAX, 500, json!({}));
         let out = tmpdir("rerun-a");
-        let stats = run(&fixtures, &entry(base_bad), &out, 1, DisplayFormat::Hex, 1)
-            .await
-            .expect("run");
+        let stats = run(
+            &fixtures,
+            &entry(base_bad),
+            &out,
+            1,
+            DisplayFormat::Hex,
+            1,
+            ToolMode::None,
+        )
+        .await
+        .expect("run");
         assert_eq!(stats.answered, 0);
         assert_eq!(stats.failed, 2);
         // Rerun against a healthy server: the second fixture's answer is
@@ -1718,9 +1985,16 @@ mod tests {
             500,
             completion_with_tool("submit_script", json!({ "script": answers[0] })),
         );
-        let stats = rerun(&fixtures, &entry(base_good), &out, 1, DisplayFormat::Hex)
-            .await
-            .expect("rerun");
+        let stats = rerun(
+            &fixtures,
+            &entry(base_good),
+            &out,
+            1,
+            DisplayFormat::Hex,
+            ToolMode::None,
+        )
+        .await
+        .expect("rerun");
         assert_eq!(stats.recovered, 2);
         assert_eq!(stats.still_failed, 0);
         let responses = std::fs::read_to_string(out.join("responses.jsonl")).expect("responses");
@@ -1748,9 +2022,17 @@ mod tests {
             json!({ "script": hex }),
         )]);
         let out = tmpdir("finish");
-        let stats = run(&fixtures, &entry(base), &out, 1, DisplayFormat::Hex, 1)
-            .await
-            .expect("run");
+        let stats = run(
+            &fixtures,
+            &entry(base),
+            &out,
+            1,
+            DisplayFormat::Hex,
+            1,
+            ToolMode::None,
+        )
+        .await
+        .expect("run");
         assert_eq!(stats.answered, 1);
         let text = std::fs::read_to_string(out.join("responses.jsonl")).expect("responses");
         assert!(
@@ -1784,9 +2066,17 @@ mod tests {
             completion_with_tool("submit_script", json!({ "script": "51" })),
         );
         let out = tmpdir("multi-wrong");
-        let stats = run(&fixtures, &entry(base), &out, 1, DisplayFormat::Hex, 3)
-            .await
-            .expect("run");
+        let stats = run(
+            &fixtures,
+            &entry(base),
+            &out,
+            1,
+            DisplayFormat::Hex,
+            3,
+            ToolMode::None,
+        )
+        .await
+        .expect("run");
         // All attempts fail; the recorded answer is the last attempt's.
         assert_eq!(stats.answered, 1);
         assert_eq!(stats.failed, 0);
@@ -1832,9 +2122,17 @@ mod tests {
             json!({ "script": hex }),
         )]);
         let out = tmpdir("single");
-        let stats = run(&fixtures, &entry(base), &out, 1, DisplayFormat::Hex, 1)
-            .await
-            .expect("run");
+        let stats = run(
+            &fixtures,
+            &entry(base),
+            &out,
+            1,
+            DisplayFormat::Hex,
+            1,
+            ToolMode::None,
+        )
+        .await
+        .expect("run");
         assert_eq!(stats.answered, 1);
         assert_eq!(
             captured.lock().expect("lock").len(),
@@ -1873,9 +2171,17 @@ mod tests {
             })
             .collect();
         let (base, captured) = spawn_mock(bodies);
-        let stats = run(&fixtures, &entry(base), &out, 1, DisplayFormat::Hex, 1)
-            .await
-            .expect("run");
+        let stats = run(
+            &fixtures,
+            &entry(base),
+            &out,
+            1,
+            DisplayFormat::Hex,
+            1,
+            ToolMode::None,
+        )
+        .await
+        .expect("run");
         assert_eq!(stats.answered, 2);
         assert_eq!(stats.failed, 2);
         let first_reqs = captured.lock().expect("lock").len();
@@ -1892,6 +2198,7 @@ mod tests {
             1,
             DisplayFormat::Hex,
             1,
+            ToolMode::None,
             true,
         )
         .await
@@ -1924,5 +2231,73 @@ mod tests {
         assert_eq!(models["test"].model, "m1");
         assert_eq!(models["test"].api_key_env.as_deref(), Some("KEY"));
         let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    /// Tool-assisted flow: check_* calls execute locally and continue
+    /// the same graded attempt; the submit ends it. The response
+    /// records how many diagnostics were used.
+    #[tokio::test]
+    async fn basic_tools_loop_diagnoses_then_submits() {
+        let fixtures = generate(&GenParams {
+            seed: 4,
+            write: 1,
+            optimize: 0,
+            identify: 0,
+            ..GenParams::default()
+        });
+        let reference = match &fixtures[0] {
+            Fixture::Write(w) => w.reference_script_hex.clone(),
+            other => panic!("expected write fixture, got {}", other.id()),
+        };
+        let bodies = vec![
+            // Turn 1: diagnose a wrong candidate (OP_RETURN fails the
+            // decode gate).
+            completion_with_tool("check_script", json!({"script": "6a"})),
+            // Turn 2: diagnose the real one.
+            completion_with_tool("check_script", json!({"script": reference.clone()})),
+            // Turn 3: submit.
+            completion_with_tool("submit_script", json!({"script": reference.clone()})),
+        ];
+        let (base, captured) = spawn_mock(bodies);
+        let out = tmpdir("tools-basic");
+        let stats = run(
+            &fixtures,
+            &entry(base),
+            &out,
+            1,
+            DisplayFormat::Asm,
+            1,
+            ToolMode::Basic,
+        )
+        .await
+        .expect("run");
+        assert_eq!(stats.answered, 1, "diagnostics must not burn the attempt");
+
+        // The response records both diagnostic calls.
+        let text = std::fs::read_to_string(out.join("responses.jsonl")).unwrap();
+        let rec: bench_core::task::ResponseRecord =
+            serde_json::from_str(text.lines().next().unwrap()).unwrap();
+        assert_eq!(rec.tool_calls, Some(2));
+        match rec.answer {
+            TaskAnswer::Script(a) => assert_eq!(a.script, reference),
+            other => panic!("wrong answer shape: {other:?}"),
+        }
+
+        // The check tool was advertised alongside submit, and the
+        // second request carries the first diagnostic's report (the
+        // decode-gate failure) back to the model.
+        let reqs = captured.lock().unwrap();
+        assert_eq!(reqs.len(), 3);
+        assert!(reqs[0].contains("check_script"), "tool not advertised");
+        assert!(
+            reqs[1].contains("decode gate: FAIL"),
+            "diagnostic report not fed back: {}",
+            &reqs[1]
+        );
+        assert!(
+            reqs[2].contains("miniscript:"),
+            "second diagnostic report missing"
+        );
+        let _ = std::fs::remove_dir_all(&out);
     }
 }

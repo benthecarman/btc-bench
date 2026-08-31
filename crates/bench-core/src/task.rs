@@ -242,4 +242,7 @@ pub struct ResponseRecord {
     /// Provider-reported completion tokens.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub output_tokens: Option<i64>,
+    /// Diagnostic tool calls used (tool-assisted runs only).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub tool_calls: Option<u32>,
 }

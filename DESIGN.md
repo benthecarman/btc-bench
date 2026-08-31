@@ -300,8 +300,24 @@ fixtures and answers.
   never the reference, its keys, or the distinguishing assignment) and
   may retry. Single-shot (attempts = 1) measures unaided fluency;
   multi-turn measures feedback-driven recovery. The regression gate
-  runs single-shot for speed and noise. The tool loop is turn-agnostic
-  so a tool-assisted mode is a config flag later.
+  runs single-shot for speed and noise.
+- Tool-assisted mode (`run --tools basic`): beside the submit tool the
+  model gets `check_script` (write/optimize: parse, decode gate, lint,
+  weight/size) or `check_descriptor` (tree), executed locally from
+  `bench_core::toolbox`. The inviolable rule: diagnostics are pure
+  functions of model-supplied input — no fixture parameter exists, so
+  no reference can leak, by construction. check_* calls loop within
+  the same graded attempt (budget 16 per task; exhaustion tells the
+  model to submit); only a submit or a no-call response ends the
+  turn. Identify stays tool-less (the asm decode is already the
+  prompt). `tool_calls` lands on each response record and summaries
+  report call efficiency. What it measures: the none-to-basic delta
+  per model is the mechanical-formatting deficit (recoverable with a
+  compiler loop); the residual at basic is the semantic gap. Keep
+  tool-assisted runs single-attempt — tools-within-a-turn and graded
+  feedback between turns measure overlapping recovery. The reward
+  service mirrors the diagnostics at POST /tool for RL trainers
+  driving their own rollouts.
 - Sampling: temperature 0, n = 1, pass@1 by default; n, temperature,
   top-p configurable. Raw responses are always stored, so pass^k is
   computable post-hoc without re-running.
@@ -431,8 +447,8 @@ responses.jsonl, so grader changes never require re-running a model.
 5. ✅ Protocol identification corpus: Lightning across all eras
    (P2WSH + taproot) and a structural Liquid peg item, in
    datasets/v2; coinswap and Revault still pending sources.
-6. ✅ Taproot tree-tier tasks (t4) and pass^k reporting; tool-assisted
-   mode still pending.
+6. ✅ Taproot tree-tier tasks (t4), pass^k reporting, and
+   tool-assisted mode (--tools basic).
 7. Extension tier: arbitrary (non-miniscript) scripts — needs an
    execution engine (bitcoin-scriptexec / bitcoin-circle-stf /
    bitcoind regtest) since the decode gate no longer applies.

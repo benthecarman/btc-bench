@@ -111,6 +111,12 @@ enum Command {
         /// failed tasks retried, output files appended.
         #[arg(long, default_value_t = false)]
         resume: bool,
+        /// Diagnostic tools offered beside the submit tool: "none"
+        /// (headline benchmark) or "basic" (check_script /
+        /// check_descriptor — the compiler-and-lint loop; reference-
+        /// free by construction).
+        #[arg(long, default_value = "none")]
+        tools: bench_cli::runner::ToolMode,
     },
     /// Re-attempt the failed tasks in a run directory.
     Rerun {
@@ -127,6 +133,9 @@ enum Command {
         concurrency: usize,
         #[arg(long, default_value = "asm")]
         display: String,
+        /// Diagnostic tools (see run --tools).
+        #[arg(long, default_value = "none")]
+        tools: bench_cli::runner::ToolMode,
     },
     /// Serve the graders over HTTP for RL training loops.
     RewardServe {
@@ -350,6 +359,7 @@ fn main() -> Result<()> {
             display,
             attempts,
             resume,
+            tools,
         } => {
             let all = load_dataset(&dataset)?;
             let fixtures = match limit {
@@ -394,6 +404,7 @@ fn main() -> Result<()> {
                 "display": display,
                 "limit": limit,
                 "resume": resume,
+                "tools": tools.to_string(),
                 "bench_version": env!("CARGO_PKG_VERSION"),
                 "started_unix": std::time::SystemTime::now()
                     .duration_since(std::time::UNIX_EPOCH)
@@ -413,6 +424,7 @@ fn main() -> Result<()> {
                     concurrency,
                     display_fmt,
                     attempts,
+                    tools,
                     resume,
                 ))?;
             println!(
@@ -431,6 +443,7 @@ fn main() -> Result<()> {
             run_dir,
             concurrency,
             display,
+            tools,
         } => {
             let fixtures = load_dataset(&dataset)?;
             let display_fmt = match display.as_str() {
@@ -454,6 +467,7 @@ fn main() -> Result<()> {
                     &run_dir,
                     concurrency,
                     display_fmt,
+                    tools,
                 ))?;
             println!(
                 "rerun: {} recovered, {} still failing; merged into {}",

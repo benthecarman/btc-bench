@@ -2,7 +2,14 @@
 //!
 //! POST /reward        {"task": <fixture>, "answer": <answer>, "shaping"?: {...}}
 //! POST /reward/batch  {"items": [{"task":..., "answer":...}], "shaping"?: {...}}
+//! POST /tool          {"kind": "check_script"|"check_descriptor",
+//!                      "context"?: "legacy"|"segwitv0"|"tap", "input": "..."}
 //! GET  /health        {"ok": true}
+//!
+//! /tool serves the same reference-free diagnostics the tool-assisted
+//! runner offers (bench_core::toolbox), so an RL trainer driving its
+//! own rollout loop can execute the model's check_* calls without
+//! reimplementing them. Stateless: pure function of the request.
 //!
 //! Every response carries two scores:
 //! - `score`: the benchmark score, identical to `btc-bench grade`.
@@ -100,6 +107,31 @@ pub struct Components {
     /// cap at 0.5). None for identify tasks and undecodable answers.
     pub agreement: Option<f64>,
     pub lint_count: usize,
+}
+
+#[derive(Deserialize)]
+struct ToolRequest {
+    kind: String,
+    #[serde(default)]
+    context: Option<ContextKind>,
+    input: String,
+}
+
+fn run_tool(req: ToolRequest) -> Result<serde_json::Value> {
+    match req.kind.as_str() {
+        "check_script" => {
+            let ctx = req
+                .context
+                .ok_or_else(|| anyhow::anyhow!("check_script requires a context"))?;
+            let c = bench_core::toolbox::check_script(ctx, &req.input);
+            Ok(json!({"report": c.render(), "detail": c}))
+        }
+        "check_descriptor" => {
+            let c = bench_core::toolbox::check_descriptor(&req.input);
+            Ok(json!({"report": c.render(), "detail": c}))
+        }
+        other => bail!("unknown tool kind {other:?}; use check_script or check_descriptor"),
+    }
 }
 
 #[derive(Deserialize)]
@@ -339,6 +371,23 @@ fn handle(request: tiny_http::Request, shaping: &Shaping) {
                     request,
                     400,
                     json!({"error": format!("bad request: {e}")}).to_string(),
+                );
+                return;
+            }
+        },
+        "/tool" => match serde_json::from_str::<ToolRequest>(&body) {
+            Ok(req) => match run_tool(req) {
+                Ok(v) => v.to_string(),
+                Err(e) => {
+                    respond(request, 400, json!({"error": e.to_string()}).to_string());
+                    return;
+                }
+            },
+            Err(e) => {
+                respond(
+                    request,
+                    400,
+                    json!({"error": format!("bad tool request: {e}")}).to_string(),
                 );
                 return;
             }

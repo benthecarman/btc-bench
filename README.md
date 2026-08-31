@@ -37,6 +37,11 @@ btc-bench run --dataset datasets/my-set --config models.toml --model my-model --
 # Multi-turn with graded feedback between attempts (default; --attempts 1 for single-shot)
 btc-bench run --dataset datasets/my-set --config models.toml --model my-model
 
+# Tool-assisted: the model gets check_script / check_descriptor —
+# the compiler-and-lint loop a developer has (reference-free)
+btc-bench run --dataset datasets/my-set --config models.toml --model my-model \
+    --tools basic --attempts 1
+
 # Grade results
 btc-bench grade --dataset datasets/my-set --responses runs/my-run/responses.jsonl
 
@@ -156,6 +161,20 @@ TR offered/accepted HTLC timeout tapleaves.
 
 **Liquid**: federation peg (N-of-M with CSV-gated emergency backup).
 
+## Tool-assisted mode
+
+`run --tools basic` offers diagnostic tools beside the submit tool:
+`check_script` (parse, decode gate, lint, weight) for write/optimize
+and `check_descriptor` for tree tasks; identify stays tool-less.
+Diagnostics are pure functions of *model-supplied* input — no tool
+takes a fixture, so no tool can leak a reference, by construction.
+Budget: 16 calls per task; the count lands in `responses.jsonl` as
+`tool_calls` and summaries report call efficiency (solved vs
+unsolved). Compare a `--tools none` run against a `--tools basic`
+run of the same model: the delta is the mechanical-formatting
+deficit; what remains at `basic` is the semantic gap. Keep the
+headline single-shot/no-tools.
+
 ## Reward service for RL
 
 ```bash
@@ -170,7 +189,10 @@ btc-bench reward-serve --bind 0.0.0.0:9900 \
 ```
 
 POST `/reward` with `{"task": <fixture>, "answer": "...", "shaping"?: {...}}`
-(also `/reward/batch` and GET `/health`). Every response carries:
+(also `/reward/batch`, GET `/health`, and POST `/tool` — the same
+reference-free diagnostics the tool-assisted runner offers, for RL
+trainers driving their own rollout loops). Every reward response
+carries:
 
 - `score` — the benchmark score, identical to `btc-bench grade`;
 - `shaped` — the training reward: score plus the configured shaping

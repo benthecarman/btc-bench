@@ -103,6 +103,7 @@ fn tr_record(task_id: String, descriptor: String) -> ResponseRecord {
         raw: None,
         output_tokens: None,
         finish_reason: None,
+        tool_calls: None,
     }
 }
 
@@ -113,6 +114,7 @@ fn record(task_id: String, script: String) -> ResponseRecord {
         raw: None,
         output_tokens: None,
         finish_reason: None,
+        tool_calls: None,
     }
 }
 
