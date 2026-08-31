@@ -298,6 +298,11 @@ impl std::fmt::Display for ToolMode {
 /// tool loop so a check-forever policy cannot stall a run.
 const MAX_TOOL_CALLS: u32 = 16;
 
+// Tool descriptions are deliberately terse and must not name the
+// Miniscript decode gate: that requirement stays implicit on every
+// prompt surface (test-pinned). Discovering it through the tool's
+// OUTPUT is the point of tool-assisted mode; pre-announcing it in the
+// description would reveal it before the model has done anything.
 fn check_script_tool() -> Tool {
     let schema = json!({
         "type": "object",
@@ -311,7 +316,7 @@ fn check_script_tool() -> Tool {
     });
     Tool::new(
         "check_script",
-        "Diagnose a candidate script you wrote: parse it, run the          Miniscript decode gate, report analysis findings and          satisfaction weight. Purely mechanical facts about YOUR          input; it does not compare against any answer. Call it to          debug before you submit.",
+        "Diagnose a candidate script (hex or asm): parse and decode checks, analysis findings, satisfaction weight.",
         Arc::new(schema.as_object().expect("object schema").clone()),
     )
 }
@@ -329,7 +334,7 @@ fn check_descriptor_tool() -> Tool {
     });
     Tool::new(
         "check_descriptor",
-        "Diagnose a candidate Taproot descriptor you wrote: parse it,          count tapleaves, report analysis findings and worst-case          satisfaction weight. Purely mechanical facts about YOUR          input; it does not compare against any answer. Call it to          debug before you submit.",
+        "Diagnose a candidate Taproot descriptor: parse check, tapleaf count, analysis findings, worst-case satisfaction weight.",
         Arc::new(schema.as_object().expect("object schema").clone()),
     )
 }
@@ -2239,6 +2244,38 @@ mod tests {
         assert_eq!(models["test"].model, "m1");
         assert_eq!(models["test"].api_key_env.as_deref(), Some("KEY"));
         let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    /// The decode-gate requirement is implicit in every prompt
+    /// surface, including tool descriptions and schemas: a model must
+    /// discover it through tool OUTPUT or graded feedback, never be
+    /// told upfront. Descriptions also stay terse.
+    #[test]
+    fn tool_descriptions_never_reveal_the_decode_gate() {
+        for tool in [
+            submit_script_tool(),
+            submit_identify_tool(),
+            submit_descriptor_tool(),
+            check_script_tool(),
+            check_descriptor_tool(),
+        ] {
+            let surface = format!(
+                "{} {} {}",
+                tool.name,
+                tool.description.as_deref().unwrap_or(""),
+                serde_json::to_string(&tool.input_schema).unwrap()
+            );
+            assert!(
+                !surface.to_lowercase().contains("miniscript"),
+                "{}: reveals the decode gate: {surface}",
+                tool.name
+            );
+            assert!(
+                tool.description.as_deref().unwrap_or("").len() < 160,
+                "{}: description too verbose",
+                tool.name
+            );
+        }
     }
 
     /// Tool-assisted flow: check_* calls execute locally and continue
