@@ -6,7 +6,7 @@ use miniscript::policy::Liftable;
 use miniscript::{Legacy, Miniscript, ScriptContext, Segwitv0, Tap};
 
 use crate::task::ContextKind;
-use crate::truth::{exhaustive_equivalent, Atoms};
+use crate::truth::{exhaustive_agreement, exhaustive_equivalent, Atoms};
 
 /// Defense-in-depth cap; the generator's tiers stay far below this.
 const MAX_BOOLEAN_ATOMS: usize = 20;
@@ -104,6 +104,60 @@ pub fn check_equivalence(
         ContextKind::Legacy => check_in_context::<Legacy>(reference, candidate),
         ContextKind::SegwitV0 => check_in_context::<Segwitv0>(reference, candidate),
         ContextKind::Tap => check_in_context::<Tap>(reference, candidate),
+    }
+}
+
+/// Does the script pass the decode gate in this context? The cheap
+/// first rung for reward shaping; no lift, no truth table.
+pub fn decodes_in_context(kind: ContextKind, script: &ScriptBuf) -> bool {
+    fn decodes<Ctx: ScriptContext>(script: &ScriptBuf) -> bool {
+        Miniscript::<Ctx::Key, Ctx>::decode_consensus(script.as_script()).is_ok()
+    }
+    match kind {
+        ContextKind::Legacy => decodes::<Legacy>(script),
+        ContextKind::SegwitV0 => decodes::<Segwitv0>(script),
+        ContextKind::Tap => decodes::<Tap>(script),
+    }
+}
+
+fn agreement_in_context<Ctx: ScriptContext>(
+    reference: &ScriptBuf,
+    candidate: &ScriptBuf,
+) -> Option<f64> {
+    let cand: Miniscript<Ctx::Key, Ctx> =
+        Miniscript::decode_consensus(candidate.as_script()).ok()?;
+    let refr: Miniscript<Ctx::Key, Ctx> =
+        Miniscript::decode_consensus(reference.as_script()).ok()?;
+    let sem_cand = cand.lift().ok()?;
+    let sem_ref = refr.lift().ok()?;
+    if sem_cand.clone().sorted() == sem_ref.clone().sorted() {
+        return Some(1.0);
+    }
+    let mut atoms = Atoms::default();
+    Atoms::collect(&sem_cand, &mut atoms);
+    Atoms::collect(&sem_ref, &mut atoms);
+    if atoms.boolean_count() > MAX_BOOLEAN_ATOMS {
+        return None;
+    }
+    Some(exhaustive_agreement(&sem_ref, &sem_cand, &atoms).balanced())
+}
+
+/// Balanced truth-table agreement of `candidate` against `reference`
+/// in [0, 1]: mean of the agreement rates on reference-true and
+/// reference-false rows. Exactly 1.0 iff equivalent; constant scripts
+/// (`OP_1` and friends) cap at 0.5 regardless of table skew, which is
+/// what makes this usable as a dense RL shaping signal. `None` when
+/// either script fails to decode/lift or the atom space exceeds the
+/// exhaustive bound.
+pub fn semantic_agreement(
+    kind: ContextKind,
+    reference: &ScriptBuf,
+    candidate: &ScriptBuf,
+) -> Option<f64> {
+    match kind {
+        ContextKind::Legacy => agreement_in_context::<Legacy>(reference, candidate),
+        ContextKind::SegwitV0 => agreement_in_context::<Segwitv0>(reference, candidate),
+        ContextKind::Tap => agreement_in_context::<Tap>(reference, candidate),
     }
 }
 
@@ -281,6 +335,46 @@ mod tests {
                 "entailment disagrees with the truth table: {x} vs {y}"
             );
         }
+    }
+
+    #[test]
+    fn agreement_is_balanced_and_hack_resistant() {
+        let (a, b, c) = (pk_hex(1), pk_hex(2), pk_hex(3));
+        let ctx = crate::task::ContextKind::SegwitV0;
+        // Equivalent pair: exactly 1.0.
+        let r = ms(&format!("and_v(v:pk({a}),or_d(pk({b}),pk({c})))"));
+        let same = ms_any(&format!("and_b(or_d(pk({b}),pk({c})),s:pk({a}))"));
+        assert_eq!(
+            semantic_agreement(ctx, &r.encode(), &same.encode()),
+            Some(1.0)
+        );
+        // Always-true attack: OP_1 caps at exactly 0.5 even though the
+        // reference (1-of-3-ish) is true on most rows. Raw row
+        // agreement would score this high; the balanced split doesn't.
+        let skewed = ms(&format!("or_d(pk({a}),or_d(pk({b}),pk({c})))"));
+        assert_eq!(
+            semantic_agreement(ctx, &skewed.encode(), &script("51")),
+            Some(0.5)
+        );
+        // Near-miss: and(A,B) vs and(A,C) over atoms {A,B,C}.
+        // Ref-true rows (A&B, C free): candidate agrees on 1 of 2.
+        // Ref-false rows: candidate true only on A&C&!B -> agrees 5/6.
+        // Balanced = (1/2 + 5/6) / 2 = 2/3.
+        let r = ms(&format!("and_v(v:pk({a}),pk({b}))"));
+        let near = ms(&format!("and_v(v:pk({a}),pk({c}))"));
+        let g = semantic_agreement(ctx, &r.encode(), &near.encode()).unwrap();
+        assert!((g - 2.0 / 3.0).abs() < 1e-12, "{g}");
+        // Wrong-but-related beats a constant; equivalence beats both.
+        assert!(0.5 < g && g < 1.0);
+        // Undecodable candidate: no signal.
+        assert_eq!(semantic_agreement(ctx, &r.encode(), &script("6a")), None);
+    }
+
+    #[test]
+    fn decode_gate_probe() {
+        let ctx = crate::task::ContextKind::SegwitV0;
+        assert!(decodes_in_context(ctx, &script("51")));
+        assert!(!decodes_in_context(ctx, &script("6a")));
     }
 
     #[test]

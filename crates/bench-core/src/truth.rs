@@ -171,6 +171,85 @@ pub fn exhaustive_equivalent<Pk: MiniscriptKey>(
     true
 }
 
+/// Row-level agreement between a reference and a candidate over the
+/// combined atom space, split by the reference's own value. The split
+/// is what makes the derived score hack-resistant: a constant
+/// candidate (always-true `OP_1`, or always-false) agrees perfectly on
+/// one side and never on the other, so it can never exceed 0.5 no
+/// matter how skewed the table is.
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+pub struct Agreement {
+    pub ref_true_agree: u64,
+    pub ref_true_total: u64,
+    pub ref_false_agree: u64,
+    pub ref_false_total: u64,
+}
+
+impl Agreement {
+    /// Balanced agreement in [0, 1]: the mean of the agreement rates
+    /// on reference-true and reference-false rows. 1.0 exactly when
+    /// the two policies are equivalent; constant candidates cap at
+    /// 0.5. An empty side (unsatisfiable or trivial reference) counts
+    /// as fully agreeing, so the 1.0-iff-equivalent property holds.
+    pub fn balanced(&self) -> f64 {
+        let rate = |agree: u64, total: u64| {
+            if total == 0 {
+                1.0
+            } else {
+                agree as f64 / total as f64
+            }
+        };
+        (rate(self.ref_true_agree, self.ref_true_total)
+            + rate(self.ref_false_agree, self.ref_false_total))
+            / 2.0
+    }
+}
+
+/// Walk the same truth table as [`exhaustive_equivalent`] but count
+/// agreement per row instead of stopping at the first divergence.
+/// `a` is the reference (its value picks the side each row counts
+/// toward); `b` is the candidate.
+pub fn exhaustive_agreement<Pk: MiniscriptKey>(
+    a: &Semantic<Pk>,
+    b: &Semantic<Pk>,
+    atoms: &Atoms,
+) -> Agreement {
+    let n = atoms.boolean_count();
+    debug_assert!(n <= 20, "atom space must be bounded by the caller");
+    let mut out = Agreement::default();
+    for height in atoms.heights() {
+        for age in atoms.ages() {
+            for mask in 0u64..(1u64 << n) {
+                let ctx = TruthContext {
+                    keys: atoms
+                        .keys
+                        .iter()
+                        .enumerate()
+                        .map(|(i, k)| (k.clone(), mask >> i & 1 == 1))
+                        .collect(),
+                    hashes: atoms
+                        .hashes
+                        .iter()
+                        .enumerate()
+                        .map(|(i, h)| (h.clone(), mask >> (atoms.keys.len() + i) & 1 == 1))
+                        .collect(),
+                    height,
+                    age,
+                };
+                let (ra, rb) = (eval(a, &ctx), eval(b, &ctx));
+                if ra {
+                    out.ref_true_total += 1;
+                    out.ref_true_agree += (ra == rb) as u64;
+                } else {
+                    out.ref_false_total += 1;
+                    out.ref_false_agree += (ra == rb) as u64;
+                }
+            }
+        }
+    }
+    out
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

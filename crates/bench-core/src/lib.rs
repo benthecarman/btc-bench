@@ -18,7 +18,7 @@ pub use grade::{
     grade_identify, grade_optimize, grade_write, lint_report, weights_for, IdentifyResult,
     OptimizeResult, Weights, WriteResult,
 };
-pub use oracle::{check_equivalence, Verdict};
+pub use oracle::{check_equivalence, decodes_in_context, semantic_agreement, Verdict};
 pub use task::{
     ContextKind, Fixture, IdentifyAnswer, IdentifyFixture, KeyVar, OptimizeFixture, ParamValue,
     ResponseRecord, TaskAnswer, Tier, WriteFixture,
