@@ -14,14 +14,14 @@ pub mod oracle;
 pub mod task;
 pub mod truth;
 
-pub use answer::{parse_script_answer, AnswerError};
-pub use exec::{execution_check, HashPreimages, PreimageMap};
 pub use grade::{
-    grade_identify, grade_optimize, grade_write, weights_for, IdentifyResult, OptimizeResult,
-    Weights, WriteResult,
+    grade_identify, grade_optimize, grade_write, lint_report, weights_for, IdentifyResult,
+    OptimizeResult, Weights, WriteResult,
 };
 pub use oracle::{check_equivalence, Verdict};
 pub use task::{
     ContextKind, Fixture, IdentifyAnswer, IdentifyFixture, KeyVar, OptimizeFixture, ParamValue,
     ResponseRecord, TaskAnswer, Tier, WriteFixture,
 };
+
+pub use exec::{execution_check, HashPreimages, PreimageMap};

@@ -2,6 +2,7 @@
 
 use bitcoin::{ScriptBuf, XOnlyPublicKey};
 use miniscript::descriptor::{TapTree, Tr};
+use miniscript::ScriptContext;
 use miniscript::{Descriptor, Legacy, Miniscript, Segwitv0, Tap};
 
 use crate::answer::parse_script_answer;
@@ -73,12 +74,53 @@ pub fn weights_for(kind: ContextKind, script: &ScriptBuf) -> Result<Weights, Str
     }
 }
 
+/// Insanity categories detected on a decodable script (miniscript's
+/// analyzable predicates: safety, malleability, resource limits,
+/// repeated keys, timelock mixing, raw pkh). Empty for a sane script or
+/// one that fails to decode (decode failures carry their own reason).
+/// Purely informational unless the grader runs in standard mode.
+pub fn lint_report(kind: ContextKind, script: &ScriptBuf) -> Vec<&'static str> {
+    fn lints<Ctx: ScriptContext>(script: &ScriptBuf) -> Vec<&'static str> {
+        let Ok(ms) = Miniscript::<Ctx::Key, Ctx>::decode_consensus(script.as_script()) else {
+            return Vec::new();
+        };
+        let mut out = Vec::new();
+        if !ms.requires_sig() {
+            out.push("unsafe: a spend path requires no signature");
+        }
+        if !ms.is_non_malleable() {
+            out.push("malleable");
+        }
+        if !ms.within_resource_limits() {
+            out.push("a spend path exceeds consensus resource limits");
+        }
+        if ms.has_repeated_keys() {
+            out.push("repeated public keys");
+        }
+        if ms.has_mixed_timelocks() {
+            out.push("unspendable path: mixes height-based and time-based timelocks");
+        }
+        if ms.contains_raw_pkh() {
+            out.push("raw pkh fragment without a corresponding key");
+        }
+        out
+    }
+    match kind {
+        ContextKind::Legacy => lints::<Legacy>(script),
+        ContextKind::SegwitV0 => lints::<Segwitv0>(script),
+        ContextKind::Tap => lints::<Tap>(script),
+    }
+}
+
 #[derive(Clone, Debug)]
 pub struct WriteResult {
     pub verdict: Verdict,
     pub score: f64,
     /// Parse/decode failure detail when score is 0.
     pub reason: Option<String>,
+    /// Insanity findings on the decoded candidate (see [`lint_report`]).
+    /// Reported, never scored, outside standard mode.
+    pub lint: Vec<String>,
 }
 
 /// Task 1: parse, decode-gate, prove equivalence.
@@ -90,6 +132,7 @@ pub fn grade_write(fixture: &WriteFixture, answer: &str) -> WriteResult {
                 verdict: Verdict::InvalidScript(e.to_string()),
                 score: 0.0,
                 reason: Some(e.to_string()),
+                lint: Vec::new(),
             }
         }
     };
@@ -97,12 +140,17 @@ pub fn grade_write(fixture: &WriteFixture, answer: &str) -> WriteResult {
         ScriptBuf::from_hex(&fixture.reference_script_hex).expect("fixture hex is valid");
     let verdict = check_equivalence(fixture.context, &reference, &candidate);
     let score = if verdict.is_equivalent() { 1.0 } else { 0.0 };
+    let lint = lint_report(fixture.context, &candidate)
+        .into_iter()
+        .map(str::to_string)
+        .collect();
     WriteResult {
         reason: if score == 0.0 {
             Some(format!("{verdict:?}"))
         } else {
             None
         },
+        lint,
         verdict,
         score,
     }
@@ -117,6 +165,8 @@ pub struct OptimizeResult {
     pub size_score: f64,
     pub candidate: Option<Weights>,
     pub reason: Option<String>,
+    /// Insanity findings on the decoded candidate (see [`lint_report`]).
+    pub lint: Vec<String>,
 }
 
 fn curve(base: usize, cand: usize, optimal: usize) -> f64 {
@@ -138,6 +188,7 @@ pub fn grade_optimize(fixture: &OptimizeFixture, answer: &str) -> OptimizeResult
                 size_score: 0.0,
                 candidate: None,
                 reason: Some(e.to_string()),
+                lint: Vec::new(),
             }
         }
     };
@@ -151,6 +202,10 @@ pub fn grade_optimize(fixture: &OptimizeFixture, answer: &str) -> OptimizeResult
             size_score: 0.0,
             candidate: None,
             reason: Some(reason),
+            lint: lint_report(fixture.context, &candidate)
+                .into_iter()
+                .map(str::to_string)
+                .collect(),
         };
     }
     let cand_weights = match weights_for(fixture.context, &candidate) {
@@ -162,6 +217,7 @@ pub fn grade_optimize(fixture: &OptimizeFixture, answer: &str) -> OptimizeResult
                 size_score: 0.0,
                 candidate: None,
                 reason: Some(e),
+                lint: Vec::new(),
             }
         }
     };
@@ -179,6 +235,10 @@ pub fn grade_optimize(fixture: &OptimizeFixture, answer: &str) -> OptimizeResult
         candidate: Some(cand_weights),
         verdict,
         reason: None,
+        lint: lint_report(fixture.context, &candidate)
+            .into_iter()
+            .map(str::to_string)
+            .collect(),
     }
 }
 
@@ -230,6 +290,7 @@ mod tests {
             reference_policy: String::new(),
             reference_miniscript: String::new(),
             reference_script_hex: reference_hex,
+            hash_preimages: Default::default(),
         }
     }
 
@@ -247,6 +308,39 @@ mod tests {
         assert_eq!(grade_write(&f, &reference).score, 1.0);
         assert_eq!(grade_write(&f, "51").score, 0.0);
         assert_eq!(grade_write(&f, "not hex!").score, 0.0);
+    }
+
+    #[test]
+    fn lint_report_flags_insane_but_not_sane() {
+        use bitcoin::hex::FromHex;
+        // Sane: compiled and_v.
+        let sane = ms_hex("and_v(v:pk(0279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798),pk(02c6047f9441ed7d6d3045406e95c07cd85c778e4b8cef3ca7abac09b95c709ee5))");
+        let script = ScriptBuf::from_hex(&sane).unwrap();
+        assert!(lint_report(ContextKind::SegwitV0, &script).is_empty());
+        // Malleable: the alloy-spec vector or_b(un:multi, al:older) —
+        // the older arm has no non-malleable dissatisfaction.
+        let malleable = miniscript::Miniscript::<bitcoin::PublicKey, Segwitv0>::from_str_insane(
+            "or_b(un:multi(2,03d01115d548e7561b15c38f004d734633687cf4419620095bc5b0f47070afe85a,02c6047f9441ed7d6d3045406e95c07cd85c778e4b8cef3ca7abac09b95c709ee5),al:older(16))",
+        )
+        .unwrap()
+        .encode()
+        .to_hex_string();
+        let script = ScriptBuf::from_hex(&malleable).unwrap();
+        let lints = lint_report(ContextKind::SegwitV0, &script);
+        assert!(
+            lints.iter().any(|l| l.contains("malleable")),
+            "expected malleable finding, got {lints:?}"
+        );
+        // Unsafe: OP_1 decodes as Trivial, spends with no signature.
+        let script = ScriptBuf::from_hex("51").unwrap();
+        let lints = lint_report(ContextKind::SegwitV0, &script);
+        assert!(
+            lints.iter().any(|l| l.contains("no signature")),
+            "expected unsafe finding, got {lints:?}"
+        );
+        // Undecodable garbage carries no lint (the gate reports it).
+        let script = ScriptBuf::from_hex("6a").unwrap();
+        assert!(lint_report(ContextKind::SegwitV0, &script).is_empty());
     }
 
     #[test]
@@ -274,6 +368,7 @@ mod tests {
             optimal_weight: w.weight,
             reference_policy: String::new(),
             reference_miniscript: String::new(),
+            hash_preimages: Default::default(),
         };
         // Candidate == optimal bytes -> full credit.
         let r = grade_optimize(&f, &optimal);

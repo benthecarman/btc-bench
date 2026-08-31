@@ -5,6 +5,7 @@
 use bench_core::Tier;
 
 use crate::rng::SeededRng;
+use bitcoin::hashes::Hash as _;
 
 /// Context-free policy AST. Key(i) references the i-th key of the task.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -50,46 +51,63 @@ fn sample_older(rng: &mut SeededRng) -> u32 {
     rng.range(16, 1024) as u32
 }
 
-fn sha(rng: &mut SeededRng) -> Abs {
-    let mut h = [0u8; 32];
-    rng.bytes(&mut h);
-    Abs::Sha256(h)
+/// Preimages sampled alongside hash atoms, so the execution oracle can
+/// witness hash leaves: sha256(preimage) == the atom's hash.
+#[derive(Clone, Debug, Default)]
+pub struct Preimages {
+    pub sha256: Vec<([u8; 32], [u8; 32])>,
+    pub hash160: Vec<([u8; 20], [u8; 32])>,
 }
 
-fn h160(rng: &mut SeededRng) -> Abs {
-    let mut h = [0u8; 20];
-    rng.bytes(&mut h);
-    Abs::Hash160(h)
+fn sha(rng: &mut SeededRng, pre: &mut Preimages) -> Abs {
+    let mut preimage = [0u8; 32];
+    rng.bytes(&mut preimage);
+    let hash = bitcoin::hashes::sha256::Hash::hash(&preimage).to_byte_array();
+    pre.sha256.push((hash, preimage));
+    Abs::Sha256(hash)
 }
 
-fn key(rng: &mut SeededRng, used: &mut Vec<usize>) -> Abs {
-    // Fresh key index, or a controlled reuse to keep budgets small.
-    if !used.is_empty() && rng.below(8) == 0 {
-        Abs::Key(used[rng.below(used.len() as u64) as usize])
-    } else {
-        let next = used.len();
-        used.push(next);
-        Abs::Key(next)
-    }
+fn h160(rng: &mut SeededRng, pre: &mut Preimages) -> Abs {
+    let mut preimage = [0u8; 32];
+    rng.bytes(&mut preimage);
+    let hash = bitcoin::hashes::hash160::Hash::hash(&preimage).to_byte_array();
+    pre.hash160.push((hash, preimage));
+    Abs::Hash160(hash)
 }
 
-/// Sample one task policy for a tier. Atom budgets per DESIGN.md:
-/// easy <= 2 atoms no timelocks; medium 3..=6 with one timelock or hash;
-/// hard 7..=12 with timelocks + hashes + thresh.
-pub fn sample(rng: &mut SeededRng, tier: Tier) -> Abs {
+fn key(_rng: &mut SeededRng, used: &mut Vec<usize>) -> Abs {
+    // Always a fresh key index. An earlier "controlled reuse" path
+    // produced duplicate-key policies, which the sane compiler rejects
+    // in every context — every reused-key draw was dead rng burn.
+    let next = used.len();
+    used.push(next);
+    Abs::Key(next)
+}
+
+/// Sample one task policy for a tier, recording hash preimages. Atom
+/// budgets per DESIGN.md: easy <= 2 atoms no timelocks; medium 2..=6
+/// atoms with a timelock or hash always present (the 2-atom band is
+/// the calibration step above easy); hard 7..=12 with timelocks +
+/// hashes + thresh.
+pub fn sample_pre(rng: &mut SeededRng, tier: Tier, pre: &mut Preimages) -> Abs {
     match tier {
         Tier::Easy => sample_easy(rng),
-        Tier::Medium => sample_medium(rng),
-        Tier::Hard => sample_hard(rng),
+        Tier::Medium => sample_medium(rng, pre),
+        Tier::Hard => sample_hard(rng, pre),
     }
+}
+
+/// Sample one task policy (preimages discarded).
+pub fn sample(rng: &mut SeededRng, tier: Tier) -> Abs {
+    sample_pre(rng, tier, &mut Preimages::default())
 }
 
 /// Sample until the policy contains an `or` or a `thresh` — shapes where
 /// the naive encoder is guaranteed non-optimal (or_d chains vs or_c/multi
 /// carry real weight). Bounded to keep determinism cheap.
-pub fn sample_with_or(rng: &mut SeededRng, tier: Tier) -> Abs {
+pub fn sample_with_or_pre(rng: &mut SeededRng, tier: Tier, pre: &mut Preimages) -> Abs {
     for _ in 0..32 {
-        let p = sample(rng, tier);
+        let p = sample_pre(rng, tier, pre);
         let ok = match &p {
             Abs::Or(_) | Abs::Thresh(..) => true,
             Abs::And(v) => v.iter().any(|a| matches!(a, Abs::Or(_) | Abs::Thresh(..))),
@@ -100,7 +118,12 @@ pub fn sample_with_or(rng: &mut SeededRng, tier: Tier) -> Abs {
         }
     }
     // Fallback: medium shapes nearly always contain an or.
-    sample(rng, Tier::Medium)
+    sample_medium(rng, pre)
+}
+
+/// [`sample_with_or_pre`] with preimages discarded.
+pub fn sample_with_or(rng: &mut SeededRng, tier: Tier) -> Abs {
+    sample_with_or_pre(rng, tier, &mut Preimages::default())
 }
 fn sample_easy(rng: &mut SeededRng) -> Abs {
     let mut used = Vec::new();
@@ -113,14 +136,34 @@ fn sample_easy(rng: &mut SeededRng) -> Abs {
     }
 }
 
-fn sample_medium(rng: &mut SeededRng) -> Abs {
+fn sample_medium(rng: &mut SeededRng, pre: &mut Preimages) -> Abs {
+    // Gradient band: synth shapes (2-4 keys + one timelock/hash leaf)
+    // plus the surviving MINT structure (timelock_in_thresh, 3..5
+    // atoms) at one draw in four. The 2-key+leaf synth variant is the
+    // deliberate step between easy (2 keys, nothing else) and the
+    // 3+-key shapes: calibration showed a cliff, not a gradient,
+    // without it.
+    match rng.below(4) {
+        2 => timelock_in_thresh(rng),
+        _ => sample_medium_synth(rng, pre),
+    }
+}
+
+pub(crate) fn sample_medium_synth(rng: &mut SeededRng, pre: &mut Preimages) -> Abs {
     let mut used = Vec::new();
+    // 2..=4 keys: the 2-key draws are the gradient step above easy
+    // (a non-key atom is always present, so the task is never just
+    // "and/or of two keys" — that is the easy tier).
     let n_keys = rng.range(2, 4) as usize;
     let mut leaves: Vec<Abs> = (0..n_keys).map(|_| key(rng, &mut used)).collect();
     match rng.below(3) {
         0 => leaves.push(Abs::After(sample_after(rng))),
         1 => leaves.push(Abs::Older(sample_older(rng))),
-        _ => leaves.push(if rng.bool() { sha(rng) } else { h160(rng) }),
+        _ => leaves.push(if rng.bool() {
+            sha(rng, pre)
+        } else {
+            h160(rng, pre)
+        }),
     }
     // Shuffle so the non-key leaf is not always last, then combine into a
     // two-level and/or shape.
@@ -128,98 +171,153 @@ fn sample_medium(rng: &mut SeededRng) -> Abs {
     combine(rng, &leaves, 1)
 }
 
-fn sample_hard(rng: &mut SeededRng) -> Abs {
-    // Real-world patterns from Blockstream/miniscript-templates
-    // (MINT-001..002, MINT-005..009), vault and custody structures.
-    let roll = rng.below(6);
-    match roll {
-        0 => vault_full(rng),
-        1 => vault_simplified(rng),
-        2 => timelock_gated_recovery(rng),
-        3 => timelock_in_thresh(rng),
-        4 => vault_single_principal(rng),
-        _ => sample_hard_synth(rng),
+fn sample_hard(rng: &mut SeededRng, pre: &mut Preimages) -> Abs {
+    // Every shape here is census-verified to ship in at least one
+    // context (see the shape_census test): the four MINT vault
+    // structures (vault_full, vault_simplified, timelock_gated_recovery,
+    // vault_single_principal) and the old synthetic sampler were removed
+    // — all died at the pk_h/RawPkH gate in every context (thresh groups
+    // under or-branches make the compiler emit pk_h, which cannot lift),
+    // so they never shipped and only burned retries. timelock_in_thresh
+    // (MINT-001/002) survives, dispatched from sample_medium.
+    match rng.below(4) {
+        0 => boundary_timelocks(rng),
+        1 => recovery_paths(rng),
+        2 => deep_nest(rng, pre),
+        _ => wide_thresh(rng),
     }
 }
 
-/// MINT-005/006: or(and(thresh(PAKs), or(thresh(PKs,after), and(pk,after))),
-///                  and(thresh(RKs), after))
-fn vault_full(rng: &mut SeededRng) -> Abs {
+/// Custody-style recovery structure: an instant path gated by a
+/// relative timelock and a delayed path through a 2-of-3 committee,
+/// itself behind an absolute timelock. Thresh only under and-branches
+/// (never directly under an or) — the pattern the compiler compiles
+/// without pk_h. Eight atoms.
+pub(crate) fn recovery_paths(rng: &mut SeededRng) -> Abs {
     let mut used = Vec::new();
-    let mut group = |rng: &mut SeededRng, used: &mut Vec<usize>, n: usize| -> Abs {
-        let mut ks = Vec::new();
-        for _ in 0..n {
-            ks.push(used.len());
-            used.push(used.len());
-        }
-        Abs::Thresh(2, ks)
+    let fresh = |used: &mut Vec<usize>| -> usize {
+        let next = used.len();
+        used.push(next);
+        next
     };
-    let paks = group(rng, &mut used, 3);
-    let pks = group(rng, &mut used, 3);
-    let rks = group(rng, &mut used, 3);
-    let sak = Abs::Key(used.len());
-    used.push(used.len());
-    let t1 = Abs::After(sample_after(rng));
-    let t2 = Abs::After(sample_after(rng));
-    let t3 = Abs::After(sample_after(rng));
+    let (k0, k1) = (fresh(&mut used), fresh(&mut used));
+    let committee = Abs::Thresh(
+        2,
+        vec![fresh(&mut used), fresh(&mut used), fresh(&mut used)],
+    );
+    let (k5, k6, k7) = (fresh(&mut used), fresh(&mut used), fresh(&mut used));
     Abs::Or(vec![
         Abs::And(vec![
-            paks,
-            Abs::Or(vec![Abs::And(vec![pks, t1]), Abs::And(vec![sak, t2])]),
+            Abs::And(vec![Abs::Key(k0), Abs::Key(k1)]),
+            Abs::Older(sample_older(rng)),
         ]),
-        Abs::And(vec![rks, t3]),
+        Abs::And(vec![
+            Abs::And(vec![Abs::Key(k5), Abs::Key(k6)]),
+            Abs::And(vec![
+                Abs::Key(k7),
+                Abs::And(vec![committee, Abs::After(sample_after(rng))]),
+            ]),
+        ]),
     ])
 }
 
-/// MINT-007/008: or(and(thresh(PAKs), or(pk, and(pk,after))), and(pk,after))
-fn vault_simplified(rng: &mut SeededRng) -> Abs {
+/// Edge shape: absolute timelocks hugging the height/time consensus
+/// boundary from below. 499999999 is the LAST height-encoded CLTV
+/// value (the BIP65 threshold 500000000 is inclusive: values >= it are
+/// UNIX timestamps), so every value here stays height-typed while
+/// sitting one block from the boundary. Seven atoms to meet the hard
+/// tier's 7..=12 budget.
+pub(crate) fn boundary_timelocks(rng: &mut SeededRng) -> Abs {
     let mut used = Vec::new();
+    let boundaries = [499_999_996u32, 499_999_997, 499_999_998, 499_999_999];
+    let i = rng.below(4) as usize;
+    let j = (i + 1 + rng.below(3) as usize) % 4;
+    // Binary or with seven key atoms. Three-branch ors push the
+    // compiler toward pk_h left arms (cheaper dissatisfaction), which
+    // decode as RawPkH and cannot lift — the shape would be silently
+    // starved by the gradability resample.
+    let fresh = |used: &mut Vec<usize>| -> usize {
+        let next = used.len();
+        used.push(next);
+        next
+    };
+    let kp0 = Abs::And(vec![Abs::Key(fresh(&mut used)), Abs::Key(fresh(&mut used))]);
+    let branch1 = Abs::And(vec![kp0, Abs::After(boundaries[i])]);
     let mut ks = Vec::new();
     for _ in 0..3 {
+        ks.push(fresh(&mut used));
+    }
+    let kp1 = Abs::And(vec![
+        Abs::Thresh(2, ks),
+        Abs::And(vec![Abs::Key(fresh(&mut used)), Abs::Key(fresh(&mut used))]),
+    ]);
+    Abs::Or(vec![
+        branch1,
+        Abs::And(vec![kp1, Abs::After(boundaries[j])]),
+    ])
+}
+
+/// Edge shape: deep and-nesting over mixed atom kinds with a single
+/// embedded key-or — four levels, the deepest the tier budgets allow.
+/// One timelock kind per policy (height+relative in a single path
+/// cannot compile). Structured rather than randomly combined: random
+/// or-heavy trees push the compiler into pk_h (RawPkH cannot lift),
+/// which starved the shape to a 5/30 ship rate. Seven atoms (six keys
+/// + one hash) to meet the hard tier's floor.
+pub(crate) fn deep_nest(rng: &mut SeededRng, pre: &mut Preimages) -> Abs {
+    let mut used = Vec::new();
+    for _ in 0..6 {
+        let _ = key(rng, &mut used);
+    }
+    let tl = if rng.bool() {
+        Abs::After(sample_after(rng))
+    } else {
+        Abs::Older(sample_older(rng))
+    };
+    let hash = if rng.bool() {
+        sha(rng, pre)
+    } else {
+        h160(rng, pre)
+    };
+    Abs::And(vec![
+        Abs::And(vec![
+            Abs::Or(vec![Abs::Key(0), Abs::Key(1)]),
+            Abs::And(vec![Abs::Key(2), Abs::Key(3)]),
+        ]),
+        Abs::And(vec![
+            tl,
+            Abs::And(vec![Abs::Key(4), Abs::And(vec![Abs::Key(5), hash])]),
+        ]),
+    ])
+}
+
+/// Edge shape: k-of-n at the subset-expansion cap, so the naive
+/// baseline's k-subset enumeration runs at its widest. Fresh keys only
+/// (repeated keys across branches fail the sane compiler); the
+/// timelock branch carries two keys so every variant clears the hard
+/// tier's 7-atom floor.
+pub(crate) fn wide_thresh(rng: &mut SeededRng) -> Abs {
+    let mut used = Vec::new();
+    // (n, k) pairs with C(n, k) <= MAX_SUBSETS (12).
+    let (n, k) = [(5usize, 2usize), (6, 5), (7, 6), (5, 3)][rng.below(4) as usize];
+    let mut ks = Vec::with_capacity(n);
+    for _ in 0..n {
         ks.push(used.len());
         used.push(used.len());
     }
-    let paks = Abs::Thresh(2, ks);
-    let pk = Abs::Key(used.len());
-    used.push(used.len());
-    let sak = Abs::Key(used.len());
-    used.push(used.len());
-    let rk = Abs::Key(used.len());
-    used.push(used.len());
-    let t1 = Abs::After(sample_after(rng));
-    let t2 = Abs::After(sample_after(rng));
+    let tl = if rng.bool() {
+        Abs::After(sample_after(rng))
+    } else {
+        Abs::Older(sample_older(rng))
+    };
     Abs::Or(vec![
-        Abs::And(vec![paks, Abs::Or(vec![pk, Abs::And(vec![sak, t1])])]),
-        Abs::And(vec![rk, t2]),
+        Abs::Thresh(k, ks),
+        Abs::And(vec![key(rng, &mut used), key(rng, &mut used), tl]),
     ])
 }
 
-/// MINT-009: or(and(thresh(SAKs), or(pk,pk)), and(after, or(pk,pk)))
-fn timelock_gated_recovery(rng: &mut SeededRng) -> Abs {
-    let mut used = Vec::new();
-    let mut ks = Vec::new();
-    for _ in 0..3 {
-        ks.push(used.len());
-        used.push(used.len());
-    }
-    let saks = Abs::Thresh(2, ks);
-    let pak1 = Abs::Key(used.len());
-    used.push(used.len());
-    let pak2 = Abs::Key(used.len());
-    used.push(used.len());
-    let rk1 = Abs::Key(used.len());
-    used.push(used.len());
-    let rk2 = Abs::Key(used.len());
-    used.push(used.len());
-    let t = Abs::After(sample_after(rng));
-    Abs::Or(vec![
-        Abs::And(vec![saks, Abs::Or(vec![pak1, pak2])]),
-        Abs::And(vec![t, Abs::Or(vec![rk1, rk2])]),
-    ])
-}
-
-/// MINT-001/002: thresh(k, pk...pk, after(N)) — timelock counts toward k
-fn timelock_in_thresh(rng: &mut SeededRng) -> Abs {
+/// MINT-001/002: thresh(k, pk...pk, after(N)) — timelock counts toward k.
+pub(crate) fn timelock_in_thresh(rng: &mut SeededRng) -> Abs {
     let mut used = Vec::new();
     let n_keys = rng.range(3, 5) as usize;
     let mut ks = Vec::new();
@@ -239,40 +337,13 @@ fn timelock_in_thresh(rng: &mut SeededRng) -> Abs {
     )
 }
 
-/// MINT-006 variant with 1 principal key instead of thresh
-fn vault_single_principal(rng: &mut SeededRng) -> Abs {
-    let mut used = Vec::new();
-    let mut ks = Vec::new();
-    for _ in 0..3 {
-        ks.push(used.len());
-        used.push(used.len());
-    }
-    let paks = Abs::Thresh(2, ks);
-    let pk1 = Abs::Key(used.len());
-    used.push(used.len());
-    let pk2 = Abs::Key(used.len());
-    used.push(used.len());
-    let rk1 = Abs::Key(used.len());
-    used.push(used.len());
-    let rk2 = Abs::Key(used.len());
-    used.push(used.len());
-    let t1 = Abs::After(sample_after(rng));
-    let t2 = Abs::After(sample_after(rng));
-    Abs::Or(vec![
-        Abs::And(vec![paks, Abs::Or(vec![pk1, pk2])]),
-        Abs::And(vec![Abs::Or(vec![rk1, rk2]), t1]),
-    ])
-    .and_also(t2, rng)
-}
-
 // Helper trait for fluent pattern building
 trait AbsExt {
     fn combine_with(self, other: Abs, rng: &mut SeededRng) -> Abs;
-    fn and_also(self, other: Abs, rng: &mut SeededRng) -> Abs;
 }
 
 impl AbsExt for Abs {
-    fn combine_with(self, other: Abs, rng: &mut SeededRng) -> Abs {
+    fn combine_with(self, other: Abs, _rng: &mut SeededRng) -> Abs {
         // Rebuild thresh with the timelock as an additional condition
         if let Abs::Thresh(k, ref ks) = self {
             // For MINT-001: the policy is thresh(k, keys...) where the
@@ -284,43 +355,6 @@ impl AbsExt for Abs {
             Abs::And(vec![self, other])
         }
     }
-    fn and_also(self, other: Abs, rng: &mut SeededRng) -> Abs {
-        // Randomly combine with and or or
-        if rng.bool() {
-            Abs::And(vec![self, other])
-        } else {
-            Abs::Or(vec![self, other])
-        }
-    }
-}
-
-/// Original synthetic hard-tier sampler (renamed)
-fn sample_hard_synth(rng: &mut SeededRng) -> Abs {
-    let mut used = Vec::new();
-    let mut groups: Vec<Abs> = Vec::new();
-    // Thresh group: k-of-n over 3..=5 fresh keys.
-    let n = rng.range(3, 5) as usize;
-    let k = rng.range(2, n as u64) as usize;
-    let mut ks = Vec::new();
-    for _ in 0..n {
-        ks.push(used.len());
-        used.push(used.len());
-    }
-    groups.push(Abs::Thresh(k, ks));
-    // Timelock group: both a relative and an absolute lock, or-ed with a
-    // key path.
-    let tl_key = key(rng, &mut used);
-    groups.push(Abs::Or(vec![
-        Abs::And(vec![tl_key, Abs::Older(sample_older(rng))]),
-        Abs::And(vec![key(rng, &mut used), Abs::After(sample_after(rng))]),
-    ]));
-    // Hash group.
-    groups.push(Abs::And(vec![
-        key(rng, &mut used),
-        if rng.bool() { sha(rng) } else { h160(rng) },
-    ]));
-    shuffle(rng, &mut groups);
-    combine(rng, &groups, 2)
 }
 
 /// Combine leaves into nested and/or shapes up to `depth`.
@@ -359,16 +393,47 @@ mod tests {
     #[test]
     fn budgets_respected() {
         let mut rng = SeededRng::new(99);
-        for _ in 0..200 {
+        for _ in 0..300 {
             let p = sample(&mut rng, Tier::Easy);
             assert!(p.atom_count() <= 2, "easy too big: {p:?}");
             let p = sample(&mut rng, Tier::Medium);
             assert!(
-                (3..=6).contains(&p.atom_count()) || p.atom_count() <= 6,
+                (2..=6).contains(&p.atom_count()),
                 "medium out of range: {p:?}"
             );
             let p = sample(&mut rng, Tier::Hard);
-            assert!(p.atom_count() <= 12, "hard too big: {p:?}");
+            assert!(
+                (7..=12).contains(&p.atom_count()),
+                "hard out of range: {p:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn edge_shapes_meet_hard_budget() {
+        let mut rng = SeededRng::new(12);
+        let mut pre = Preimages::default();
+        for _ in 0..50 {
+            for p in [
+                boundary_timelocks(&mut rng),
+                deep_nest(&mut rng, &mut pre),
+                wide_thresh(&mut rng),
+            ] {
+                assert!(
+                    (7..=12).contains(&p.atom_count()),
+                    "edge shape out of hard budget: {p:?}"
+                );
+                // Boundary values must all be height-encoded (< 500000000).
+                assert_after_heights_only(&p);
+            }
+        }
+    }
+
+    fn assert_after_heights_only(p: &Abs) {
+        match p {
+            Abs::After(t) => assert!(*t < 500_000_000, "time-typed after({t}) in boundary shape"),
+            Abs::And(v) | Abs::Or(v) => v.iter().for_each(assert_after_heights_only),
+            _ => {}
         }
     }
 

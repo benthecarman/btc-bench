@@ -1,6 +1,7 @@
 //! Fixture assembly: sample policy, materialize per context, compile,
 //! de-optimize, verify everything with the oracle, and emit fixtures.
 
+use std::collections::BTreeMap;
 use std::str::FromStr;
 
 use bench_core::task::{ContextKind, Fixture, KeyVar, OptimizeFixture, Tier, WriteFixture};
@@ -70,28 +71,49 @@ fn policy_string(p: &Abs, ks: &KeySet, ctx: ContextKind) -> String {
             _ => ks.compressed[i].clone(),
         }
     };
-    fn rec(p: &Abs, key: &dyn Fn(usize) -> String) -> String {
-        match p {
-            Abs::Key(i) => format!("pk({})", key(*i)),
-            Abs::After(t) => format!("after({t})"),
-            Abs::Older(t) => format!("older({t})"),
-            Abs::Sha256(h) => format!(
-                "sha256({})",
-                h.iter().map(|b| format!("{b:02x}")).collect::<String>()
-            ),
-            Abs::Hash160(h) => format!(
-                "hash160({})",
-                h.iter().map(|b| format!("{b:02x}")).collect::<String>()
-            ),
-            Abs::And(v) => format!("and({},{})", rec(&v[0], key), rec(&v[1], key)),
-            Abs::Or(v) => format!("or({},{})", rec(&v[0], key), rec(&v[1], key)),
-            Abs::Thresh(k, ksx) => {
-                let inner: Vec<String> = ksx.iter().map(|i| format!("pk({})", key(*i))).collect();
-                format!("thresh({},{})", k, inner.join(","))
-            }
-        }
+    render(p, &key)
+}
+
+/// Render any node: n-ary and/or right-fold into the binary concrete
+/// grammar (binary nodes render byte-identically to the historical
+/// two-child form), leaves verbatim.
+fn render(p: &Abs, key: &dyn Fn(usize) -> String) -> String {
+    match p {
+        Abs::And(v) => fold_nary("and", v, key),
+        Abs::Or(v) => fold_nary("or", v, key),
+        leaf => policy_leaf(leaf, key),
     }
-    rec(p, &key)
+}
+
+fn fold_nary(op: &str, v: &[Abs], key: &dyn Fn(usize) -> String) -> String {
+    let mut iter = v.iter().rev();
+    let last = iter.next().expect("nonempty node");
+    let mut acc = render(last, key);
+    for e in iter {
+        acc = format!("{op}({},{})", render(e, key), acc);
+    }
+    acc
+}
+
+fn policy_leaf(p: &Abs, key: &dyn Fn(usize) -> String) -> String {
+    match p {
+        Abs::Key(i) => format!("pk({})", key(*i)),
+        Abs::After(t) => format!("after({t})"),
+        Abs::Older(t) => format!("older({t})"),
+        Abs::Sha256(h) => format!(
+            "sha256({})",
+            h.iter().map(|b| format!("{b:02x}")).collect::<String>()
+        ),
+        Abs::Hash160(h) => format!(
+            "hash160({})",
+            h.iter().map(|b| format!("{b:02x}")).collect::<String>()
+        ),
+        Abs::Thresh(k, ksx) => {
+            let inner: Vec<String> = ksx.iter().map(|i| format!("pk({})", key(*i))).collect();
+            format!("thresh({},{})", k, inner.join(","))
+        }
+        Abs::And(_) | Abs::Or(_) => unreachable!("handled by render"),
+    }
 }
 
 /// One write/optimize task's compiled artifacts, verified.
@@ -108,6 +130,7 @@ struct Compiled {
     opt_size: usize,
     keys: Vec<KeyVar>,
     spec_en: String,
+    preimages: BTreeMap<String, String>,
 }
 
 fn compile_task(
@@ -132,10 +155,11 @@ fn attempt(
     need_baseline: bool,
 ) -> Option<Compiled> {
     {
+        let mut pre = policy::Preimages::default();
         let abs = if need_baseline {
-            policy::sample_with_or(rng, tier)
+            policy::sample_with_or_pre(rng, tier, &mut pre)
         } else {
-            policy::sample(rng, tier)
+            policy::sample_pre(rng, tier, &mut pre)
         };
         let key_count = abs.key_count().max(1).min(12);
         let ks = keys::generate(rng, key_count);
@@ -154,7 +178,7 @@ fn attempt(
                 let p = Concrete::<PublicKey>::from_str(&p_text).ok()?;
                 let ms = p.compile::<Legacy>().ok()?;
                 let w = bench_core::weights_for(context, &ms.encode()).ok()?;
-                let n_text = naive::naive_string(&abs, &ks, false);
+                let n_text = naive::sample_naive(rng, &abs, &ks, false);
                 let nms = Miniscript::<PublicKey, Legacy>::from_str_insane(&n_text).ok()?;
                 let nw = bench_core::weights_for(context, &nms.encode()).ok()?;
                 (ms.to_string(), ms.encode(), w, nms.encode(), nw)
@@ -163,7 +187,7 @@ fn attempt(
                 let p = Concrete::<PublicKey>::from_str(&p_text).ok()?;
                 let ms = p.compile::<Segwitv0>().ok()?;
                 let w = bench_core::weights_for(context, &ms.encode()).ok()?;
-                let n_text = naive::naive_string(&abs, &ks, false);
+                let n_text = naive::sample_naive(rng, &abs, &ks, false);
                 let nms = Miniscript::<PublicKey, Segwitv0>::from_str_insane(&n_text).ok()?;
                 let nw = bench_core::weights_for(context, &nms.encode()).ok()?;
                 (ms.to_string(), ms.encode(), w, nms.encode(), nw)
@@ -172,7 +196,7 @@ fn attempt(
                 let p = Concrete::<XOnlyPublicKey>::from_str(&p_text).ok()?;
                 let ms = p.compile::<Tap>().ok()?;
                 let w = bench_core::weights_for(context, &ms.encode()).ok()?;
-                let n_text = naive::naive_string(&abs, &ks, true);
+                let n_text = naive::sample_naive(rng, &abs, &ks, true);
                 let nms = Miniscript::<XOnlyPublicKey, Tap>::from_str_insane(&n_text).ok()?;
                 let nw = bench_core::weights_for(context, &nms.encode()).ok()?;
                 (ms.to_string(), ms.encode(), w, nms.encode(), nw)
@@ -199,6 +223,18 @@ fn attempt(
                 return None;
             }
         }
+        // Dual-oracle cross-check (after rust-miniscript's bitcoind
+        // integration tests): both the reference and the baseline must
+        // be *spendable* — a real witness, executed through the crate
+        // interpreter under the output's natural wrapping. Catches
+        // truth-table-walk bugs the lift oracle cannot.
+        let typed = typed_preimages(&pre);
+        if bench_core::execution_check(context, &script, &typed).is_err() {
+            return None;
+        }
+        if need_baseline && bench_core::execution_check(context, &naive_script, &typed).is_err() {
+            return None;
+        }
         return Some(Compiled {
             context,
             policy_text: p_text,
@@ -211,8 +247,37 @@ fn attempt(
             opt_size,
             keys: kvars,
             spec_en: spec,
+            preimages: preimage_hex_map(&pre),
         });
     }
+}
+
+fn hex(bytes: &[u8]) -> String {
+    bytes.iter().map(|b| format!("{b:02x}")).collect()
+}
+
+/// Hex map for the fixture schema (hex hash -> hex preimage).
+fn preimage_hex_map(pre: &policy::Preimages) -> BTreeMap<String, String> {
+    let mut m = BTreeMap::new();
+    for (h, p) in &pre.sha256 {
+        m.insert(hex(h), hex(p));
+    }
+    for (h, p) in &pre.hash160 {
+        m.insert(hex(h), hex(p));
+    }
+    m
+}
+
+/// Typed preimages for the execution oracle.
+fn typed_preimages(pre: &policy::Preimages) -> bench_core::HashPreimages {
+    let mut out = bench_core::HashPreimages::default();
+    for (h, p) in &pre.sha256 {
+        out.sha256.insert(*h, *p);
+    }
+    for (h, p) in &pre.hash160 {
+        out.hash160.insert(*h, *p);
+    }
+    out
 }
 
 fn thresh_of(p: &Abs) -> Option<(usize, usize)> {
@@ -242,6 +307,7 @@ pub fn generate(params: &GenParams) -> Vec<Fixture> {
             reference_policy: c.policy_text,
             reference_miniscript: c.ms_text,
             reference_script_hex: c.script_hex,
+            hash_preimages: c.preimages,
         }));
     }
     for i in 0..params.optimize {
@@ -263,6 +329,7 @@ pub fn generate(params: &GenParams) -> Vec<Fixture> {
             optimal_weight: c.opt_weight,
             reference_policy: c.policy_text,
             reference_miniscript: c.ms_text,
+            hash_preimages: c.preimages,
         }));
     }
     for i in 0..params.identify {
@@ -323,5 +390,201 @@ mod tests {
         let a = serde_json::to_string(&generate(&p)).unwrap();
         let b = serde_json::to_string(&generate(&p)).unwrap();
         assert_eq!(a, b);
+    }
+
+    #[test]
+    fn boundary_shape_is_not_starved() {
+        // Walk the boundary shape through the exact attempt() gates in
+        // every context; it must not be starved (RawPkH, lift failure,
+        // non-equivalence, or not-heavier would all silently drop it).
+        let mut rng = SeededRng::new(55);
+        for ctx in [ContextKind::Legacy, ContextKind::SegwitV0, ContextKind::Tap] {
+            for trial in 0..8 {
+                let mut prng = SeededRng::new(1000 + trial);
+                let abs = policy::boundary_timelocks(&mut prng);
+                let ks = keys::generate(&mut rng, 7);
+                let p_text = policy_string(&abs, &ks, ctx);
+                let (script, naive_script) = match ctx {
+                    ContextKind::Legacy => {
+                        let p = Concrete::<PublicKey>::from_str(&p_text).expect("parse");
+                        let ms = p.compile::<Legacy>().expect("compile");
+                        let n = naive::sample_naive(&mut prng, &abs, &ks, false);
+                        (
+                            ms.encode(),
+                            Miniscript::<PublicKey, Legacy>::from_str_insane(&n)
+                                .expect("naive parse")
+                                .encode(),
+                        )
+                    }
+                    ContextKind::SegwitV0 => {
+                        let p = Concrete::<PublicKey>::from_str(&p_text).expect("parse");
+                        let ms = p.compile::<Segwitv0>().expect("compile");
+                        let n = naive::sample_naive(&mut prng, &abs, &ks, false);
+                        (
+                            ms.encode(),
+                            Miniscript::<PublicKey, Segwitv0>::from_str_insane(&n)
+                                .expect("naive parse")
+                                .encode(),
+                        )
+                    }
+                    ContextKind::Tap => {
+                        let p = Concrete::<XOnlyPublicKey>::from_str(&p_text).expect("parse");
+                        let ms = p.compile::<Tap>().expect("compile");
+                        let n = naive::sample_naive(&mut prng, &abs, &ks, true);
+                        (
+                            ms.encode(),
+                            Miniscript::<XOnlyPublicKey, Tap>::from_str_insane(&n)
+                                .expect("naive parse")
+                                .encode(),
+                        )
+                    }
+                };
+                assert_eq!(
+                    check_equivalence(ctx, &script, &script),
+                    Verdict::Equivalent,
+                    "{ctx:?} trial {trial}: reference ungradable"
+                );
+                assert_eq!(
+                    check_equivalence(ctx, &script, &naive_script),
+                    Verdict::Equivalent,
+                    "{ctx:?} trial {trial}: baseline not equivalent"
+                );
+                let ow = bench_core::weights_for(ctx, &script)
+                    .expect("weights")
+                    .weight;
+                let nw = bench_core::weights_for(ctx, &naive_script)
+                    .expect("weights")
+                    .weight;
+                assert!(
+                    nw > ow,
+                    "{ctx:?} trial {trial}: baseline not heavier ({nw} vs {ow})"
+                );
+                bench_core::execution_check(ctx, &script, &bench_core::HashPreimages::default())
+                    .unwrap_or_else(|e| panic!("{ctx:?} trial {trial}: reference exec: {e}"));
+                bench_core::execution_check(
+                    ctx,
+                    &naive_script,
+                    &bench_core::HashPreimages::default(),
+                )
+                .unwrap_or_else(|e| panic!("{ctx:?} trial {trial}: baseline exec: {e}"));
+            }
+        }
+    }
+
+    #[test]
+    fn shape_census() {
+        // Every dispatched shape must ship at a healthy rate in at
+        // least one context (parse -> compile -> lift self-check ->
+        // execution oracle, with the shape's own sampled preimages).
+        // Shapes that die at every gate are dead code: they never ship
+        // and silently skew the tier distribution while burning
+        // retries. The four MINT vault structures and the old
+        // hard-synth sampler were removed for exactly this reason.
+        use std::collections::BTreeMap;
+        let mut rng = SeededRng::new(7);
+        let mut ships: BTreeMap<&'static str, usize> = BTreeMap::new();
+        for trial in 0..30 {
+            let mut prng = SeededRng::new(3000 + trial);
+            let mut pre = policy::Preimages::default();
+            let shapes: Vec<(&'static str, Abs)> = vec![
+                ("timelock_in_thresh", policy::timelock_in_thresh(&mut prng)),
+                ("boundary_timelocks", policy::boundary_timelocks(&mut prng)),
+                ("recovery_paths", policy::recovery_paths(&mut prng)),
+                ("deep_nest", policy::deep_nest(&mut prng, &mut pre)),
+                ("wide_thresh", policy::wide_thresh(&mut prng)),
+                (
+                    "medium_synth",
+                    policy::sample_medium_synth(&mut prng, &mut pre),
+                ),
+            ];
+            let mut typed = bench_core::HashPreimages::default();
+            for (h, p) in &pre.sha256 {
+                typed.sha256.insert(*h, *p);
+            }
+            for (h, p) in &pre.hash160 {
+                typed.hash160.insert(*h, *p);
+            }
+            for (name, abs) in shapes {
+                for ctx in [ContextKind::Legacy, ContextKind::SegwitV0, ContextKind::Tap] {
+                    let ks = keys::generate(&mut rng, abs.key_count().max(1));
+                    let p_text = policy_string(&abs, &ks, ctx);
+                    let script = match ctx {
+                        ContextKind::Legacy => Concrete::<PublicKey>::from_str(&p_text)
+                            .ok()
+                            .and_then(|p| p.compile::<Legacy>().ok())
+                            .map(|ms| ms.encode()),
+                        ContextKind::SegwitV0 => Concrete::<PublicKey>::from_str(&p_text)
+                            .ok()
+                            .and_then(|p| p.compile::<Segwitv0>().ok())
+                            .map(|ms| ms.encode()),
+                        ContextKind::Tap => Concrete::<XOnlyPublicKey>::from_str(&p_text)
+                            .ok()
+                            .and_then(|p| p.compile::<Tap>().ok())
+                            .map(|ms| ms.encode()),
+                    };
+                    let Some(script) = script else { continue };
+                    if check_equivalence(ctx, &script, &script) != Verdict::Equivalent {
+                        continue;
+                    }
+                    if bench_core::execution_check(ctx, &script, &typed).is_err() {
+                        continue;
+                    }
+                    *ships.entry(name).or_insert(0) += 1;
+                    break;
+                }
+            }
+        }
+        for (name, n) in &ships {
+            println!("{name:24} ships {n:2}/30 trials");
+            assert!(
+                *n >= 10,
+                "shape {name} ships only {n}/30 — near-dead, remove or repair it"
+            );
+        }
+        assert_eq!(
+            ships.len(),
+            6,
+            "dispatched shape set changed; update the census"
+        );
+    }
+
+    #[test]
+    fn n_ary_policy_string_keeps_every_branch() {
+        // Regression: the concrete-policy grammar is binary and the
+        // renderer once dropped n-ary nodes' third-plus children,
+        // shipping answer keys whose prompts promised branches the
+        // script did not contain. N-ary nodes must right-fold and
+        // round-trip through the parser with every branch intact.
+        let mut rng = SeededRng::new(8);
+        let ks = keys::generate(&mut rng, 7);
+        let key = |i: usize| ks.compressed[i].clone();
+        let p = Abs::Or(vec![
+            Abs::And(vec![
+                Abs::And(vec![Abs::Key(0), Abs::Key(1)]),
+                Abs::After(499_999_998),
+            ]),
+            Abs::And(vec![
+                Abs::And(vec![Abs::Key(2), Abs::Key(3)]),
+                Abs::After(499_999_999),
+            ]),
+            Abs::And(vec![Abs::Thresh(2, vec![4, 5, 6]), Abs::Older(144)]),
+        ]);
+        let s = policy_string(&p, &ks, ContextKind::Legacy);
+        // Every branch's keys survive into the rendered policy.
+        for i in 0..7 {
+            assert!(s.contains(&key(i)), "key {i} missing from: {s}");
+        }
+        assert!(s.contains("after(499999998)") && s.contains("after(499999999)"));
+        assert!(s.contains("older(144)"));
+        // And the rendered policy parses (the binary right-fold is
+        // valid concrete-policy syntax).
+        let parsed = Concrete::<PublicKey>::from_str(&s).expect("n-ary fold parses");
+        let _ = parsed.to_string();
+        // Binary nodes render byte-identically to the old form.
+        let bin = Abs::And(vec![Abs::Key(0), Abs::Key(1)]);
+        assert_eq!(
+            policy_string(&bin, &ks, ContextKind::Legacy),
+            format!("and(pk({}),pk({}))", key(0), key(1))
+        );
     }
 }

@@ -4,6 +4,8 @@ use std::collections::BTreeMap;
 
 use serde::{Deserialize, Serialize};
 
+use crate::exec::PreimageMap;
+
 /// Script context of a write/optimize task. Determines which inner script
 /// the model writes and which miniscript context decodes it.
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -60,6 +62,11 @@ pub struct WriteFixture {
     pub reference_miniscript: String,
     /// Answer key: compiled reference script bytes as hex.
     pub reference_script_hex: String,
+    /// Known preimages for the policy's hash atoms (hex hash -> hex
+    /// preimage). Leaks nothing: the reference script is already the
+    /// answer key; lets the audit re-run the execution oracle.
+    #[serde(default)]
+    pub hash_preimages: PreimageMap,
 }
 
 /// Task 2: optimize the baseline script.
@@ -80,6 +87,10 @@ pub struct OptimizeFixture {
     pub optimal_weight: usize,
     pub reference_policy: String,
     pub reference_miniscript: String,
+    /// Known preimages for the policy's hash atoms (hex hash -> hex
+    /// preimage); see [`WriteFixture::hash_preimages`].
+    #[serde(default)]
+    pub hash_preimages: PreimageMap,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
