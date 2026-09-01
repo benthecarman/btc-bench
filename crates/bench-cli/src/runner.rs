@@ -443,6 +443,50 @@ fn parse_textual_tool_call(
         .or_else(|| fenced_json_call(text))
         .or_else(|| call_wrapper_json(text))
         .or_else(|| request_invoke_xml(text))
+        .or_else(|| tag_wrapped_call(text))
+}
+
+/// `<tool_name>value</tool_name>` — a shorthand real models emit for
+/// diagnostics (observed as `<check_descriptor>\ndescriptor: "tr(...)"
+/// \n</check_descriptor>`, 7 tasks lost in one run). The value may
+/// carry an optional `argname:` prefix and surrounding quotes.
+fn tag_wrapped_call(text: &str) -> Option<(String, serde_json::Map<String, serde_json::Value>)> {
+    const TOOLS: &[(&str, &str)] = &[
+        ("check_script", "script"),
+        ("check_descriptor", "descriptor"),
+        ("submit_script", "script"),
+        ("submit_descriptor", "descriptor"),
+        ("submit_identify", "label"),
+    ];
+    for (tool, arg) in TOOLS {
+        let open = format!("<{tool}>");
+        let close = format!("</{tool}>");
+        let Some(start) = text.find(&open) else {
+            continue;
+        };
+        let body_start = start + open.len();
+        let Some(end_rel) = text[body_start..].find(&close) else {
+            continue;
+        };
+        let mut value = text[body_start..body_start + end_rel].trim();
+        // Optional "argname:" prefix inside the body.
+        for prefix in [format!("{arg}:"), format!("\"{arg}\":")] {
+            if let Some(rest) = value.strip_prefix(&prefix) {
+                value = rest.trim();
+            }
+        }
+        let value = value.trim_matches('"').trim();
+        if value.is_empty() {
+            continue;
+        }
+        let mut args = serde_json::Map::new();
+        args.insert(
+            (*arg).to_string(),
+            serde_json::Value::String(value.to_string()),
+        );
+        return Some(((*tool).to_string(), args));
+    }
+    None
 }
 
 /// `<tool_call>` body: `{"name": ..., "arguments": {...}}` or the
@@ -1198,7 +1242,7 @@ pub async fn run_resume(
                     // Diagnostic loop: check_* calls execute locally and
                     // continue the same graded attempt; only a submit
                     // (or a no-call response) ends the turn.
-                    let (messages, finish, answer, raw, call_id) = 'turn: loop {
+                    let (messages, _finish, answer, raw, call_id) = 'turn: loop {
                     let retries = entry_retries;
                     let mut tries: u32 = 0;
                     let result = loop {
@@ -1241,6 +1285,11 @@ pub async fn run_resume(
                         cum_in = Some(cum_in.unwrap_or(0) + t);
                     }
                     let (answer, raw, call_id) = extract_answer_with_id(&messages);
+                    // Keep provider metadata even when no answer was
+                    // extracted: losing finish_reason here made 49
+                    // "no tool call" failures undiagnosable (was it a
+                    // truncation or a refusal? the field was null).
+                    final_finish = finish.clone();
                     if answer.is_none() {
                         let checks = extract_check_calls(&messages);
                         if !checks.is_empty() {
@@ -1286,7 +1335,6 @@ pub async fn run_resume(
                         break 'attempts;
                     };
                     let ev = evaluate(&f, &answer);
-                    final_finish = finish.clone();
                     final_raw = raw.clone();
                     turn_outcomes.push(TurnOutcome {
                         attempt,
@@ -1387,6 +1435,8 @@ pub async fn run_resume(
                         "error": err,
                         "identify_task": is_identify,
                         "attempts": attempts.len(),
+                        "tool_calls": tool_calls,
+                        "finish_reason": final_finish.finish_reason,
                     })
                 )?;
                 stats.failed += 1;
@@ -1419,6 +1469,7 @@ pub async fn run_resume(
                             "raw": final_raw,
                             "identify_task": is_identify,
                             "attempts": attempts.len(),
+                            "tool_calls": tool_calls,
                             "finish_reason": final_finish.finish_reason,
                             "output_tokens": final_finish.output_tokens,
                         })
@@ -2282,6 +2333,32 @@ mod tests {
         assert_eq!(models["test"].model, "m1");
         assert_eq!(models["test"].api_key_env.as_deref(), Some("KEY"));
         let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    /// Tag-wrapped textual tool calls — the observed real-traffic
+    /// shorthand `<check_descriptor>descriptor: "tr(...)"` — must be
+    /// recognized so a diagnostic request continues the turn instead
+    /// of terminating the task as "no tool call".
+    #[test]
+    fn tag_wrapped_textual_calls_are_recognized() {
+        let (name, args) = parse_textual_tool_call(
+            "Let me verify first.\n<check_descriptor>\ndescriptor: \"tr(abc,{pk(d),pk(e)})\"\n</check_descriptor>",
+        )
+        .expect("recognized");
+        assert_eq!(name, "check_descriptor");
+        assert_eq!(args["descriptor"], "tr(abc,{pk(d),pk(e)})");
+        // Bare-value variant, no argname prefix.
+        let (name, args) =
+            parse_textual_tool_call("<check_script>51ac</check_script>").expect("recognized");
+        assert_eq!(name, "check_script");
+        assert_eq!(args["script"], "51ac");
+        // Submit variant maps to an answer.
+        let (name, args) =
+            parse_textual_tool_call("<submit_identify>label: p2tr</submit_identify>")
+                .expect("recognized");
+        assert!(task_answer_from(&name, &args).is_some());
+        // Unknown tags stay unrecognized.
+        assert!(parse_textual_tool_call("<magic_tool>x</magic_tool>").is_none());
     }
 
     /// Identify multi-turn feedback: a bounded group hint. Same-group
