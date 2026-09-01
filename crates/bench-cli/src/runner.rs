@@ -60,9 +60,10 @@ pub struct ModelEntry {
     #[serde(default)]
     pub retries: Option<u32>,
     /// Request streaming responses (SSE) from `openai_compatible`
-    /// endpoints. Long generations only survive upstream
-    /// whole-request timeouts in this mode; the runner drains and
-    /// reassembles the stream, so recorded behavior is identical.
+    /// endpoints; default true. Long generations only survive
+    /// upstream whole-request timeouts in this mode; the runner
+    /// drains and reassembles the stream, so recorded behavior is
+    /// identical. Set false for endpoints that only serve plain JSON.
     #[serde(default)]
     pub stream: Option<bool>,
 }
@@ -152,11 +153,11 @@ fn build_backends(entry: &ModelEntry) -> Result<Vec<Backend>> {
             if hosts.is_empty() {
                 bail!("openai_compatible model entries require base_url");
             }
-            // Streaming is per-entry opt-in (`stream = true` in
-            // models.toml). SSE keeps tokens flowing, so upstream
-            // whole-request timeouts on long generations do not fire;
-            // non-streaming stays the default for canned-JSON servers.
-            let stream = entry.stream.unwrap_or(false);
+            // Streaming by default: SSE keeps tokens flowing, so
+            // upstream whole-request timeouts on long generations do
+            // not fire. `stream = false` in models.toml opts an
+            // endpoint that only serves plain JSON back out.
+            let stream = entry.stream.unwrap_or(true);
             let mut backends = Vec::with_capacity(hosts.len());
             for host in &hosts {
                 let provider = OpenAiCompatibleProvider::new(
@@ -1726,7 +1727,8 @@ mod tests {
             }),
         ]);
         let mut model = entry(base);
-        model.stream = Some(true);
+        // Unset = the default, which must be streaming.
+        model.stream = None;
         let out = tmpdir("sse");
         let stats = run(
             &fixtures,
@@ -1848,7 +1850,8 @@ mod tests {
             max_tokens: None,
             request_params: None,
             retries: None,
-            stream: None,
+            // The canned mocks serve plain JSON, not SSE.
+            stream: Some(false),
         }
     }
 

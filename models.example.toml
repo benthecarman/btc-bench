@@ -16,8 +16,8 @@ provider = "openai_compatible"
 model = "qwen3-coder"
 base_url = "http://127.0.0.1:8000/v1"
 # api_key_env omitted when the endpoint needs no auth
-# stream = true  # SSE; long generations survive upstream
-#                # whole-request timeouts only in this mode
+# stream = false  # opt out of SSE (default true) for endpoints
+#                 # that only serve plain JSON completions
 
 # Anthropic (Messages API; always streams, tool calls arrive complete).
 [model.claude]
