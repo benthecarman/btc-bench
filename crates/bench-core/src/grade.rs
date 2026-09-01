@@ -275,19 +275,27 @@ fn unwrap_singleton_braces(text: &str) -> String {
     let mut cur = text.to_string();
     loop {
         let bytes = cur.as_bytes();
-        // (open index, saw a top-level comma inside this group)
-        let mut stack: Vec<(usize, bool)> = Vec::new();
+        // (open index, saw top-level comma, paren depth at open). A
+        // comma only counts against the group when it sits at the
+        // group's own paren depth — commas inside fragment parens
+        // (and_v(x,y)) are argument separators, not tree branches.
+        let mut stack: Vec<(usize, bool, u32)> = Vec::new();
+        let mut paren: u32 = 0;
         let mut change: Option<(usize, usize)> = None;
         for (i, b) in bytes.iter().enumerate() {
             match b {
-                b'{' => stack.push((i, false)),
+                b'(' => paren += 1,
+                b')' => paren = paren.saturating_sub(1),
+                b'{' => stack.push((i, false, paren)),
                 b',' => {
                     if let Some(top) = stack.last_mut() {
-                        top.1 = true;
+                        if paren == top.2 {
+                            top.1 = true;
+                        }
                     }
                 }
                 b'}' => {
-                    if let Some((open, saw_comma)) = stack.pop() {
+                    if let Some((open, saw_comma, _)) = stack.pop() {
                         if !saw_comma {
                             change = Some((open, i));
                             break;
@@ -629,6 +637,14 @@ mod tests {
         // {X} with no top-level comma unwraps, at any depth, to
         // fixpoint; real pairs and n-ary groups are untouched.
         assert_eq!(unwrap_singleton_braces("tr(K,{pk(a)})"), "tr(K,pk(a))");
+        // The real-world shape: fragment-argument commas inside parens
+        // must not read as tree branches (the bug the first sweep
+        // exposed: 112 singleton wraps stayed rejected because of the
+        // comma in and_v(x,y)).
+        assert_eq!(
+            unwrap_singleton_braces("tr(K,{and_v(v:pk(a),older(841))})"),
+            "tr(K,and_v(v:pk(a),older(841)))"
+        );
         assert_eq!(
             unwrap_singleton_braces("tr(K,{{pk(a),pk(b)}})"),
             "tr(K,{pk(a),pk(b)})"

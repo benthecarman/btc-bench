@@ -10,7 +10,6 @@ use std::path::Path;
 
 use anyhow::{bail, Context as _, Result};
 use bench_core::task::{ContextKind, Fixture, ResponseRecord, TaskAnswer, Tier};
-use serde::Deserialize;
 
 use crate::load_dataset;
 
