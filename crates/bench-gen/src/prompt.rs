@@ -60,7 +60,8 @@ pub fn write_prompt(f: &WriteFixture) -> String {
          \n\
          Rules:\n\
          - Use exactly the keys listed above; do not invent keys.\n\
-         - The script must be a valid, consensus-enforceable script.\n\
+         - The script must be a valid, consensus-enforceable, and \
+         mechanically verifiable script.\n\
          - Answer with the script as a hex string or \
          Bitcoin Core asm. In asm, opcode names carry the OP_ prefix \
          (OP_CHECKMULTISIG, not CHECKMULTISIG) and data pushes are raw \
@@ -82,7 +83,9 @@ pub fn optimize_prompt(f: &OptimizeFixture, display: DisplayFormat) -> String {
          \n\
          Write a semantically equivalent script with a lower input weight \
          (script plus witness, the quantity transaction fees are paid for). \
-         The spending semantics must not change.\n\
+         The spending semantics must not change, and the script must be \
+         a valid, consensus-enforceable, and mechanically verifiable \
+         script.\n\
          \n\
          Answer with the script as a hex string or \
          Bitcoin Core asm. In asm, opcode names carry the OP_ prefix \
@@ -201,6 +204,10 @@ mod tests {
                         p.contains("OP_ prefix"),
                         "the asm notation rule must be stated"
                     );
+                    assert!(
+                        p.contains("mechanically verifiable"),
+                        "consensus-validity must not read as the whole bar"
+                    );
                 }
                 Fixture::Optimize(_) => {
                     assert!(p.contains("input weight"));
@@ -212,6 +219,10 @@ mod tests {
                     assert!(
                         !p.contains("byte size"),
                         "script size is folded into weight, not a stated metric"
+                    );
+                    assert!(
+                        p.contains("mechanically verifiable"),
+                        "consensus-validity must not read as the whole bar"
                     );
                     assert!(
                         !p.contains("deliberately"),
