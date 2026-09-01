@@ -490,3 +490,18 @@ responses.jsonl, so grader changes never require re-running a model.
 7. Extension tier: arbitrary (non-miniscript) scripts — needs an
    execution engine (bitcoin-scriptexec / bitcoin-circle-stf /
    bitcoind regtest) since the decode gate no longer applies.
+   Fixture-corpus candidate: solving-bitcoin/bitcoin-scripts
+   (https://github.com/solving-bitcoin/bitcoin-scripts) — a
+   differentially validated library of raw-script primitives (u4/u31
+   arithmetic, bigint, SHA-256/BLAKE3, RIPEMD-160, BN254, one-time
+   signatures) already executing under bitcoin-scriptexec, with
+   measured script/witness sizes and a queryable cost catalog
+   (knowledge/catalog.json; every result graded reported /
+   inspected / locally reproduced / differentially validated — the
+   same evidence discipline as the oracle here). Constraints:
+   unlicensed as of 2026-09, so cite its numbers but copy nothing
+   in; not a dependency candidate (unreleased, git-only BitVM
+   branch deps); the practical slice is the sub-KB arithmetic
+   fragments — the hash implementations run 333–512 KB of script,
+   past standardness and prompt limits (tapscript / research
+   execution only, per its own READMEs).
