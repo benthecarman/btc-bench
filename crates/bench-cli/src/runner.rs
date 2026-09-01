@@ -2410,7 +2410,7 @@ mod tests {
         let ev = evaluate(&fixture, &answer);
         assert!(!ev.passed);
         assert!(
-            ev.feedback.contains("disabled in tapscript"),
+            ev.feedback.contains("not available in tapscript"),
             "{}",
             ev.feedback
         );

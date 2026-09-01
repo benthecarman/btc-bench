@@ -149,6 +149,15 @@ fn safe_weights(kind: ContextKind, script: &ScriptBuf) -> Result<(usize, usize),
 /// "consensus: OK" line next to a decode failure would invite the
 /// "my script is still consensus-valid" dismissal this scan exists
 /// to defuse.
+///
+/// No implementation offers "validate these bytes" to call instead:
+/// consensus validity is defined over (script, witness, transaction)
+/// execution, so any static scan must enumerate the same structural
+/// checks Core's EvalScript performs even for unexecuted branches
+/// (interpreter.cpp: disabled-opcode and conditional-balance checks
+/// run per-iterated-opcode regardless of fExec). Finding texts are
+/// Core's own script_error.cpp strings, verbatim, with a context
+/// clarifier appended.
 pub fn consensus_notes(kind: ContextKind, script: &ScriptBuf) -> Vec<String> {
     use bitcoin::blockdata::opcodes::all;
     use bitcoin::script::Instruction;
@@ -164,9 +173,9 @@ pub fn consensus_notes(kind: ContextKind, script: &ScriptBuf) -> Vec<String> {
         ContextKind::Legacy => {
             if script.len() > 520 {
                 push(format!(
-                    "a P2SH redeem script larger than 520 bytes cannot be \
-                     pushed in the scriptSig; this one is {} bytes and the \
-                     output is unspendable",
+                    "Push value size limit exceeded: a {}-byte P2SH redeem \
+                     script cannot be pushed in the scriptSig (520-byte \
+                     limit); the output is unspendable",
                     script.len()
                 ));
             }
@@ -174,7 +183,7 @@ pub fn consensus_notes(kind: ContextKind, script: &ScriptBuf) -> Vec<String> {
         ContextKind::SegwitV0 => {
             if script.len() > 10_000 {
                 push(format!(
-                    "script exceeds the 10,000-byte consensus limit ({} bytes)",
+                    "Script is too big ({} bytes; 10,000-byte limit)",
                     script.len()
                 ));
             }
@@ -212,7 +221,8 @@ pub fn consensus_notes(kind: ContextKind, script: &ScriptBuf) -> Vec<String> {
             Ok(Instruction::PushBytes(b)) => {
                 if b.len() > 520 && kind != ContextKind::Tap {
                     push(format!(
-                        "a {}-byte push exceeds the 520-byte stack element limit",
+                        "Push value size limit exceeded ({}-byte push; \
+                         520-byte limit)",
                         b.len()
                     ));
                 }
@@ -238,36 +248,40 @@ pub fn consensus_notes(kind: ContextKind, script: &ScriptBuf) -> Vec<String> {
                 match kind {
                     ContextKind::Tap => {
                         if op == all::OP_CHECKMULTISIG || op == all::OP_CHECKMULTISIGVERIFY {
-                            push(format!(
-                                "{op} is disabled in tapscript (BIP 342): a \
-                                 tapleaf executing it always fails. Tapscript \
-                                 multisig is an OP_CHECKSIG / OP_CHECKSIGADD \
-                                 accumulation."
-                            ));
+                            push(
+                                "OP_CHECKMULTISIG(VERIFY) is not available in \
+                                 tapscript (BIP 342); tapscript multisig is an \
+                                 OP_CHECKSIG / OP_CHECKSIGADD accumulation"
+                                    .to_string(),
+                            );
                         } else if is_tap_success(b) {
                             push(format!(
                                 "{op} is an OP_SUCCESS opcode in tapscript \
-                                 (BIP 342): its presence makes the ENTIRE \
-                                 script unconditionally spendable by anyone"
+                                 (BIP 342): by consensus its presence makes \
+                                 the ENTIRE script unconditionally spendable \
+                                 by anyone (Core policy: \"OP_SUCCESSx \
+                                 reserved for soft-fork upgrades\")"
                             ));
                         }
                     }
                     ContextKind::Legacy | ContextKind::SegwitV0 => {
                         if op == all::OP_VERIF || op == all::OP_VERNOTIF {
                             push(format!(
-                                "{op} makes the script invalid by its mere \
-                                 presence, even in an unexecuted branch"
+                                "Opcode missing or not understood ({op}): \
+                                 invalid by its mere presence, even in an \
+                                 unexecuted branch"
                             ));
                         } else if DISABLED_V0.contains(&b) {
                             push(format!(
-                                "{op} is a disabled opcode: its presence makes \
-                                 the script invalid, even in an unexecuted branch"
+                                "Attempted to use a disabled opcode ({op}): \
+                                 its presence invalidates the script, even in \
+                                 an unexecuted branch"
                             ));
                         } else if op == all::OP_CHECKSIGADD {
                             push(
-                                "OP_CHECKSIGADD is defined only in tapscript \
-                                 (BIP 342); any execution path reaching it here \
-                                 fails"
+                                "Opcode missing or not understood \
+                                 (OP_CHECKSIGADD is defined only in tapscript, \
+                                 BIP 342); any path executing it here fails"
                                     .to_string(),
                             );
                         }
@@ -278,15 +292,16 @@ pub fn consensus_notes(kind: ContextKind, script: &ScriptBuf) -> Vec<String> {
     }
     if unbalanced || if_depth > 0 {
         push(
-            "unbalanced conditionals: every OP_IF/OP_NOTIF needs a matching \
-             OP_ENDIF, and OP_ELSE/OP_ENDIF must sit inside one; execution \
-             always fails"
+            "Invalid OP_IF construction: every OP_IF/OP_NOTIF needs a \
+             matching OP_ENDIF, and OP_ELSE/OP_ENDIF must sit inside one; \
+             execution always fails"
                 .to_string(),
         );
     }
     if nonpush_ops > 201 && kind != ContextKind::Tap {
         push(format!(
-            "{nonpush_ops} non-push opcodes exceed the 201-opcode limit"
+            "Operation limit exceeded ({nonpush_ops} non-push opcodes; \
+             201-opcode limit)"
         ));
     }
     out
@@ -494,7 +509,7 @@ mod tests {
         assert!(
             c.consensus
                 .iter()
-                .any(|n| n.contains("disabled in tapscript")),
+                .any(|n| n.contains("not available in tapscript")),
             "{:?}",
             c.consensus
         );
@@ -510,7 +525,9 @@ mod tests {
             &format!("{k} OP_CHECKSIG {k} OP_CHECKSIGADD"),
         );
         assert!(
-            c.consensus.iter().any(|n| n.contains("only in tapscript")),
+            c.consensus
+                .iter()
+                .any(|n| n.contains("defined only in tapscript")),
             "{:?}",
             c.consensus
         );
@@ -523,17 +540,22 @@ mod tests {
         assert!(
             c.consensus
                 .iter()
-                .any(|n| n.contains("unbalanced conditionals")),
+                .any(|n| n.contains("Invalid OP_IF construction")),
             "{:?}",
             c.consensus
         );
         // Unclosed IF.
         let c = check_script(ContextKind::SegwitV0, &format!("OP_IF {k} OP_CHECKSIG"));
-        assert!(c.consensus.iter().any(|n| n.contains("unbalanced")));
+        assert!(c
+            .consensus
+            .iter()
+            .any(|n| n.contains("Invalid OP_IF construction")));
         // Disabled opcode in segwit (OP_CAT, via hex 7e).
         let c = check_script(ContextKind::SegwitV0, "7e");
         assert!(
-            c.consensus.iter().any(|n| n.contains("disabled opcode")),
+            c.consensus
+                .iter()
+                .any(|n| n.contains("Attempted to use a disabled opcode")),
             "{:?}",
             c.consensus
         );
