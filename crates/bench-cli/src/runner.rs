@@ -749,23 +749,6 @@ fn evaluate(fixture: &Fixture, answer: &TaskAnswer) -> Evaluation {
             }
             Err(_) => String::new(),
         };
-    // Context-consensus facts about the submitted script (e.g.
-    // CHECKMULTISIG in tapscript always fails): mechanical, and the
-    // exact fact that defuses "it's still consensus-valid" dismissals.
-    let consensus_note =
-        |ctx: bench_core::ContextKind, answer: &str| match bench_core::answer::parse_script_answer(
-            answer,
-        ) {
-            Ok(script) => {
-                let notes = bench_core::toolbox::consensus_notes(ctx, &script);
-                if notes.is_empty() {
-                    String::new()
-                } else {
-                    format!(" Consensus: {}", notes.join(" "))
-                }
-            }
-            Err(_) => String::new(),
-        };
     match (fixture, answer) {
         (Fixture::Write(w), TaskAnswer::Script(a)) => {
             let r = bench_core::grade_write(w, &a.script);
