@@ -730,6 +730,42 @@ fn evaluate(fixture: &Fixture, answer: &TaskAnswer) -> Evaluation {
             format!(" Miniscript analysis flags: {}.", lint.join("; "))
         }
     };
+    // Static consensus violations in the submitted script (e.g.
+    // CHECKMULTISIG in tapscript, unbalanced conditionals): mechanical
+    // facts, and the exact ones that defuse "it's still
+    // consensus-valid" reasoning. Violations only — validity is never
+    // certified.
+    let consensus_note =
+        |ctx: bench_core::ContextKind, answer: &str| match bench_core::answer::parse_script_answer(
+            answer,
+        ) {
+            Ok(script) => {
+                let notes = bench_core::toolbox::consensus_notes(ctx, &script);
+                if notes.is_empty() {
+                    String::new()
+                } else {
+                    format!(" Consensus: {}.", notes.join("; "))
+                }
+            }
+            Err(_) => String::new(),
+        };
+    // Context-consensus facts about the submitted script (e.g.
+    // CHECKMULTISIG in tapscript always fails): mechanical, and the
+    // exact fact that defuses "it's still consensus-valid" dismissals.
+    let consensus_note =
+        |ctx: bench_core::ContextKind, answer: &str| match bench_core::answer::parse_script_answer(
+            answer,
+        ) {
+            Ok(script) => {
+                let notes = bench_core::toolbox::consensus_notes(ctx, &script);
+                if notes.is_empty() {
+                    String::new()
+                } else {
+                    format!(" Consensus: {}", notes.join(" "))
+                }
+            }
+            Err(_) => String::new(),
+        };
     match (fixture, answer) {
         (Fixture::Write(w), TaskAnswer::Script(a)) => {
             let r = bench_core::grade_write(w, &a.script);
@@ -743,7 +779,11 @@ fn evaluate(fixture: &Fixture, answer: &TaskAnswer) -> Evaluation {
                 Evaluation {
                     passed: false,
                     score: 0.0,
-                    feedback: format!("{detail}{}", lint_note(&r.lint)),
+                    feedback: format!(
+                        "{detail}{}{}",
+                        lint_note(&r.lint),
+                        consensus_note(w.context, &a.script)
+                    ),
                 }
             }
         }
@@ -767,8 +807,9 @@ fn evaluate(fixture: &Fixture, answer: &TaskAnswer) -> Evaluation {
                     passed: false,
                     score: 0.0,
                     feedback: format!(
-                        "Your answer was rejected: {reason}{}",
-                        lint_note(&r.lint)
+                        "Your answer was rejected: {reason}{}{}",
+                        lint_note(&r.lint),
+                        consensus_note(o.context, &a.script)
                     ),
                 }
             }
@@ -2359,6 +2400,44 @@ mod tests {
         assert!(task_answer_from(&name, &args).is_some());
         // Unknown tags stay unrecognized.
         assert!(parse_textual_tool_call("<magic_tool>x</magic_tool>").is_none());
+    }
+
+    /// Graded feedback carries static consensus violations: the
+    /// CHECKMULTISIG-in-tapscript answer from the first sweep must be
+    /// told the script always fails, not just that decoding did.
+    #[test]
+    fn graded_feedback_carries_consensus_violations() {
+        let k = "32a9c1b6aa84caf9b6898e162f8967d618a2eba4f4e185481e5a373c874a6a14";
+        let fixture = Fixture::Write(bench_core::task::WriteFixture {
+            id: "t1-x".into(),
+            tier: bench_core::Tier::Easy,
+            context: bench_core::ContextKind::Tap,
+            spec_en: String::new(),
+            spec_family: 0,
+            atoms: 2,
+            keys: vec![],
+            reference_policy: String::new(),
+            reference_miniscript: String::new(),
+            reference_script_hex: format!("20{k}ac"),
+            hash_preimages: Default::default(),
+        });
+        let answer = TaskAnswer::Script(bench_core::task::ScriptAnswer {
+            script: format!("2 {k} {k} 3 OP_CHECKMULTISIG"),
+        });
+        let ev = evaluate(&fixture, &answer);
+        assert!(!ev.passed);
+        assert!(
+            ev.feedback.contains("disabled in tapscript"),
+            "{}",
+            ev.feedback
+        );
+        // A merely-wrong but consensus-clean answer gets no consensus
+        // section at all — silence, not certification.
+        let clean = TaskAnswer::Script(bench_core::task::ScriptAnswer {
+            script: "51".into(),
+        });
+        let ev = evaluate(&fixture, &clean);
+        assert!(!ev.feedback.contains("Consensus:"), "{}", ev.feedback);
     }
 
     /// Identify multi-turn feedback: a bounded group hint. Same-group
