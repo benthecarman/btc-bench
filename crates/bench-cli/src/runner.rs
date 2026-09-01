@@ -59,6 +59,12 @@ pub struct ModelEntry {
     /// with 2s/8s/30s backoff. Default 3.
     #[serde(default)]
     pub retries: Option<u32>,
+    /// Request streaming responses (SSE) from `openai_compatible`
+    /// endpoints. Long generations only survive upstream
+    /// whole-request timeouts in this mode; the runner drains and
+    /// reassembles the stream, so recorded behavior is identical.
+    #[serde(default)]
+    pub stream: Option<bool>,
 }
 
 /// Backoff schedule between transient-error retries.
@@ -146,8 +152,11 @@ fn build_backends(entry: &ModelEntry) -> Result<Vec<Backend>> {
             if hosts.is_empty() {
                 bail!("openai_compatible model entries require base_url");
             }
-            // Non-streaming keeps the single-shot loop simple and the
-            // mock-server test deterministic.
+            // Streaming is per-entry opt-in (`stream = true` in
+            // models.toml). SSE keeps tokens flowing, so upstream
+            // whole-request timeouts on long generations do not fire;
+            // non-streaming stays the default for canned-JSON servers.
+            let stream = entry.stream.unwrap_or(false);
             let mut backends = Vec::with_capacity(hosts.len());
             for host in &hosts {
                 let provider = OpenAiCompatibleProvider::new(
@@ -155,7 +164,7 @@ fn build_backends(entry: &ModelEntry) -> Result<Vec<Backend>> {
                     ApiClient::new_with_tls(host.clone(), auth_for(entry)?, None)?,
                     String::new(),
                 )
-                .with_supports_streaming(false);
+                .with_supports_streaming(stream);
                 backends.push(Backend::Compat(provider));
             }
             Ok(backends)
@@ -1631,6 +1640,125 @@ mod tests {
         (format!("http://{addr}/v1"), captured)
     }
 
+    /// Spawn a mock that answers every request with one SSE response
+    /// assembled from `chunks` (each becomes a `data:` event, followed
+    /// by `data: [DONE]`); returns (base_url, captured requests).
+    fn spawn_mock_sse(chunks: Vec<serde_json::Value>) -> (String, Arc<Mutex<Vec<String>>>) {
+        let listener = TcpListener::bind("127.0.0.1:0").expect("bind");
+        let addr = listener.local_addr().expect("addr");
+        let captured: Arc<Mutex<Vec<String>>> = Arc::new(Mutex::new(Vec::new()));
+        let cap = Arc::clone(&captured);
+        std::thread::spawn(move || {
+            let mut body = String::new();
+            for c in &chunks {
+                body.push_str("data: ");
+                body.push_str(&serde_json::to_string(c).expect("serialize chunk"));
+                body.push_str("\n\n");
+            }
+            body.push_str("data: [DONE]\n\n");
+            for stream in listener.incoming() {
+                let mut stream = match stream {
+                    Ok(s) => s,
+                    Err(_) => break,
+                };
+                let req = read_request(&mut stream);
+                cap.lock().expect("lock").push(req);
+                let resp = format!(
+                    "HTTP/1.1 200 OK\r\nContent-Type: text/event-stream\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
+                    body.len(),
+                    body
+                );
+                stream.write_all(resp.as_bytes()).expect("write response");
+            }
+        });
+        (format!("http://{addr}/v1"), captured)
+    }
+
+    /// One SSE chunk in the chat.completion.chunk shape.
+    fn sse_chunk(delta: serde_json::Value, finish: Option<&str>) -> serde_json::Value {
+        json!({
+            "id": "1", "object": "chat.completion.chunk", "created": 0, "model": "mock",
+            "choices": [{ "index": 0, "delta": delta, "finish_reason": finish }]
+        })
+    }
+
+    /// Streaming mode must reassemble fragmented tool-call arguments
+    /// and the trailing usage chunk into the same record non-streaming
+    /// produces. This is the path that sidesteps upstream 120s
+    /// non-streaming request timeouts, so it has to stay graded-
+    /// equivalent.
+    #[tokio::test]
+    async fn streaming_sse_round_trip() {
+        let fixtures = generate(&GenParams {
+            seed: 5,
+            write: 1,
+            optimize: 0,
+            identify: 0,
+            ..GenParams::default()
+        });
+        let hex = match &fixtures[0] {
+            Fixture::Write(w) => w.reference_script_hex.clone(),
+            other => panic!("expected write fixture, got {}", other.id()),
+        };
+        let args = json!({ "script": hex }).to_string();
+        let (head, tail) = args.split_at(args.len() / 2);
+        let (base, captured) = spawn_mock_sse(vec![
+            sse_chunk(
+                json!({"role": "assistant", "content": null, "tool_calls": [{
+                    "index": 0, "id": "c1", "type": "function",
+                    "function": {"name": "submit_script", "arguments": ""}
+                }]}),
+                None,
+            ),
+            sse_chunk(
+                json!({"tool_calls": [{"index": 0, "function": {"arguments": head}}]}),
+                None,
+            ),
+            sse_chunk(
+                json!({"tool_calls": [{"index": 0, "function": {"arguments": tail}}]}),
+                None,
+            ),
+            sse_chunk(json!({}), Some("tool_calls")),
+            json!({
+                "id": "1", "object": "chat.completion.chunk", "created": 0, "model": "mock",
+                "choices": [],
+                "usage": {"prompt_tokens": 3, "completion_tokens": 7, "total_tokens": 10}
+            }),
+        ]);
+        let mut model = entry(base);
+        model.stream = Some(true);
+        let out = tmpdir("sse");
+        let stats = run(
+            &fixtures,
+            &model,
+            &out,
+            1,
+            DisplayFormat::Hex,
+            1,
+            ToolMode::None,
+        )
+        .await
+        .expect("run");
+        assert_eq!(stats.answered, 1);
+        assert_eq!(stats.failed, 0);
+
+        let reqs = captured.lock().expect("lock");
+        assert!(
+            reqs[0].contains("\"stream\":true"),
+            "request must ask for SSE: {}",
+            reqs[0]
+        );
+
+        let text = std::fs::read_to_string(out.join("responses.jsonl")).expect("responses");
+        let record: ResponseRecord =
+            serde_json::from_str(text.trim_end()).expect("parse response record");
+        assert_eq!(record.task_id, fixtures[0].id());
+        assert_eq!(record.output_tokens, Some(7), "usage chunk must survive");
+        let (_, summary) = grade(&fixtures, &[record], None, 0.5, false).expect("grade");
+        assert!((summary.write_mean - 1.0).abs() < 1e-9, "{summary:?}");
+        let _ = std::fs::remove_dir_all(&out);
+    }
+
     /// Empty completion (dropped stream) must retry like a transport
     /// error and recover within the same graded attempt, not burn the
     /// turn as "no tool call".
@@ -1720,6 +1848,7 @@ mod tests {
             max_tokens: None,
             request_params: None,
             retries: None,
+            stream: None,
         }
     }
 
