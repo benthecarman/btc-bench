@@ -381,6 +381,11 @@ pub struct DescriptorCheck {
     pub descriptor: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub leaves: Option<usize>,
+    /// Static syntax facts when parsing fails: unbalanced
+    /// parens/braces with positions, brace groups holding more than
+    /// two children, wrong-length hex in fragment arguments. Facts
+    /// about the submitted text only.
+    pub syntax: Vec<String>,
     /// Union of insanity findings across the leaves.
     pub lint: Vec<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -393,7 +398,13 @@ impl DescriptorCheck {
     pub fn render(&self) -> String {
         let mut out = String::new();
         match (&self.parse_error, &self.descriptor) {
-            (Some(e), _) => return format!("parse error: {e}"),
+            (Some(e), _) => {
+                out.push_str(&format!("parse error: {e}\n"));
+                for n in &self.syntax {
+                    out.push_str(&format!("syntax: {n}\n"));
+                }
+                return out.trim_end().to_string();
+            }
             (None, Some(d)) => out.push_str(&format!("parsed: {d}\n")),
             _ => {}
         }
@@ -419,16 +430,131 @@ impl DescriptorCheck {
     }
 }
 
+/// Static syntax facts about a descriptor string that failed to
+/// parse: mechanical observations about the text itself, mirroring
+/// what a human squints for — bracket balance, brace arity, argument
+/// hex lengths.
+pub fn descriptor_syntax_notes(text: &str) -> Vec<String> {
+    let mut out: Vec<String> = Vec::new();
+    let mut push = |m: String| {
+        if !out.contains(&m) {
+            out.push(m);
+        }
+    };
+    let bytes = text.as_bytes();
+
+    // Bracket balance, with the position of the first orphan.
+    for (open, close, name) in [(b'(', b')', "parenthesis"), (b'{', b'}', "brace")] {
+        let mut depth: i64 = 0;
+        let mut orphan: Option<usize> = None;
+        for (i, b) in bytes.iter().enumerate() {
+            if *b == open {
+                depth += 1;
+            } else if *b == close {
+                depth -= 1;
+                if depth < 0 && orphan.is_none() {
+                    orphan = Some(i);
+                    depth = 0;
+                }
+            }
+        }
+        if let Some(i) = orphan {
+            push(format!(
+                "unbalanced {name}: '{}' at position {i} has no matching '{}'",
+                close as char, open as char
+            ));
+        } else if depth > 0 {
+            push(format!(
+                "unbalanced {name}: {depth} unclosed '{}'",
+                open as char
+            ));
+        }
+    }
+
+    // Brace arity: a taptree brace group pairs exactly two children.
+    // (Singleton groups are auto-unwrapped by the parser; only
+    // over-full groups are worth a note.)
+    let mut paren: i64 = 0;
+    let mut stack: Vec<(i64, usize)> = Vec::new(); // (paren depth at open, top-level commas)
+    for b in bytes {
+        match b {
+            b'(' => paren += 1,
+            b')' => paren -= 1,
+            b'{' => stack.push((paren, 0)),
+            b',' => {
+                if let Some(top) = stack.last_mut() {
+                    if paren == top.0 {
+                        top.1 += 1;
+                    }
+                }
+            }
+            b'}' => {
+                if let Some((_, commas)) = stack.pop() {
+                    if commas >= 2 {
+                        push(format!(
+                            "a {{...}} group holds {} children; taptree braces \
+                             pair exactly two — nest further groups for more \
+                             leaves",
+                            commas + 1
+                        ));
+                    }
+                }
+            }
+            _ => {}
+        }
+    }
+
+    // Fragment argument lengths: x-only keys are 64 hex chars,
+    // sha256/hash256 digests 64, hash160/ripemd160 digests 40.
+    for (frag, want, what) in [
+        ("pk(", 64usize, "x-only keys"),
+        ("sha256(", 64, "SHA-256 digests"),
+        ("hash256(", 64, "HASH256 digests"),
+        ("hash160(", 40, "HASH160 digests"),
+        ("ripemd160(", 40, "RIPEMD160 digests"),
+    ] {
+        let mut from = 0;
+        while let Some(rel) = text[from..].find(frag) {
+            let start = from + rel + frag.len();
+            let Some(end_rel) = text[start..].find(')') else {
+                break;
+            };
+            let arg = &text[start..start + end_rel];
+            from = start + end_rel;
+            if arg.contains('(') {
+                continue; // nested expression, not a literal argument
+            }
+            let hexish = !arg.is_empty() && arg.bytes().all(|c| c.is_ascii_hexdigit());
+            if hexish && arg.len() != want {
+                push(format!(
+                    "{frag}...) argument is {} hex characters; {what} are {want}",
+                    arg.len()
+                ));
+            }
+        }
+    }
+    out
+}
+
 /// Full diagnostic pass over a candidate tr() descriptor string.
 pub fn check_descriptor(text: &str) -> DescriptorCheck {
     let tr = match parse_tr_answer(text) {
         Ok(t) => t,
         Err(e) => {
+            let mut syntax = descriptor_syntax_notes(text);
+            // Clarify the library's own taproot-multi rejection with
+            // the documented taproot form.
+            if e.contains("Multi node in taproot") {
+                syntax.push(
+                    "taproot descriptors use multi_a(k,...) in place of multi(k,...)".to_string(),
+                );
+            }
             return DescriptorCheck {
                 parsed: false,
                 parse_error: Some(e),
+                syntax,
                 ..Default::default()
-            }
+            };
         }
     };
     let mut lint: Vec<String> = Vec::new();
@@ -579,6 +705,50 @@ mod tests {
     }
 
     use std::str::FromStr as _;
+
+    #[test]
+    fn descriptor_syntax_notes_name_the_defect() {
+        let a = "79be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798";
+        let b = "c6047f9441ed7d6d3045406e95c07cd85c778e4b8cef3ca7abac09b95c709ee5";
+        let c2 = "f9308a019258c31049344f85f89d5229b531c845836f99b08601f113bce036f9";
+        // Flat 3-child brace group: arity note.
+        let r = check_descriptor(&format!("tr({a},{{pk({a}),pk({b}),pk({c2})}})"));
+        assert!(!r.parsed);
+        assert!(
+            r.syntax.iter().any(|n| n.contains("holds 3 children")),
+            "{:?}",
+            r.syntax
+        );
+        assert!(r.render().contains("syntax:"), "{}", r.render());
+        // Missing closing paren: unbalanced note.
+        let r = check_descriptor(&format!("tr({a},and_v(v:pk({b}),older(16))"));
+        assert!(
+            r.syntax.iter().any(|n| n.contains("unclosed '('")),
+            "{:?}",
+            r.syntax
+        );
+        // Truncated key inside pk(): length note.
+        let r = check_descriptor(&format!("tr({a},pk({}))", &b[..63]));
+        assert!(
+            r.syntax
+                .iter()
+                .any(|n| n.contains("63 hex characters") && n.contains("64")),
+            "{:?}",
+            r.syntax
+        );
+        // multi() in taproot: the library error gets the multi_a
+        // clarifier.
+        let r = check_descriptor(&format!("tr({a},multi(2,{b},{c2}))"));
+        assert!(
+            r.syntax.iter().any(|n| n.contains("multi_a")),
+            "{:?} / {:?}",
+            r.parse_error,
+            r.syntax
+        );
+        // A valid descriptor gets no syntax section.
+        let r = check_descriptor(&format!("tr({a},{{pk({b}),pk({c2})}})"));
+        assert!(r.parsed && r.syntax.is_empty());
+    }
 
     #[test]
     fn descriptor_check_reports() {

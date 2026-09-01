@@ -844,11 +844,24 @@ fn evaluate(fixture: &Fixture, answer: &TaskAnswer) -> Evaluation {
                 }
             } else {
                 let reason = r.reason.unwrap_or_default();
+                // Static syntax facts about the submitted text
+                // (unbalanced brackets, brace arity, argument hex
+                // lengths) — same policy as consensus notes.
+                let syntax = if reason.starts_with("not a valid descriptor") {
+                    let notes = bench_core::toolbox::descriptor_syntax_notes(&a.descriptor);
+                    if notes.is_empty() {
+                        String::new()
+                    } else {
+                        format!(" Syntax: {}.", notes.join("; "))
+                    }
+                } else {
+                    String::new()
+                };
                 Evaluation {
                     passed: false,
                     score: 0.0,
                     feedback: format!(
-                        "Your answer was rejected: {reason}{}",
+                        "Your answer was rejected: {reason}{}{syntax}",
                         lint_note(&r.lint)
                     ),
                 }
