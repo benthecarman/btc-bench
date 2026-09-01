@@ -30,6 +30,23 @@ Two corollaries, both test-pinned:
   the distinguishing assignment, or the implicit decode-gate grammar
   is not.
 
+## No generation caps
+
+Do not set `max_tokens` (or any generation/time limit) on bench or
+RL rollout runs, and do not recommend it to speed runs up. Slow
+runs are the cost of honest measurement, not a problem to fix.
+
+Why: caps silently censor the solvable tail. Measured on real runs
+(2026-09-01): solved-task output p99 was 39k tokens on the hard-tail
+retry and one genuine solve took 57k; an 8k cap would have zeroed
+those and reported "model can't" where the truth was "harness gave
+up". The upstream 120s request timeout inflicted exactly this bias
+until streaming removed it — a cap is the same bug reintroduced on
+purpose. Rollout budgets are the RL trainer's config, not the
+bench's; a truncated rollout scoring zero is already handled by the
+reward. An opt-in flag for throwaway smoke runs is acceptable;
+default and headline numbers stay uncapped.
+
 ## Other standing rules
 
 - Identify (t3) is label-only and binary, by decision (see git log
