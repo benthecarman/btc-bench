@@ -66,7 +66,9 @@ pub fn write_prompt(f: &WriteFixture) -> String {
          (OP_CHECKMULTISIG, not CHECKMULTISIG) and data pushes are raw \
          hex, except that a timelock value written directly before \
          OP_CHECKLOCKTIMEVERIFY or OP_CHECKSEQUENCEVERIFY is decimal \
-         (e.g. 744813 OP_CHECKLOCKTIMEVERIFY).",
+         (e.g. 744813 OP_CHECKLOCKTIMEVERIFY). Write pushes as bare \
+         hex, never placeholder names (0279be66...8798 OP_CHECKSIG, \
+         not <Alice's key> OP_CHECKSIG).",
         f.context.script_noun(),
         key_block(&f.keys),
         f.spec_en,
@@ -87,7 +89,9 @@ pub fn optimize_prompt(f: &OptimizeFixture, display: DisplayFormat) -> String {
          (OP_CHECKMULTISIG, not CHECKMULTISIG) and data pushes are raw \
          hex, except that a timelock value written directly before \
          OP_CHECKLOCKTIMEVERIFY or OP_CHECKSEQUENCEVERIFY is decimal \
-         (e.g. 744813 OP_CHECKLOCKTIMEVERIFY).",
+         (e.g. 744813 OP_CHECKLOCKTIMEVERIFY). Write pushes as bare \
+         hex, never placeholder names (0279be66...8798 OP_CHECKSIG, \
+         not <Alice's key> OP_CHECKSIG).",
         f.context.script_noun(),
         display.label(),
         display.render(&f.baseline_script_hex),
@@ -113,7 +117,11 @@ pub fn tree_prompt(f: &bench_core::task::TreeFixture) -> String {
          worst-case input weight (script plus witness) scores higher.\n\
          - Answer with a descriptor of the form tr(INTERNAL_KEY,TREE), \
          where TREE nests tapleaf scripts in Miniscript notation with \
-         braces, e.g. tr(KEY,{{pk(A),{{and_v(v:pk(B),older(144)),pk(C)}}}}).",
+         braces, e.g. tr(KEY,{{pk(A),{{and_v(v:pk(B),older(144)),pk(C)}}}}). \
+         A single tapleaf takes no braces; braces always pair exactly \
+         two children, nested for more than two leaves. Hash \
+         conditions use the fragment matching the hash function named \
+         in the spec: sha256, hash256, ripemd160, or hash160.",
         key_block(&f.keys),
         f.unspendable_key,
         f.spec_en,
@@ -249,12 +257,17 @@ mod tests {
             let hex_prompt = for_fixture_fmt(f, DisplayFormat::Hex);
             let asm_prompt = for_fixture_fmt(f, DisplayFormat::Asm);
             match f {
-                Fixture::Optimize(_) => {
+                Fixture::Optimize(o) => {
                     assert!(
                         asm_prompt.contains("OP_CHECKSIG"),
                         "asm not decoded: {asm_prompt}"
                     );
-                    assert!(!hex_prompt.contains("OP_CHECKSIG"));
+                    // The hex display embeds the raw baseline hex; the
+                    // asm display must not. (The notation rule's
+                    // example contains "OP_CHECKSIG" in both, so the
+                    // baseline hex is the display marker.)
+                    assert!(hex_prompt.contains(&o.baseline_script_hex));
+                    assert!(!asm_prompt.contains(&o.baseline_script_hex));
                 }
                 Fixture::Identify(i) => {
                     let _ = i;
