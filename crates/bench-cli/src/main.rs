@@ -595,6 +595,12 @@ fn main() -> Result<()> {
                 serde_json::to_string_pretty(&scores)?,
             )?;
             fs::write(out.join("summary.md"), summary_markdown(&summary))?;
+            fs::write(
+                out.join("meta.json"),
+                serde_json::to_string_pretty(&serde_json::json!({
+                    "graded_by": bench_cli::build_stamp(),
+                }))?,
+            )?;
             println!("{}", summary_markdown(&summary));
             Ok(())
         }

@@ -21,6 +21,16 @@ pub mod runner;
 pub const MINISCRIPT_VERSION: &str = "13.1.0";
 pub const BITCOIN_VERSION: &str = "0.32.102";
 pub const SCHEMA_VERSION: u32 = 1;
+/// Build stamp: crate version plus git revision, embedded at compile
+/// time. Written into graded artifacts so stale files identify
+/// themselves.
+pub fn build_stamp() -> String {
+    format!(
+        "{} @ {}",
+        env!("CARGO_PKG_VERSION"),
+        env!("BTC_BENCH_GIT_REV")
+    )
+}
 
 /// BIG-bench-style contamination canary, written into every manifest.
 /// If a model can reproduce this GUID, the dataset leaked into its
@@ -262,17 +272,21 @@ pub fn classify_failure(failure: &Option<String>, reason: &Option<String>) -> &'
             _ => "other",
         };
     }
+    // Legacy fallback for results graded before the structural field
+    // existed. The old `contains("InvalidScript")` decode check is
+    // gone: it matched the Debug format that no longer exists, so it
+    // could never fire and silently relabeled decode rejects as parse
+    // errors. Without a structural class, parse-vs-decode cannot be
+    // told apart from prose — classify only what is certain.
     let Some(r) = reason else {
         return "other";
     };
     if r.starts_with("standard mode") {
         "gated (standard mode)"
-    } else if r.contains("NotEquivalent") || r.contains("semantically equivalent") {
+    } else if r.contains("semantically equivalent") {
         "wrong semantics"
-    } else if r.contains("InvalidScript") {
-        "decode-gate reject"
     } else {
-        "answer parse error"
+        "other"
     }
 }
 
@@ -768,6 +782,7 @@ pub fn summary_markdown(s: &Summary) -> String {
             mt.first_try, mt.solved, mt.mt_score, mt.mean_turns_when_solved, mt.n
         ));
     }
+    out.push_str(&format!("\nGraded by btc-bench {}\n", build_stamp()));
     out
 }
 

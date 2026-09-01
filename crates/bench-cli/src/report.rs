@@ -14,25 +14,19 @@ use serde::Deserialize;
 
 use crate::load_dataset;
 
-#[derive(Deserialize, Clone, Debug)]
-struct GradedTask {
-    task_id: String,
-    score: f64,
-    #[serde(default)]
-    size_score: Option<f64>,
-    #[serde(default)]
-    reason: Option<String>,
-    #[serde(default)]
-    lint: Option<Vec<String>>,
-    #[serde(default)]
-    failure: Option<String>,
-}
+type GradedTask = crate::TaskScore;
 
-fn load_graded(run_dir: &Path) -> Result<Vec<GradedTask>> {
-    let path = run_dir.join("graded").join("results.json");
-    let text = std::fs::read_to_string(&path)
-        .with_context(|| format!("read {} (grade the run first)", path.display()))?;
-    Ok(serde_json::from_str(&text).with_context(|| format!("parse {}", path.display()))?)
+/// Grade a run's stored responses live. The report never reads
+/// graded/results.json: stored grades go stale whenever grading
+/// changes (a stale run dir once corrupted a sweep's whole failure
+/// taxonomy), while responses.jsonl is the immutable source of truth
+/// and re-grading it is offline and takes seconds. Standard-mode
+/// gating is not applied here; the report grades in default mode.
+fn grade_run(fixtures: &[Fixture], run_dir: &Path) -> Result<Vec<GradedTask>> {
+    let responses = crate::load_responses(&run_dir.join("responses.jsonl"))
+        .with_context(|| format!("read {}/responses.jsonl", run_dir.display()))?;
+    let (scores, _) = crate::grade(fixtures, &responses, None, 0.5, false)?;
+    Ok(scores)
 }
 
 fn kind_of(f: &Fixture) -> &'static str {
@@ -97,7 +91,10 @@ pub fn report(dataset: &Path, runs: &[(String, std::path::PathBuf)], out: &Path)
     let by_id: BTreeMap<&str, &Fixture> = fixtures.iter().map(|f| (f.id(), f)).collect();
 
     let mut md = String::new();
-    md.push_str("# Sweep report\n\n");
+    md.push_str(&format!(
+        "# Sweep report\n\ngraded live from responses.jsonl by btc-bench {}\n\n",
+        crate::build_stamp()
+    ));
 
     // Headline table. Means are over answered tasks; the 95% CI is a
     // percentile bootstrap over the same per-task scores.
@@ -105,7 +102,7 @@ pub fn report(dataset: &Path, runs: &[(String, std::path::PathBuf)], out: &Path)
     md.push_str("|---|---|---|---|---|---|---|---|\n");
     let mut loaded: Vec<(String, Vec<GradedTask>)> = Vec::new();
     for (label, dir) in runs {
-        let g = load_graded(dir)?;
+        let g = grade_run(&fixtures, dir)?;
         loaded.push((label.clone(), g));
     }
     for (label, g) in &loaded {
