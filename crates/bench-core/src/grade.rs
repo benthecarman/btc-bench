@@ -263,10 +263,60 @@ pub struct TreeResult {
     pub lint: Vec<String>,
 }
 
+/// Unwrap singleton brace groups: `{X}` with no top-level comma
+/// becomes `X`, applied to fixpoint. Models frequently write
+/// `tr(KEY,{leaf})` for a single-leaf tree — invalid per the strict
+/// grammar (braces demand exactly two children) but with exactly one
+/// possible meaning; 28 answers in one run were byte-perfect inside
+/// the braces and scored 0 on this alone. Flat n-ary groups
+/// (`{a,b,c}`) are left untouched: multiple pairings exist, so they
+/// stay genuine errors.
+fn unwrap_singleton_braces(text: &str) -> String {
+    let mut cur = text.to_string();
+    loop {
+        let bytes = cur.as_bytes();
+        // (open index, saw a top-level comma inside this group)
+        let mut stack: Vec<(usize, bool)> = Vec::new();
+        let mut change: Option<(usize, usize)> = None;
+        for (i, b) in bytes.iter().enumerate() {
+            match b {
+                b'{' => stack.push((i, false)),
+                b',' => {
+                    if let Some(top) = stack.last_mut() {
+                        top.1 = true;
+                    }
+                }
+                b'}' => {
+                    if let Some((open, saw_comma)) = stack.pop() {
+                        if !saw_comma {
+                            change = Some((open, i));
+                            break;
+                        }
+                    }
+                }
+                _ => {}
+            }
+        }
+        match change {
+            Some((open, close)) => {
+                cur = format!(
+                    "{}{}{}",
+                    &cur[..open],
+                    &cur[open + 1..close],
+                    &cur[close + 1..]
+                );
+            }
+            None => return cur,
+        }
+    }
+}
+
 /// Parse a `tr(...)` descriptor answer. Descriptor checksums are
-/// accepted but not required.
+/// accepted but not required; singleton brace groups are unwrapped
+/// first (see [`unwrap_singleton_braces`]).
 pub fn parse_tr_answer(answer: &str) -> Result<miniscript::descriptor::Tr<XOnlyPublicKey>, String> {
     let text = answer.trim().trim_matches('`').trim();
+    let text = unwrap_singleton_braces(text);
     let desc: Descriptor<XOnlyPublicKey> = text
         .parse()
         .map_err(|e| format!("not a valid descriptor: {e}"))?;
@@ -572,6 +622,39 @@ mod tests {
         assert_eq!(tree_agreement(&f, &reference.to_string()), Some(1.0));
         let g = tree_agreement(&f, &wrong).unwrap();
         assert!(g > 0.5 && g < 1.0, "{g}");
+    }
+
+    #[test]
+    fn singleton_braces_unwrap_but_nary_stays_invalid() {
+        // {X} with no top-level comma unwraps, at any depth, to
+        // fixpoint; real pairs and n-ary groups are untouched.
+        assert_eq!(unwrap_singleton_braces("tr(K,{pk(a)})"), "tr(K,pk(a))");
+        assert_eq!(
+            unwrap_singleton_braces("tr(K,{{pk(a),pk(b)}})"),
+            "tr(K,{pk(a),pk(b)})"
+        );
+        assert_eq!(
+            unwrap_singleton_braces("tr(K,{pk(a),{pk(b)}})"),
+            "tr(K,{pk(a),pk(b)})"
+        );
+        assert_eq!(
+            unwrap_singleton_braces("tr(K,{pk(a),pk(b)})"),
+            "tr(K,{pk(a),pk(b)})"
+        );
+        assert_eq!(unwrap_singleton_braces("{a,b,c}"), "{a,b,c}");
+        // End-to-end: a singleton-wrapped single-leaf answer parses
+        // and grades like the bare form.
+        let a = "79be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798";
+        let b = "c6047f9441ed7d6d3045406e95c07cd85c778e4b8cef3ca7abac09b95c709ee5";
+        let wrapped = format!("tr({a},{{pk({b})}})");
+        assert!(
+            parse_tr_answer(&wrapped).is_ok(),
+            "singleton brace must parse"
+        );
+        // Flat ternary is still rejected (ambiguous pairing).
+        let c = "f9308a019258c31049344f85f89d5229b531c845836f99b08601f113bce036f9";
+        let nary = format!("tr({a},{{pk({a}),pk({b}),pk({c})}})");
+        assert!(parse_tr_answer(&nary).is_err(), "n-ary group stays invalid");
     }
 
     #[test]

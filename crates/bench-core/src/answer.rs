@@ -168,6 +168,9 @@ impl std::error::Error for AnswerError {}
 /// an asm token outside this table could not decode as miniscript anyway.
 const OPCODE_NAMES: &[(&str, Opcode)] = &[
     ("OP_0", all::OP_PUSHBYTES_0),
+    // Core script.h aliases: OP_TRUE = OP_1, OP_FALSE = OP_0.
+    ("OP_TRUE", all::OP_PUSHNUM_1),
+    ("OP_FALSE", all::OP_PUSHBYTES_0),
     ("OP_PUSHDATA1", all::OP_PUSHDATA1),
     ("OP_PUSHDATA2", all::OP_PUSHDATA2),
     ("OP_PUSHDATA4", all::OP_PUSHDATA4),
@@ -331,16 +334,26 @@ fn is_decimal(s: &str) -> bool {
     !s.is_empty() && s.bytes().all(|c| c.is_ascii_digit())
 }
 
+/// Strip `[hex]` and `<hex>` wrappers from a token: both are common
+/// push-fencing dialects; a wrapped hex chunk is unambiguous. (A
+/// wrapped placeholder name like `<Alice>` still fails as a non-hex
+/// token — with correct attribution instead of a bracket error.)
+fn strip_wrappers(tok: &str) -> &str {
+    let t = tok
+        .strip_prefix('[')
+        .and_then(|t| t.strip_suffix(']'))
+        .unwrap_or(tok);
+    t.strip_prefix('<')
+        .and_then(|t| t.strip_suffix('>'))
+        .unwrap_or(t)
+}
+
 /// Is the next token (bracket-stripped) a timelock opcode? Decides the
 /// decimal-vs-hex reading of an all-digit push, mirroring the display
 /// renderer's numeric-context gate exactly.
 fn timelock_follows(tokens: &[&str], next: usize) -> bool {
     matches!(
-        tokens.get(next).map(|t| {
-            t.strip_prefix('[')
-                .and_then(|t| t.strip_suffix(']'))
-                .unwrap_or(t)
-        }),
+        tokens.get(next).map(|t| strip_wrappers(t)),
         Some("OP_CSV" | "OP_CLTV" | "OP_CHECKSEQUENCEVERIFY" | "OP_CHECKLOCKTIMEVERIFY")
     )
 }
@@ -468,10 +481,7 @@ pub fn parse_script_answer(input: &str) -> Result<ScriptBuf, AnswerError> {
         let index = i + 1; // 1-based token number for diagnostics
         let tok = tokens[i];
         i += 1;
-        let tok = tok
-            .strip_prefix('[')
-            .and_then(|t| t.strip_suffix(']'))
-            .unwrap_or(tok);
+        let tok = strip_wrappers(tok);
         if let Some(rest) = tok.strip_prefix("OP_PUSHBYTES_") {
             // rust-bitcoin asm dialect: literal length-prefixed push.
             let n: usize = rest.parse().map_err(|_| AnswerError::UnknownToken {
@@ -489,10 +499,7 @@ pub fn parse_script_answer(input: &str) -> Result<ScriptBuf, AnswerError> {
                 index,
             })?;
             i += 1;
-            let chunk = chunk
-                .strip_prefix('[')
-                .and_then(|t| t.strip_suffix(']'))
-                .unwrap_or(chunk);
+            let chunk = strip_wrappers(chunk);
             if !is_hex_chunk(chunk) {
                 return Err(AnswerError::OddLengthChunk {
                     chunk: chunk.to_string(),
@@ -518,10 +525,7 @@ pub fn parse_script_answer(input: &str) -> Result<ScriptBuf, AnswerError> {
                     index,
                 })?;
                 i += 1;
-                let chunk = chunk
-                    .strip_prefix('[')
-                    .and_then(|t| t.strip_suffix(']'))
-                    .unwrap_or(chunk);
+                let chunk = strip_wrappers(chunk);
                 if !is_hex_chunk(chunk) {
                     return Err(AnswerError::OddLengthChunk {
                         chunk: chunk.to_string(),
@@ -685,6 +689,28 @@ mod tests {
         // Bracketed timelock opcode still counts as timelock context.
         let parsed = parse_script_answer("36 [OP_CSV]").unwrap();
         assert_eq!(parsed.as_bytes()[..2], [0x01, 0x24]);
+    }
+
+    /// `<hex>` fencing and Core's OP_TRUE/OP_FALSE aliases: both are
+    /// unambiguous dialects; a fenced placeholder name still fails,
+    /// but as an unknown token, not a bracket artifact.
+    #[test]
+    fn angle_wrappers_and_core_aliases() {
+        let key = "0279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798";
+        let fenced = parse_script_answer(&format!("<{key}> OP_CHECKSIG")).unwrap();
+        let bare = parse_script_answer(&format!("{key} OP_CHECKSIG")).unwrap();
+        assert_eq!(fenced, bare);
+        // Wrapped timelock value keeps the decimal rule.
+        let a = parse_script_answer("<36> OP_CSV").unwrap();
+        assert_eq!(a.as_bytes()[..2], [0x01, 0x24]);
+        // Placeholder names are still rejected (correct attribution).
+        assert!(parse_script_answer("<Alice> OP_CHECKSIG").is_err());
+        // Core aliases.
+        let t = parse_script_answer("OP_TRUE OP_FALSE").unwrap();
+        assert_eq!(
+            t.as_bytes(),
+            &[all::OP_PUSHNUM_1.to_u8(), all::OP_PUSHBYTES_0.to_u8()]
+        );
     }
 
     #[test]
