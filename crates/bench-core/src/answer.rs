@@ -558,6 +558,14 @@ pub fn parse_script_answer(input: &str) -> Result<ScriptBuf, AnswerError> {
                 token: tok.to_string(),
             })?;
             push_int(&mut out, v);
+        } else if !tok.is_empty() && tok.bytes().all(|c| hex_val(c).is_some()) {
+            // All hex characters but odd length: a truncated push (a
+            // 65-char pubkey missing one digit). Report the length
+            // problem, not an unknown-token mystery.
+            return Err(AnswerError::OddLengthChunk {
+                chunk: tok.to_string(),
+                index,
+            });
         } else {
             return Err(AnswerError::UnknownToken {
                 token: tok.to_string(),
@@ -711,6 +719,22 @@ mod tests {
             t.as_bytes(),
             &[all::OP_PUSHNUM_1.to_u8(), all::OP_PUSHBYTES_0.to_u8()]
         );
+    }
+
+    /// A truncated pubkey (odd-length hex, the model dropped a
+    /// digit) must report its length problem, not an unknown token —
+    /// wrapped or bare.
+    #[test]
+    fn truncated_hex_reports_odd_length() {
+        let truncated = "0279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f8179"; // 65 chars
+        for form in [truncated.to_string(), format!("<{truncated}>")] {
+            let e = parse_script_answer(&format!("{form} OP_CHECKSIG")).unwrap_err();
+            let msg = e.to_string();
+            assert!(msg.contains("odd length 65"), "{form}: {msg}");
+        }
+        // Non-hex placeholders still report unknown token.
+        let e = parse_script_answer("<Alice> OP_CHECKSIG").unwrap_err();
+        assert!(e.to_string().contains("unknown asm token"), "{e}");
     }
 
     #[test]
