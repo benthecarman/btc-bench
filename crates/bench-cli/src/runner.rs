@@ -1263,9 +1263,7 @@ pub async fn run_resume(
                 let mut tools = vec![submit];
                 if tool_mode == ToolMode::Basic {
                     match &f {
-                        Fixture::Write(_) | Fixture::Optimize(_) => {
-                            tools.push(check_script_tool())
-                        }
+                        Fixture::Write(_) | Fixture::Optimize(_) => tools.push(check_script_tool()),
                         Fixture::Tree(_) => tools.push(check_descriptor_tool()),
                         // Identify stays tool-less: the asm decode is
                         // already in the prompt, and anything more
@@ -1291,8 +1289,7 @@ pub async fn run_resume(
                     best
                 };
                 let backend = &backends[bi];
-                let mut history: Vec<Message> =
-                    vec![Message::user().with_text(prompt.as_str())];
+                let mut history: Vec<Message> = vec![Message::user().with_text(prompt.as_str())];
                 let mut turn_outcomes: Vec<TurnOutcome> = Vec::new();
                 let mut final_answer: Option<TaskAnswer> = None;
                 let mut final_raw = String::new();
@@ -1311,76 +1308,85 @@ pub async fn run_resume(
                     // continue the same graded attempt; only a submit
                     // (or a no-call response) ends the turn.
                     let (messages, _finish, answer, raw, call_id) = 'turn: loop {
-                    let retries = entry_retries;
-                    let mut tries: u32 = 0;
-                    let result = loop {
-                        let outcome = backend.complete(&cfg, &history, &tools).await;
-                        match outcome {
-                            Err(e) if is_transient(&e) && tries < retries => {
-                                let backoff = RETRY_BACKOFF_SECS
-                                    [tries as usize % RETRY_BACKOFF_SECS.len()];
-                                tokio::time::sleep(std::time::Duration::from_secs(backoff))
-                                    .await;
-                                tries += 1;
+                        let retries = entry_retries;
+                        let mut tries: u32 = 0;
+                        let result = loop {
+                            let outcome = backend.complete(&cfg, &history, &tools).await;
+                            match outcome {
+                                Err(e) if is_transient(&e) && tries < retries => {
+                                    let backoff = RETRY_BACKOFF_SECS
+                                        [tries as usize % RETRY_BACKOFF_SECS.len()];
+                                    tokio::time::sleep(std::time::Duration::from_secs(backoff))
+                                        .await;
+                                    tries += 1;
+                                }
+                                // Server faults that arrive as successful
+                                // HTTP: empty completions and vanishing
+                                // tool calls retry like transport errors
+                                // instead of burning a graded attempt.
+                                Ok(v) if response_is_defective(&v.0, &v.1) && tries < retries => {
+                                    let backoff = RETRY_BACKOFF_SECS
+                                        [tries as usize % RETRY_BACKOFF_SECS.len()];
+                                    tokio::time::sleep(std::time::Duration::from_secs(backoff))
+                                        .await;
+                                    tries += 1;
+                                }
+                                other => break other,
                             }
-                            // Server faults that arrive as successful
-                            // HTTP: empty completions and vanishing
-                            // tool calls retry like transport errors
-                            // instead of burning a graded attempt.
-                            Ok(v)
-                                if response_is_defective(&v.0, &v.1) && tries < retries =>
-                            {
-                                let backoff = RETRY_BACKOFF_SECS
-                                    [tries as usize % RETRY_BACKOFF_SECS.len()];
-                                tokio::time::sleep(std::time::Duration::from_secs(backoff))
-                                    .await;
-                                tries += 1;
+                        };
+                        let (messages, finish) = match result {
+                            Ok(v) => v,
+                            Err(e) => {
+                                transport_error = Some(e.to_string());
+                                break 'attempts;
                             }
-                            other => break other,
+                        };
+                        if let Some(t) = finish.output_tokens {
+                            cum_out = Some(cum_out.unwrap_or(0) + t);
                         }
-                    };
-                    let (messages, finish) = match result {
-                        Ok(v) => v,
-                        Err(e) => {
-                            transport_error = Some(e.to_string());
-                            break 'attempts;
+                        if let Some(t) = finish.input_tokens {
+                            cum_in = Some(cum_in.unwrap_or(0) + t);
                         }
-                    };
-                    if let Some(t) = finish.output_tokens {
-                        cum_out = Some(cum_out.unwrap_or(0) + t);
-                    }
-                    if let Some(t) = finish.input_tokens {
-                        cum_in = Some(cum_in.unwrap_or(0) + t);
-                    }
-                    let (answer, raw, call_id) = extract_answer_with_id(&messages);
-                    // Keep provider metadata even when no answer was
-                    // extracted: losing finish_reason here made 49
-                    // "no tool call" failures undiagnosable (was it a
-                    // truncation or a refusal? the field was null).
-                    final_finish = finish.clone();
-                    if answer.is_none() {
-                        let checks = extract_check_calls(&messages);
-                        if !checks.is_empty() {
-                            history.extend(messages);
-                            for (name, args, id) in checks {
-                                let reply = if checks_used >= MAX_TOOL_CALLS {
-                                    "Diagnostic budget exhausted; call the \
+                        let (answer, raw, call_id) = extract_answer_with_id(&messages);
+                        // Keep provider metadata even when no answer was
+                        // extracted: losing finish_reason here made 49
+                        // "no tool call" failures undiagnosable (was it a
+                        // truncation or a refusal? the field was null).
+                        final_finish = finish.clone();
+                        if answer.is_none() {
+                            let checks = extract_check_calls(&messages);
+                            if !checks.is_empty() {
+                                history.extend(messages);
+                                for (name, args, id) in checks {
+                                    let reply = if checks_used >= MAX_TOOL_CALLS {
+                                        "Diagnostic budget exhausted; call the \
                                      submit tool with your final answer."
-                                        .to_string()
-                                } else {
-                                    checks_used += 1;
-                                    run_check(&f, &name, &args)
-                                };
-                                history.push(feedback_message(
-                                    id.as_deref().unwrap_or("0"),
-                                    &reply,
-                                ));
+                                            .to_string()
+                                    } else {
+                                        checks_used += 1;
+                                        run_check(&f, &name, &args)
+                                    };
+                                    // Textual-fallback checks carry no call
+                                    // id; a tool response to a fabricated id
+                                    // is a strict-server 400.
+                                    history.push(match id.as_deref() {
+                                        Some(id) => feedback_message(id, &reply),
+                                        None => Message::user().with_text(reply),
+                                    });
+                                }
+                                continue 'turn;
                             }
-                            continue 'turn;
                         }
-                    }
-                    break 'turn (messages, finish, answer, raw, call_id);
+                        break 'turn (messages, finish, answer, raw, call_id);
                     };
+                    // Diagnostic calls bundled into the submit message
+                    // still need answers before the conversation
+                    // continues: strict servers (OpenAI, vLLM) reject a
+                    // history holding a dangling tool-call id.
+                    let pending_checks: Vec<_> = extract_check_calls(&messages)
+                        .into_iter()
+                        .filter(|(_, _, id)| id.is_some())
+                        .collect();
                     // Keep the assistant turn in history for the next round.
                     history.extend(messages);
                     let Some(answer) = answer else {
@@ -1392,10 +1398,15 @@ pub async fn run_resume(
                             answer: None,
                         });
                         if attempt < max_attempts.max(1) {
-                            let fb = feedback_message(
-                                call_id.as_deref().unwrap_or("0"),
-                                "You did not call the submit tool. Call it exactly once with your answer.",
-                            );
+                            const NUDGE: &str = "You did not call the submit tool. \
+                                 Call it exactly once with your answer.";
+                            let fb = match call_id.as_deref() {
+                                Some(id) => feedback_message(id, NUDGE),
+                                // No call to respond to: a tool response
+                                // aimed at a fabricated id is a strict-
+                                // server 400, so nudge as a user message.
+                                None => Message::user().with_text(NUDGE),
+                            };
                             history.push(fb);
                             continue;
                         }
@@ -1416,8 +1427,26 @@ pub async fn run_resume(
                         break 'attempts;
                     }
                     if attempt < max_attempts.max(1) {
-                        let id = call_id.as_deref().unwrap_or("0");
-                        history.push(feedback_message(id, &ev.feedback));
+                        for (name, args, id) in &pending_checks {
+                            let reply = if checks_used >= MAX_TOOL_CALLS {
+                                "Diagnostic budget exhausted; call the \
+                                 submit tool with your final answer."
+                                    .to_string()
+                            } else {
+                                checks_used += 1;
+                                run_check(&f, name, args)
+                            };
+                            history.push(feedback_message(
+                                id.as_deref().expect("filtered to Some"),
+                                &reply,
+                            ));
+                        }
+                        match call_id.as_deref() {
+                            Some(id) => history.push(feedback_message(id, &ev.feedback)),
+                            // Textual-fallback submits carry no call id;
+                            // graded feedback rides a user message.
+                            None => history.push(Message::user().with_text(ev.feedback.clone())),
+                        }
                     } else {
                         final_answer = Some(answer);
                     }
@@ -1780,6 +1809,218 @@ mod tests {
         assert_eq!(record.output_tokens, Some(7), "usage chunk must survive");
         let (_, summary) = grade(&fixtures, &[record], None, 0.5, false).expect("grade");
         assert!((summary.write_mean - 1.0).abs() < 1e-9, "{summary:?}");
+        let _ = std::fs::remove_dir_all(&out);
+    }
+
+    /// Parse a captured HTTP request's JSON body.
+    fn body_json(req: &str) -> serde_json::Value {
+        let body = req.split("\r\n\r\n").nth(1).unwrap_or("");
+        serde_json::from_str(body).expect("request body is json")
+    }
+
+    /// Strict-server history invariant (OpenAI, vLLM): every assistant
+    /// tool_call id is answered by a later role:"tool" message, and
+    /// every tool message references a call id that exists. Violations
+    /// are 400s on real endpoints.
+    fn assert_history_well_formed(req: &str) {
+        let v = body_json(req);
+        let msgs = v["messages"].as_array().expect("messages array");
+        let mut called = std::collections::HashSet::new();
+        let mut answered = std::collections::HashSet::new();
+        for m in msgs {
+            if m["role"] == "assistant" {
+                if let Some(tcs) = m["tool_calls"].as_array() {
+                    for tc in tcs {
+                        called.insert(tc["id"].as_str().expect("call id").to_string());
+                    }
+                }
+            }
+            if m["role"] == "tool" {
+                let id = m["tool_call_id"].as_str().unwrap_or("").to_string();
+                assert!(
+                    called.contains(&id),
+                    "tool result references unknown call id {id:?} in {msgs:?}"
+                );
+                answered.insert(id);
+            }
+        }
+        for id in &called {
+            assert!(
+                answered.contains(id),
+                "dangling unanswered tool call id {id:?} in {msgs:?}"
+            );
+        }
+    }
+
+    fn tool_body(id: &str, name: &str, args: serde_json::Value) -> serde_json::Value {
+        json!({
+            "id": "1", "object": "chat.completion", "created": 0, "model": "mock",
+            "choices": [{
+                "index": 0,
+                "message": {
+                    "role": "assistant",
+                    "content": null,
+                    "tool_calls": [{
+                        "id": id, "type": "function",
+                        "function": {"name": name, "arguments": args.to_string()}
+                    }]
+                },
+                "finish_reason": "tool_calls"
+            }],
+            "usage": {"prompt_tokens": 1, "completion_tokens": 1, "total_tokens": 2}
+        })
+    }
+
+    /// The headline mode: multi-turn attempts with diagnostic tools.
+    /// Attempt 1: check_script, then a wrong submit (graded feedback);
+    /// attempt 2: correct submit. Every request's history must satisfy
+    /// the strict-server invariant, and the pass lands on attempt 2.
+    #[tokio::test]
+    async fn multi_turn_with_tools_keeps_history_well_formed() {
+        let fixtures = generate(&GenParams {
+            seed: 5,
+            write: 1,
+            optimize: 0,
+            identify: 0,
+            ..GenParams::default()
+        });
+        let hex = match &fixtures[0] {
+            Fixture::Write(w) => w.reference_script_hex.clone(),
+            other => panic!("expected write fixture, got {}", other.id()),
+        };
+        let (base, captured) = spawn_mock(vec![
+            tool_body("c1", "check_script", json!({ "script": hex })),
+            tool_body("c2", "submit_script", json!({ "script": "6a" })),
+            tool_body("c3", "submit_script", json!({ "script": hex })),
+        ]);
+        let out = tmpdir("mt-tools");
+        let stats = run(
+            &fixtures,
+            &entry(base),
+            &out,
+            1,
+            DisplayFormat::Hex,
+            3,
+            ToolMode::Basic,
+        )
+        .await
+        .expect("run");
+        assert_eq!(stats.answered, 1);
+        let reqs = captured.lock().expect("lock");
+        assert_eq!(reqs.len(), 3, "check turn, failed attempt, retry");
+        for r in reqs.iter() {
+            assert_history_well_formed(r);
+        }
+        let attempts = std::fs::read_to_string(out.join("attempts.jsonl")).expect("attempts");
+        let lines: Vec<serde_json::Value> = attempts
+            .lines()
+            .map(|l| serde_json::from_str(l).expect("attempt line"))
+            .collect();
+        assert_eq!(lines.len(), 2);
+        assert_eq!(lines[0]["passed"], false);
+        assert_eq!(lines[1]["passed"], true);
+        let _ = std::fs::remove_dir_all(&out);
+    }
+
+    /// A model may bundle a diagnostic call and the submit in one
+    /// message. The submit ends the turn, but the check call's id must
+    /// still be answered before the conversation continues, or strict
+    /// servers reject the next request.
+    #[tokio::test]
+    async fn check_and_submit_in_one_message_leaves_no_dangling_id() {
+        let fixtures = generate(&GenParams {
+            seed: 5,
+            write: 1,
+            optimize: 0,
+            identify: 0,
+            ..GenParams::default()
+        });
+        let hex = match &fixtures[0] {
+            Fixture::Write(w) => w.reference_script_hex.clone(),
+            other => panic!("expected write fixture, got {}", other.id()),
+        };
+        let both = json!({
+            "id": "1", "object": "chat.completion", "created": 0, "model": "mock",
+            "choices": [{
+                "index": 0,
+                "message": {
+                    "role": "assistant",
+                    "content": null,
+                    "tool_calls": [
+                        {"id": "c1", "type": "function",
+                         "function": {"name": "check_script", "arguments": json!({"script": "6a"}).to_string()}},
+                        {"id": "c2", "type": "function",
+                         "function": {"name": "submit_script", "arguments": json!({"script": "6a"}).to_string()}}
+                    ]
+                },
+                "finish_reason": "tool_calls"
+            }],
+            "usage": {"prompt_tokens": 1, "completion_tokens": 1, "total_tokens": 2}
+        });
+        let (base, captured) = spawn_mock(vec![
+            both,
+            tool_body("c3", "submit_script", json!({ "script": hex })),
+        ]);
+        let out = tmpdir("mt-both");
+        let stats = run(
+            &fixtures,
+            &entry(base),
+            &out,
+            1,
+            DisplayFormat::Hex,
+            2,
+            ToolMode::Basic,
+        )
+        .await
+        .expect("run");
+        assert_eq!(stats.answered, 1);
+        let reqs = captured.lock().expect("lock");
+        assert_eq!(reqs.len(), 2);
+        for r in reqs.iter() {
+            assert_history_well_formed(r);
+        }
+        let _ = std::fs::remove_dir_all(&out);
+    }
+
+    /// A no-tool-call response in a multi-turn run gets nudge feedback.
+    /// With no call id to respond to, the nudge must be a plain user
+    /// message — a tool response addressed to a fabricated id ("0") is
+    /// rejected by strict servers.
+    #[tokio::test]
+    async fn no_call_feedback_is_not_a_fabricated_tool_response() {
+        let fixtures = generate(&GenParams {
+            seed: 5,
+            write: 1,
+            optimize: 0,
+            identify: 0,
+            ..GenParams::default()
+        });
+        let hex = match &fixtures[0] {
+            Fixture::Write(w) => w.reference_script_hex.clone(),
+            other => panic!("expected write fixture, got {}", other.id()),
+        };
+        let (base, captured) = spawn_mock(vec![
+            completion_text("Let me think about this first."),
+            tool_body("c1", "submit_script", json!({ "script": hex })),
+        ]);
+        let out = tmpdir("mt-nocall");
+        let stats = run(
+            &fixtures,
+            &entry(base),
+            &out,
+            1,
+            DisplayFormat::Hex,
+            2,
+            ToolMode::Basic,
+        )
+        .await
+        .expect("run");
+        assert_eq!(stats.answered, 1);
+        let reqs = captured.lock().expect("lock");
+        assert_eq!(reqs.len(), 2);
+        for r in reqs.iter() {
+            assert_history_well_formed(r);
+        }
         let _ = std::fs::remove_dir_all(&out);
     }
 
