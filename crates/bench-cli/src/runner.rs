@@ -1230,13 +1230,21 @@ pub async fn run_resume(
     let fix_rx = std::sync::Arc::new(tokio::sync::Mutex::new(fix_rx));
 
     let entry_retries = entry.retries.unwrap_or(3);
-    let rr = Arc::new(std::sync::atomic::AtomicUsize::new(0));
+    // Per-backend in-flight counts for least-loaded selection. Static
+    // round-robin funnels every worker onto the slowest backend when
+    // speeds differ (the fast one drains and idles while workers queue
+    // on the slow one), capping throughput at 2x the slow backend.
+    let inflight: Arc<Vec<std::sync::atomic::AtomicUsize>> = Arc::new(
+        (0..backends.len())
+            .map(|_| std::sync::atomic::AtomicUsize::new(0))
+            .collect(),
+    );
     let (res_tx, mut res_rx) = tokio::sync::mpsc::unbounded_channel();
     let mut set = tokio::task::JoinSet::new();
     for _ in 0..concurrency {
         let rx = Arc::clone(&fix_rx);
         let backends = Arc::clone(&backends);
-        let rr = Arc::clone(&rr);
+        let inflight = Arc::clone(&inflight);
         let cfg = cfg.clone();
         let res_tx = res_tx.clone();
         let display = display;
@@ -1268,8 +1276,21 @@ pub async fn run_resume(
                 // Multi-turn attempt loop: after a graded failure the
                 // model receives mechanical feedback and may retry, up
                 // to max_attempts (1 = single-shot).
-                let backend =
-                    &backends[rr.fetch_add(1, std::sync::atomic::Ordering::Relaxed) % backends.len()];
+                let bi = {
+                    use std::sync::atomic::Ordering;
+                    let mut best = 0;
+                    let mut best_load = usize::MAX;
+                    for (i, c) in inflight.iter().enumerate() {
+                        let load = c.load(Ordering::Relaxed);
+                        if load < best_load {
+                            best = i;
+                            best_load = load;
+                        }
+                    }
+                    inflight[best].fetch_add(1, Ordering::Relaxed);
+                    best
+                };
+                let backend = &backends[bi];
                 let mut history: Vec<Message> =
                     vec![Message::user().with_text(prompt.as_str())];
                 let mut turn_outcomes: Vec<TurnOutcome> = Vec::new();
@@ -1403,6 +1424,7 @@ pub async fn run_resume(
                 }
                 final_finish.output_tokens = cum_out;
                 final_finish.input_tokens = cum_in;
+                inflight[bi].fetch_sub(1, std::sync::atomic::Ordering::Relaxed);
                 let _ = res_tx.send(TaskOutcome {
                     fixture: f,
                     is_identify,
@@ -1758,6 +1780,83 @@ mod tests {
         assert_eq!(record.output_tokens, Some(7), "usage chunk must survive");
         let (_, summary) = grade(&fixtures, &[record], None, 0.5, false).expect("grade");
         assert!((summary.write_mean - 1.0).abs() < 1e-9, "{summary:?}");
+        let _ = std::fs::remove_dir_all(&out);
+    }
+
+    /// Spawn a mock that answers every request with `body` after
+    /// `delay`; returns (base_url, served-request counter).
+    fn spawn_mock_delayed(
+        body: serde_json::Value,
+        delay: std::time::Duration,
+    ) -> (String, Arc<std::sync::atomic::AtomicUsize>) {
+        let listener = TcpListener::bind("127.0.0.1:0").expect("bind");
+        let addr = listener.local_addr().expect("addr");
+        let served = Arc::new(std::sync::atomic::AtomicUsize::new(0));
+        let count = Arc::clone(&served);
+        std::thread::spawn(move || {
+            for stream in listener.incoming() {
+                let mut stream = match stream {
+                    Ok(s) => s,
+                    Err(_) => break,
+                };
+                let _ = read_request(&mut stream);
+                std::thread::sleep(delay);
+                count.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+                let payload = serde_json::to_string(&body).expect("serialize body");
+                let resp = format!(
+                    "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
+                    payload.len(),
+                    payload
+                );
+                let _ = stream.write_all(resp.as_bytes());
+            }
+        });
+        (format!("http://{addr}/v1"), served)
+    }
+
+    /// With backends of unequal speed, least-loaded selection must
+    /// keep the fast one saturated. Static round-robin converged to
+    /// every worker queued on the slow backend (fast GPU idle,
+    /// throughput 2x the slow one) — observed live on a 5090+5060 pair.
+    #[tokio::test]
+    async fn least_loaded_backend_selection_favors_the_fast_backend() {
+        let fixtures = generate(&GenParams {
+            seed: 5,
+            write: 6,
+            optimize: 0,
+            identify: 0,
+            ..GenParams::default()
+        });
+        let body = completion_with_tool("submit_script", json!({ "script": "51" }));
+        let (fast_url, fast_served) =
+            spawn_mock_delayed(body.clone(), std::time::Duration::from_millis(10));
+        let (slow_url, slow_served) =
+            spawn_mock_delayed(body, std::time::Duration::from_millis(1500));
+        let mut model = entry(fast_url);
+        model.base_url = Some(toml::Value::Array(vec![
+            model.base_url.take().unwrap(),
+            toml::Value::String(slow_url),
+        ]));
+        let out = tmpdir("least-loaded");
+        let stats = run(
+            &fixtures,
+            &model,
+            &out,
+            2,
+            DisplayFormat::Hex,
+            1,
+            ToolMode::None,
+        )
+        .await
+        .expect("run");
+        assert_eq!(stats.answered, 6);
+        let fast = fast_served.load(std::sync::atomic::Ordering::Relaxed);
+        let slow = slow_served.load(std::sync::atomic::Ordering::Relaxed);
+        assert!(
+            fast >= 4 && slow >= 1,
+            "least-loaded must saturate the fast backend while still \
+             using the slow one: fast={fast} slow={slow}"
+        );
         let _ = std::fs::remove_dir_all(&out);
     }
 
