@@ -271,8 +271,13 @@ fn attempt(
             return None;
         }
         // Contamination dedup: never ship a task whose answer key is in
-        // the excluded set (typically the eval set's answer keys).
-        if !exclude.is_empty() && exclude.contains(&script.to_hex_string()) {
+        // the excluded set (typically the eval set's answer keys). The
+        // baseline counts too — it is embedded verbatim in optimize
+        // prompts, so a shared baseline leaks an eval prompt.
+        if !exclude.is_empty()
+            && (exclude.contains(&script.to_hex_string())
+                || exclude.contains(&naive_script.to_hex_string()))
+        {
             return None;
         }
         let (opt_weight, opt_size) = (opt_w.weight, opt_w.size);
@@ -597,9 +602,21 @@ pub fn generate(params: &GenParams) -> Vec<Fixture> {
     }
     for i in 0..params.identify {
         let ks = keys::generate(&mut rng, 3);
+        // Identify keys are seeded fresh per group, so collisions with
+        // an excluded set require key reuse; the filter still makes the
+        // no-contamination guarantee structural rather than accidental.
+        let clean = |f: &bench_core::task::IdentifyFixture| {
+            params.exclude.is_empty()
+                || (!params.exclude.contains(&f.spk_hex)
+                    && f.inner_script_hex
+                        .as_ref()
+                        .map(|h| !params.exclude.contains(h))
+                        .unwrap_or(true))
+        };
         out.extend(
             crate::corpus::standards(&mut rng, &ks, i)
                 .into_iter()
+                .filter(|f| clean(f))
                 .map(Fixture::Identify),
         );
         // Protocol rotation: 4 of the 11 protocol families per group,
@@ -608,7 +625,9 @@ pub fn generate(params: &GenParams) -> Vec<Fixture> {
         let all = crate::protocol::protocol_items(&mut rng, i);
         for j in 0..4 {
             let idx = (i * 4 + j) % all.len();
-            out.push(Fixture::Identify(all[idx].clone()));
+            if clean(&all[idx]) {
+                out.push(Fixture::Identify(all[idx].clone()));
+            }
         }
     }
     for i in 0..params.tree {
@@ -639,6 +658,76 @@ pub fn generate(params: &GenParams) -> Vec<Fixture> {
 mod tests {
     use super::*;
     use bitcoin::ScriptBuf;
+
+    /// Exclusion must cover every script surface of the excluded set,
+    /// not just answer keys: baselines are embedded verbatim in
+    /// optimize prompts, and identify spk/inner scripts are the task.
+    /// A training set generated against an eval set's full script set
+    /// must share no script hex with it.
+    #[test]
+    fn exclusion_covers_every_script_surface() {
+        let eval = generate(&GenParams {
+            seed: 11,
+            write: 6,
+            optimize: 6,
+            identify: 2,
+            tree: 3,
+            ..GenParams::default()
+        });
+        let mut excluded = std::collections::BTreeSet::new();
+        for f in &eval {
+            match f {
+                Fixture::Write(w) => {
+                    excluded.insert(w.reference_script_hex.clone());
+                }
+                Fixture::Optimize(o) => {
+                    excluded.insert(o.optimal_script_hex.clone());
+                    excluded.insert(o.baseline_script_hex.clone());
+                }
+                Fixture::Tree(t) => {
+                    excluded.insert(t.reference_descriptor.clone());
+                }
+                Fixture::Identify(i) => {
+                    excluded.insert(i.spk_hex.clone());
+                    if let Some(h) = &i.inner_script_hex {
+                        excluded.insert(h.clone());
+                    }
+                }
+            }
+        }
+        // Same seed on purpose: without exclusion this would reproduce
+        // the eval set exactly, so every fixture exercises the filter.
+        let train = generate(&GenParams {
+            seed: 11,
+            write: 6,
+            optimize: 6,
+            identify: 2,
+            tree: 3,
+            exclude: excluded.clone(),
+            ..GenParams::default()
+        });
+        for f in &train {
+            let shipped: Vec<String> = match f {
+                Fixture::Write(w) => vec![w.reference_script_hex.clone()],
+                Fixture::Optimize(o) => {
+                    vec![o.optimal_script_hex.clone(), o.baseline_script_hex.clone()]
+                }
+                Fixture::Tree(t) => vec![t.reference_descriptor.clone()],
+                Fixture::Identify(i) => {
+                    let mut v = vec![i.spk_hex.clone()];
+                    v.extend(i.inner_script_hex.clone());
+                    v
+                }
+            };
+            for s in shipped {
+                assert!(
+                    !excluded.contains(&s),
+                    "{} ships an excluded script: {s}",
+                    f.id()
+                );
+            }
+        }
+    }
 
     #[test]
     fn generate_and_verify() {

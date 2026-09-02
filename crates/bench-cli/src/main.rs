@@ -284,11 +284,20 @@ fn main() -> Result<()> {
                         }
                         bench_core::task::Fixture::Optimize(o) => {
                             excluded.insert(o.optimal_script_hex);
+                            // The baseline is embedded verbatim in the
+                            // prompt; a shared baseline leaks an eval
+                            // prompt into training data.
+                            excluded.insert(o.baseline_script_hex);
                         }
                         bench_core::task::Fixture::Tree(t) => {
                             excluded.insert(t.reference_descriptor);
                         }
-                        bench_core::task::Fixture::Identify(_) => {}
+                        bench_core::task::Fixture::Identify(i) => {
+                            excluded.insert(i.spk_hex);
+                            if let Some(inner) = i.inner_script_hex {
+                                excluded.insert(inner);
+                            }
+                        }
                     }
                 }
             }
