@@ -1761,6 +1761,49 @@ mod tests {
         let _ = std::fs::remove_dir_all(&out);
     }
 
+    /// An in-stream OpenAI-shaped error frame (`data: {"error": ...}`,
+    /// what the maple/opensecret chain emits on a mid-stream failure)
+    /// must surface as a transient server error — retried, and recorded
+    /// with the upstream message when retries run out — never as a
+    /// silent empty answer.
+    #[tokio::test]
+    async fn sse_error_frame_is_a_transient_server_error() {
+        let fixtures = generate(&GenParams {
+            seed: 5,
+            write: 1,
+            optimize: 0,
+            identify: 0,
+            ..GenParams::default()
+        });
+        let (base, _captured) = spawn_mock_sse(vec![json!({
+            "error": {"message": "Stream timeout", "type": "server_error",
+                      "param": null, "code": null}
+        })]);
+        let mut model = entry(base);
+        model.stream = None;
+        model.retries = Some(0);
+        let out = tmpdir("sse-err");
+        let stats = run(
+            &fixtures,
+            &model,
+            &out,
+            1,
+            DisplayFormat::Hex,
+            1,
+            ToolMode::None,
+        )
+        .await
+        .expect("run");
+        assert_eq!(stats.answered, 0);
+        assert_eq!(stats.failed, 1);
+        let failures = std::fs::read_to_string(out.join("failures.jsonl")).expect("failures");
+        assert!(
+            failures.contains("Server error: Stream timeout"),
+            "upstream message must survive into the failure record: {failures}"
+        );
+        let _ = std::fs::remove_dir_all(&out);
+    }
+
     /// Empty completion (dropped stream) must retry like a transport
     /// error and recover within the same graded attempt, not burn the
     /// turn as "no tool call".
