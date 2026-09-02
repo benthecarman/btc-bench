@@ -68,6 +68,11 @@ enum Command {
         /// Point this at the eval set when generating training data.
         #[arg(long)]
         exclude: Vec<PathBuf>,
+        /// Script-context cycle for write/optimize tasks,
+        /// comma-separated (legacy,segwit,tap). Repeat a context to
+        /// weight it. Default: even legacy/segwit/tap rotation.
+        #[arg(long, value_delimiter = ',')]
+        contexts: Vec<String>,
     },
     /// Emit one JSONL line per fixture: {id, kind, prompt}.
     Prompts {
@@ -254,6 +259,7 @@ fn main() -> Result<()> {
             vary_structure,
             tiers,
             exclude,
+            contexts,
         } => {
             if let Some(f) = verbal_families
                 .iter()
@@ -272,6 +278,17 @@ fn main() -> Result<()> {
                     "hard" => Ok(bench_core::Tier::Hard),
                     other => Err(anyhow::anyhow!(
                         "unknown tier {other:?}; use easy, medium, or hard"
+                    )),
+                })
+                .collect::<Result<Vec<_>>>()?;
+            let contexts = contexts
+                .iter()
+                .map(|c| match c.trim().to_ascii_lowercase().as_str() {
+                    "legacy" => Ok(bench_core::task::ContextKind::Legacy),
+                    "segwit" => Ok(bench_core::task::ContextKind::SegwitV0),
+                    "tap" => Ok(bench_core::task::ContextKind::Tap),
+                    other => Err(anyhow::anyhow!(
+                        "unknown context {other:?}; use legacy, segwit, or tap"
                     )),
                 })
                 .collect::<Result<Vec<_>>>()?;
@@ -318,6 +335,7 @@ fn main() -> Result<()> {
                 vary_structure,
                 tiers,
                 exclude: excluded,
+                contexts,
             };
             let n = gen_dataset(&out, &params, env!("CARGO_PKG_VERSION"))?;
             println!("wrote {n} fixtures to {}", out.display());

@@ -51,6 +51,11 @@ pub struct GenParams {
     /// keys of the eval set so training data never contains an eval
     /// task (same-seed reuse is the realistic contamination path).
     pub exclude: BTreeSet<String>,
+    /// Script-context cycle for write/optimize tasks. Empty = the
+    /// default legacy/segwit/tap rotation. Non-empty = round-robin
+    /// through exactly these (repeat to weight), for curriculum pools
+    /// that oversample one context (e.g. all-tap multi_a training).
+    pub contexts: Vec<ContextKind>,
 }
 
 impl Default for GenParams {
@@ -65,6 +70,7 @@ impl Default for GenParams {
             vary_structure: false,
             tiers: Vec::new(),
             exclude: BTreeSet::new(),
+            contexts: Vec::new(),
         }
     }
 }
@@ -99,7 +105,10 @@ fn style_for(params: &GenParams, kind_salt: u64, i: usize) -> verbal::Style {
     }
 }
 
-fn context_for(i: usize) -> ContextKind {
+fn context_for(i: usize, contexts: &[ContextKind]) -> ContextKind {
+    if !contexts.is_empty() {
+        return contexts[i % contexts.len()];
+    }
     match i % 3 {
         0 => ContextKind::Legacy,
         1 => ContextKind::SegwitV0,
@@ -557,7 +566,7 @@ pub fn generate(params: &GenParams) -> Vec<Fixture> {
     let mut rng = SeededRng::new(params.seed);
     for i in 0..params.write {
         let tier = tier_for(i, &params.tiers);
-        let ctx = context_for(i);
+        let ctx = context_for(i, &params.contexts);
         let style = style_for(params, 0x51, i);
         let c = compile_task(&mut rng, tier, ctx, false, style, &params.exclude)
             .unwrap_or_else(|| panic!("write task {i} ({tier:?}/{ctx:?}) failed to generate"));
@@ -577,7 +586,7 @@ pub fn generate(params: &GenParams) -> Vec<Fixture> {
     }
     for i in 0..params.optimize {
         let tier = tier_for(i, &params.tiers);
-        let ctx = context_for(i);
+        let ctx = context_for(i, &params.contexts);
         let style = style_for(params, 0x52, i);
         let c = compile_task(&mut rng, tier, ctx, true, style, &params.exclude)
             .unwrap_or_else(|| panic!("optimize task {i} ({tier:?}/{ctx:?}) failed to generate"));
@@ -658,6 +667,28 @@ pub fn generate(params: &GenParams) -> Vec<Fixture> {
 mod tests {
     use super::*;
     use bitcoin::ScriptBuf;
+
+    /// The context cycle knob pins every write/optimize task to the
+    /// requested contexts (all-tap pools for multi_a curriculum);
+    /// empty stays the even three-way rotation.
+    #[test]
+    fn context_cycle_is_honored() {
+        let fixtures = generate(&GenParams {
+            seed: 13,
+            write: 6,
+            optimize: 3,
+            identify: 0,
+            contexts: vec![ContextKind::Tap],
+            ..GenParams::default()
+        });
+        for f in &fixtures {
+            match f {
+                Fixture::Write(w) => assert_eq!(w.context, ContextKind::Tap, "{}", f.id()),
+                Fixture::Optimize(o) => assert_eq!(o.context, ContextKind::Tap, "{}", f.id()),
+                other => panic!("unexpected fixture {}", other.id()),
+            }
+        }
+    }
 
     /// Exclusion must cover every script surface of the excluded set,
     /// not just answer keys: baselines are embedded verbatim in

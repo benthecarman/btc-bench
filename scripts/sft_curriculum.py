@@ -26,7 +26,11 @@ import json
 import random
 from pathlib import Path
 
-POOLS = ["datasets/sft-pool-1", "datasets/sft-pool-2", "datasets/sft-pool-3"]
+# Every generated pool is used by default: mixed-context pools plus
+# the all-tap pools (gen --contexts tap) that feed the multi_a slice.
+POOLS = sorted(
+    str(p) for p in Path("datasets").glob("sft-pool-*") if (p / "sft.jsonl").exists()
+)
 SEED = 7100
 NON_TAP_KEEP_FRACTION = 0.5
 IDENTIFY_KEEP = 200
