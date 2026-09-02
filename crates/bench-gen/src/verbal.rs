@@ -19,8 +19,10 @@
 //! drift from the policy semantics.
 //!
 //! Invariants across all families and structures (test-pinned):
-//! - relative vs absolute timelocks use distinct vocabulary, and each
-//!   names its opcode (OP_CHECKLOCKTIMEVERIFY / OP_CHECKSEQUENCEVERIFY);
+//! - relative vs absolute timelocks use distinct vocabulary; the
+//!   formal families (0-2) also name the opcode
+//!   (OP_CHECKLOCKTIMEVERIFY / OP_CHECKSEQUENCEVERIFY), while the
+//!   informal family (3) disambiguates linguistically instead;
 //! - SHA-256 and HASH160 atoms name their hash function;
 //! - the same policy with the same style always yields the same prose.
 //!
@@ -31,8 +33,37 @@ use bench_core::task::KeyVar;
 use crate::policy::Abs;
 use crate::rng::SeededRng;
 
-/// Number of template families. Family 0 is canonical.
-pub const FAMILIES: u32 = 3;
+/// Number of template families. Family 0 is canonical. Family 3 is
+/// the informal register: casual phrasing, relative timelocks in
+/// human units (1 day = 144 blocks) when they divide cleanly, and no
+/// opcode names — disambiguation is linguistic ("after this output
+/// confirms" vs "the chain passes block N"). Training-only, like
+/// every non-zero family; it teaches the "hey, write me a script
+/// that..." register the formal families never exercise.
+pub const FAMILIES: u32 = 4;
+
+/// Relative timelock in human units when the block count divides a
+/// day (144 blocks) cleanly; raw blocks otherwise. Teaches the
+/// canonical conversion instead of hiding it.
+fn human_blocks(t: u32) -> String {
+    if t % 1008 == 0 {
+        let w = t / 1008;
+        if w == 1 {
+            "a week".into()
+        } else {
+            format!("{w} weeks")
+        }
+    } else if t % 144 == 0 {
+        let d = t / 144;
+        if d == 1 {
+            "a day".into()
+        } else {
+            format!("{d} days")
+        }
+    } else {
+        format!("{t} blocks")
+    }
+}
 
 /// How a spec is rendered: a template family plus optional structural
 /// variation. `structure_seed: None` is the canonical fixed structure
@@ -74,6 +105,7 @@ fn and_intro(family: u32) -> &'static str {
     match family {
         1 => "every condition below is met",
         2 => "all of these are true",
+        3 => "all of this happens",
         _ => "all of the following hold",
     }
 }
@@ -82,6 +114,7 @@ fn or_intro(family: u32) -> &'static str {
     match family {
         1 => "any condition below is met",
         2 => "at least one of these is true",
+        3 => "one of these happens",
         _ => "at least one of the following holds",
     }
 }
@@ -98,6 +131,7 @@ fn clause_in(p: &Abs, keys: &[KeyVar], family: u32, rng: &mut Option<SeededRng>)
         Abs::Key(i) => match family {
             1 => format!("a valid signature from {} is provided", label(*i)),
             2 => format!("{} provides their signature", label(*i)),
+            3 => format!("{} signs off", label(*i)),
             _ => format!("{} signs the transaction", label(*i)),
         },
         Abs::After(t) => match family {
@@ -107,6 +141,7 @@ fn clause_in(p: &Abs, keys: &[KeyVar], family: u32, rng: &mut Option<SeededRng>)
             2 => format!(
                 "the chain tip height is {t} or greater (absolute timelock, OP_CHECKLOCKTIMEVERIFY)"
             ),
+            3 => format!("the chain has passed block {t}"),
             _ => format!(
                 "the chain has reached block height {t} (absolute timelock, OP_CHECKLOCKTIMEVERIFY)"
             ),
@@ -118,6 +153,10 @@ fn clause_in(p: &Abs, keys: &[KeyVar], family: u32, rng: &mut Option<SeededRng>)
             2 => format!(
                 "at least {t} blocks have elapsed since this output was mined (relative timelock, OP_CHECKSEQUENCEVERIFY)"
             ),
+            3 => format!(
+                "{} have gone by since this output confirmed",
+                human_blocks(*t)
+            ),
             _ => format!(
                 "{t} blocks have been mined since this output confirmed (relative timelock, OP_CHECKSEQUENCEVERIFY)"
             ),
@@ -128,12 +167,20 @@ fn clause_in(p: &Abs, keys: &[KeyVar], family: u32, rng: &mut Option<SeededRng>)
                 "the spender presents a preimage matching the SHA-256 hash {}",
                 hex(h)
             ),
+            3 => format!(
+                "whoever spends shows the secret behind this SHA-256 hash: {}",
+                hex(h)
+            ),
             _ => format!("a preimage of the SHA-256 hash {} is revealed", hex(h)),
         },
         Abs::Hash160(h) => match family {
             1 => format!("someone reveals data whose HASH160 hash is {}", hex(h)),
             2 => format!(
                 "the spender presents a preimage matching the HASH160 hash {}",
+                hex(h)
+            ),
+            3 => format!(
+                "whoever spends shows the secret behind this HASH160 hash: {}",
                 hex(h)
             ),
             _ => format!("a preimage of the HASH160 hash {} is revealed", hex(h)),
@@ -155,6 +202,9 @@ fn clause_in(p: &Abs, keys: &[KeyVar], family: u32, rng: &mut Option<SeededRng>)
                     |l| l.to_string(),
                 ),
                 2 => (format!("any {k} of the following parties sign"), |l| {
+                    l.to_string()
+                }),
+                3 => (format!("at least {k} of this group sign off"), |l| {
                     l.to_string()
                 }),
                 _ => (format!("at least {k} of these parties sign"), |l| {
@@ -249,6 +299,7 @@ pub fn spec_styled(p: &Abs, keys: &[KeyVar], style: Style) -> String {
     match style.family {
         1 => format!("Spending this output requires that {c}."),
         2 => format!("This output can be spent only if {c}."),
+        3 => format!("I want the coins spendable as soon as {c}."),
         _ => format!("The script can be spent when {c}."),
     }
 }
@@ -277,7 +328,8 @@ mod tests {
     #[test]
     fn timelock_vocabulary_is_distinct_in_every_family() {
         let ks = keys();
-        for family in 0..FAMILIES {
+        // Formal families name the opcodes.
+        for family in 0..3 {
             let a = spec_with(&Abs::After(700_000), &ks, family);
             let o = spec_with(&Abs::Older(144), &ks, family);
             assert!(a.contains("absolute"), "family {family}: {a}");
@@ -286,6 +338,31 @@ mod tests {
             assert!(o.contains("OP_CHECKSEQUENCEVERIFY"), "family {family}: {o}");
             assert_ne!(a, o);
         }
+        // The informal family disambiguates in words, never opcodes.
+        let a = spec_with(&Abs::After(700_000), &ks, 3);
+        let o = spec_with(&Abs::Older(144), &ks, 3);
+        assert!(a.contains("passed block 700000"), "{a}");
+        assert!(o.contains("since this output confirmed"), "{o}");
+        assert!(!a.contains("OP_"), "{a}");
+        assert!(!o.contains("OP_"), "{o}");
+        assert_ne!(a, o);
+    }
+
+    #[test]
+    fn informal_family_uses_human_time_units() {
+        let ks = keys();
+        // Clean multiples render as days/weeks (1 day = 144 blocks).
+        let day = spec_with(&Abs::Older(144), &ks, 3);
+        assert!(day.contains("a day"), "{day}");
+        let month = spec_with(&Abs::Older(4320), &ks, 3);
+        assert!(month.contains("30 days"), "{month}");
+        let week = spec_with(&Abs::Older(1008), &ks, 3);
+        assert!(week.contains("a week"), "{week}");
+        let two_weeks = spec_with(&Abs::Older(2016), &ks, 3);
+        assert!(two_weeks.contains("2 weeks"), "{two_weeks}");
+        // Non-multiples stay in exact blocks: no lossy rounding ever.
+        let odd = spec_with(&Abs::Older(145), &ks, 3);
+        assert!(odd.contains("145 blocks"), "{odd}");
     }
 
     #[test]

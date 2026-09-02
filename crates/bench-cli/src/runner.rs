@@ -1096,6 +1096,7 @@ pub async fn run(
         max_attempts,
         tools,
         false,
+        false,
     )
     .await
 }
@@ -1150,6 +1151,7 @@ pub async fn run_resume(
     max_attempts: u32,
     tools: ToolMode,
     resume: bool,
+    casual: bool,
 ) -> Result<RunStats> {
     std::fs::create_dir_all(out_dir)?;
 
@@ -1254,7 +1256,19 @@ pub async fn run_resume(
                 let f = rx.lock().await.recv().await;
                 let Some(f) = f else { break };
 
-                let prompt = for_fixture_fmt(&f, display);
+                // Casual runs use the held-out eval wrapper templates
+                // for write/tree; other kinds keep the formal prompt.
+                // The salt hashes the task id so a resumed run wraps
+                // each task identically.
+                let prompt = if casual {
+                    let salt = f.id().bytes().fold(0xcbf2_9ce4_8422_2325u64, |h, b| {
+                        (h ^ b as u64).wrapping_mul(0x1000_0000_01b3)
+                    });
+                    bench_gen::casual::prompt_for(&f, salt, bench_gen::casual::Split::Eval)
+                        .unwrap_or_else(|| for_fixture_fmt(&f, display))
+                } else {
+                    for_fixture_fmt(&f, display)
+                };
                 let (submit, is_identify) = match &f {
                     Fixture::Identify(_) => (submit_identify_tool(), true),
                     Fixture::Tree(_) => (submit_descriptor_tool(), false),
@@ -2854,6 +2868,7 @@ mod tests {
             1,
             ToolMode::None,
             true,
+            false,
         )
         .await
         .expect("resume");

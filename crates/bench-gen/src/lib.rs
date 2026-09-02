@@ -4,6 +4,7 @@
 //! Everything is a deterministic function of the seed: the same seed and
 //! the same dependency pins produce byte-identical fixtures.
 
+pub mod casual;
 pub mod corpus;
 pub mod fixtures;
 pub mod keys;

@@ -28,9 +28,14 @@ from pathlib import Path
 
 # Every generated pool is used by default: mixed-context pools plus
 # the all-tap pools (gen --contexts tap) that feed the multi_a slice.
+# Each pool contributes its formal export and, when present, its
+# casual export (same targets, "hey write me a..." prompts) — the
+# duplicate targets are deliberate: identical answers under different
+# scaffolds teach scaffold invariance.
 POOLS = sorted(
     str(p) for p in Path("datasets").glob("sft-pool-*") if (p / "sft.jsonl").exists()
 )
+EXPORTS = ["sft.jsonl", "sft-casual.jsonl"]
 SEED = 7100
 NON_TAP_KEEP_FRACTION = 0.5
 IDENTIFY_KEEP = 200
@@ -39,6 +44,8 @@ IDENTIFY_KEEP = 200
 def tags(rec):
     out = set()
     asm = rec.get("target_asm", "") or ""
+    if rec.get("style") == "casual":
+        out.add("casual")
     if rec["kind"] in ("write", "optimize") and "tapscript" in rec.get("prompt", ""):
         out.add("tapscript")
     if rec["kind"] == "tree":
@@ -58,21 +65,28 @@ def main():
     pairs = []
     seen = set()
     for pool in POOLS:
-        for line in open(Path(pool) / "sft.jsonl"):
-            rec = json.loads(line)
-            # Answer-key dedup across pools (gen --exclude already
-            # guarantees this for scripts; task_id alone would falsely
-            # collapse same-index records from different pools).
-            key = (
-                rec.get("target_hex")
-                or rec.get("target_descriptor")
-                or (pool + rec["task_id"])
-            )
-            if key in seen:
+        for export in EXPORTS:
+            path = Path(pool) / export
+            if not path.exists():
                 continue
-            seen.add(key)
-            rec["_tags"] = sorted(tags(rec))
-            pairs.append(rec)
+            for line in open(path):
+                rec = json.loads(line)
+                # Answer-key dedup across pools (gen --exclude already
+                # guarantees this for scripts; task_id alone would
+                # falsely collapse same-index records from different
+                # pools). The style is part of the key: the casual
+                # duplicate of a formal pair is a distinct example.
+                key = (
+                    rec.get("style", "formal"),
+                    rec.get("target_hex")
+                    or rec.get("target_descriptor")
+                    or (pool + rec["task_id"]),
+                )
+                if key in seen:
+                    continue
+                seen.add(key)
+                rec["_tags"] = sorted(tags(rec))
+                pairs.append(rec)
 
     rng = random.Random(SEED)
     curriculum = []
@@ -81,7 +95,7 @@ def main():
     for p in pairs:
         if p["kind"] == "identify":
             identify.append(p)
-        elif p["kind"] == "tree" or "tapscript" in p["_tags"]:
+        elif p["kind"] == "tree" or "tapscript" in p["_tags"] or "casual" in p["_tags"]:
             curriculum.append(p)
         else:
             non_tap.append(p)

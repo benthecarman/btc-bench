@@ -122,6 +122,12 @@ enum Command {
         /// free by construction).
         #[arg(long, default_value = "none")]
         tools: bench_cli::runner::ToolMode,
+        /// Wrap write/tree prompts in held-out casual eval templates
+        /// (the "hey, write me a script" register); optimize/identify
+        /// keep the formal prompt. Measures the informal register the
+        /// casual SFT exports train.
+        #[arg(long, default_value_t = false)]
+        casual: bool,
     },
     /// Re-attempt the failed tasks in a run directory.
     Rerun {
@@ -183,6 +189,12 @@ enum Command {
         /// How embedded scripts are rendered in prompts: hex or asm.
         #[arg(long, default_value = "asm")]
         display: String,
+        /// Wrap write/tree prompts in casual training templates (the
+        /// "hey, write me a script" register); optimize/identify are
+        /// skipped. Default output becomes <dataset>/sft-casual.jsonl.
+        /// Eval-split casual templates are reserved for `run --casual`.
+        #[arg(long, default_value_t = false)]
+        casual: bool,
     },
     /// Audit a committed dataset: re-verify every answer key.
     Audit {
@@ -384,6 +396,7 @@ fn main() -> Result<()> {
             attempts,
             resume,
             tools,
+            casual,
         } => {
             let all = load_dataset(&dataset)?;
             let fixtures = match limit {
@@ -429,6 +442,7 @@ fn main() -> Result<()> {
                 "limit": limit,
                 "resume": resume,
                 "tools": tools.to_string(),
+                "casual": casual,
                 "bench_version": env!("CARGO_PKG_VERSION"),
                 "started_unix": std::time::SystemTime::now()
                     .duration_since(std::time::UNIX_EPOCH)
@@ -450,6 +464,7 @@ fn main() -> Result<()> {
                     attempts,
                     tools,
                     resume,
+                    casual,
                 ))?;
             println!(
                 "ran {} tasks: {} answered, {} failed; responses in {}/responses.jsonl",
@@ -526,6 +541,7 @@ fn main() -> Result<()> {
             dataset,
             out,
             display,
+            casual,
         } => {
             let fixtures = load_dataset(&dataset)?;
             let display_fmt = match display.as_str() {
@@ -533,10 +549,27 @@ fn main() -> Result<()> {
                 "asm" => bench_gen::prompt::DisplayFormat::Asm,
                 other => bail!("unknown --display {other:?}; use hex or asm"),
             };
-            let out = out.unwrap_or_else(|| dataset.join("sft.jsonl"));
+            let default_name = if casual {
+                "sft-casual.jsonl"
+            } else {
+                "sft.jsonl"
+            };
+            let out = out.unwrap_or_else(|| dataset.join(default_name));
             let mut text = String::new();
-            for f in &fixtures {
-                let prompt = bench_gen::prompt::for_fixture_fmt(f, display_fmt);
+            let mut written = 0usize;
+            for (idx, f) in fixtures.iter().enumerate() {
+                let prompt = if casual {
+                    match bench_gen::casual::prompt_for(
+                        f,
+                        idx as u64,
+                        bench_gen::casual::Split::Train,
+                    ) {
+                        Some(p) => p,
+                        None => continue,
+                    }
+                } else {
+                    bench_gen::prompt::for_fixture_fmt(f, display_fmt)
+                };
                 let asm = |hex: &str| {
                     bench_core::human_asm::to_human_asm(
                         bitcoin::ScriptBuf::from_hex(hex)
@@ -544,7 +577,7 @@ fn main() -> Result<()> {
                             .as_script(),
                     )
                 };
-                let line = match f {
+                let mut line = match f {
                     bench_core::task::Fixture::Write(w) => serde_json::json!({
                         "task_id": w.id, "kind": "write", "prompt": prompt,
                         "target_hex": w.reference_script_hex,
@@ -564,11 +597,17 @@ fn main() -> Result<()> {
                         "target_descriptor": t.reference_descriptor,
                     }),
                 };
+                if casual {
+                    line.as_object_mut()
+                        .expect("json object")
+                        .insert("style".into(), serde_json::json!("casual"));
+                }
                 text.push_str(&line.to_string());
                 text.push('\n');
+                written += 1;
             }
             fs::write(&out, text).with_context(|| format!("write {}", out.display()))?;
-            println!("wrote {} SFT pairs to {}", fixtures.len(), out.display());
+            println!("wrote {written} SFT pairs to {}", out.display());
             Ok(())
         }
         Command::Audit { dataset } => {
