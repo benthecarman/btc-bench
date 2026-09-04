@@ -25,55 +25,34 @@ Usage:
 
 import argparse
 import json
-import os
-import re
 import urllib.request
 
-from datasets import load_dataset
-from peft import LoraConfig
-from trl import GRPOConfig, GRPOTrainer
-
-REWARD_URL = os.environ.get(
-    "BTCBENCH_REWARD_URL", "http://127.0.0.1:9900/reward/batch"
-)
-TOOL_CALL_RE = re.compile(r"<tool_call>\s*(\{.*?\})\s*</tool_call>", re.DOTALL)
+from rl_common import (REWARD_URL, extract_answer, add_sampling_args,
+                       add_thinking_arg, validate_rows, validate_sampling)
 
 
-def extract_answer(completion: str):
-    """Submit tool call -> TaskAnswer JSON; else the raw text."""
-    for m in TOOL_CALL_RE.finditer(completion):
-        try:
-            call = json.loads(m.group(1))
-        except json.JSONDecodeError:
-            continue
-        name = call.get("name", "")
-        args = call.get("arguments") or {}
-        if isinstance(args, str):
-            try:
-                args = json.loads(args)
-            except json.JSONDecodeError:
-                continue
-        if name == "submit_script" and "script" in args:
-            return {"task": "script", "script": str(args["script"])}
-        if name == "submit_descriptor" and "descriptor" in args:
-            return {"task": "descriptor", "descriptor": str(args["descriptor"])}
-        if name == "submit_identify" and "label" in args:
-            return {"task": "identify", "label": str(args["label"])}
-    return completion.strip()
+reward_url = REWARD_URL
 
-
-def oracle_reward(completions, task_json, **kwargs):
+def oracle_reward(completions, task_json, thinking=None, **kwargs):
+    if len(completions) != len(task_json):
+        raise ValueError("Completion and fixture counts differ")
+    if thinking is None:
+        thinking = [False] * len(completions)
+    if len(thinking) != len(completions):
+        raise ValueError("Completion and thinking-mode counts differ")
     items = [
-        {"task": json.loads(tj), "answer": extract_answer(c)}
-        for c, tj in zip(completions, task_json)
+        {"task": json.loads(tj), "answer": extract_answer(c, thinking=mode)}
+        for c, tj, mode in zip(completions, task_json, thinking)
     ]
     req = urllib.request.Request(
-        REWARD_URL,
+        reward_url,
         data=json.dumps({"items": items}).encode(),
         headers={"Content-Type": "application/json"},
     )
     with urllib.request.urlopen(req, timeout=600) as resp:
         results = json.loads(resp.read())
+    if len(results) != len(items):
+        raise ValueError("Reward server returned the wrong number of results")
     return [r["shaped"] for r in results]
 
 
@@ -83,9 +62,23 @@ def main():
     ap.add_argument("--model", default="runs/sft-qwen3-4b/merged")
     ap.add_argument("--out", default="runs/rl-qwen3-4b")
     ap.add_argument("--steps", type=int, default=300)
+    ap.add_argument("--reward-url", default=REWARD_URL)
+    ap.add_argument("--resume-from-checkpoint", nargs="?", const=True, default=None,
+                    help="Resume a checkpoint path, or the latest checkpoint in --out.")
+    add_sampling_args(ap, training=True)
+    add_thinking_arg(ap)
     args = ap.parse_args()
+    validate_sampling(args)
+    global reward_url
+    reward_url = args.reward_url
+
+    from datasets import load_dataset
+    from peft import LoraConfig
+    from trl import GRPOConfig, GRPOTrainer
 
     dataset = load_dataset("json", data_files=args.data, split="train")
+
+    validate_rows(dataset, args.thinking)
 
     peft_config = LoraConfig(
         r=64,
@@ -110,12 +103,12 @@ def main():
         learning_rate=1e-5,
         lr_scheduler_type="cosine",
         warmup_steps=10,
-        per_device_train_batch_size=8,
+        per_device_train_batch_size=args.k,
         gradient_accumulation_steps=2,
-        num_generations=8,
-        max_completion_length=4096,
-        temperature=0.6,
-        top_p=0.95,
+        num_generations=args.k,
+        max_completion_length=args.max_completion_length,
+        temperature=args.temperature,
+        top_p=args.top_p,
         beta=0.02,
         logging_steps=1,
         save_steps=50,
@@ -135,7 +128,7 @@ def main():
         peft_config=peft_config,
         args=config,
     )
-    trainer.train()
+    trainer.train(resume_from_checkpoint=args.resume_from_checkpoint)
     trainer.save_model(args.out + "/final")
     print(f"RL-DONE adapters in {args.out}/final")
 

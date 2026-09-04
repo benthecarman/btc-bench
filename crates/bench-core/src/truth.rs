@@ -1,8 +1,8 @@
 //! Exhaustive truth-table evaluation over rust-miniscript's semantic
 //! policy. Complete for our task distribution because the atom set is
 //! closed and finite: keys and hash preimages are boolean; timelocks are
-//! monotone, so testing at each distinct atom value and one below it
-//! (plus zero) covers every point where the function can change.
+//! monotone within each lock domain. Test each domain's start and each
+//! distinct atom value and one below it to cover every change.
 
 use miniscript::policy::semantic::Policy as Semantic;
 use miniscript::MiniscriptKey;
@@ -14,13 +14,12 @@ use std::collections::{BTreeMap, BTreeSet};
 pub struct TruthContext {
     /// Canonical key string (Display of the pubkey) -> signature present?
     pub keys: BTreeMap<String, bool>,
-    /// Hash Display string -> preimage revealed? Covers sha256/hash160
-    /// (and hash256/ripemd160 if a script ever uses them; distinct hex
-    /// lengths keep the namespaces apart).
+    /// Algorithm-qualified digest (e.g. sha256:HEX) -> preimage known.
+    /// Equal hex under different hash functions is a different atom.
     pub hashes: BTreeMap<String, bool>,
-    /// Absolute chain height the CLTV atoms compare against.
+    /// Transaction nLockTime: block height or Unix time, with matching CLTV units.
     pub height: u32,
-    /// Relative age (sequence value) the CSV atoms compare against.
+    /// Transaction nSequence for CSV (version >= 2 assumed).
     pub age: u32,
 }
 
@@ -48,16 +47,16 @@ impl Atoms {
                 out.olders.insert(t.to_consensus_u32());
             }
             Semantic::Sha256(h) => {
-                out.hashes.insert(h.to_string());
+                out.hashes.insert(format!("sha256:{h}"));
             }
             Semantic::Hash256(h) => {
-                out.hashes.insert(h.to_string());
+                out.hashes.insert(format!("hash256:{h}"));
             }
             Semantic::Ripemd160(h) => {
-                out.hashes.insert(h.to_string());
+                out.hashes.insert(format!("ripemd160:{h}"));
             }
             Semantic::Hash160(h) => {
-                out.hashes.insert(h.to_string());
+                out.hashes.insert(format!("hash160:{h}"));
             }
             Semantic::Thresh(th) => {
                 for sub in th.data() {
@@ -73,6 +72,7 @@ impl Atoms {
     pub fn heights(&self) -> Vec<u32> {
         let mut v: BTreeSet<u32> = BTreeSet::new();
         v.insert(0);
+        v.insert(500_000_000);
         for t in &self.afters {
             v.insert(t.saturating_sub(1));
             v.insert(*t);
@@ -84,6 +84,7 @@ impl Atoms {
     pub fn ages(&self) -> Vec<u32> {
         let mut v: BTreeSet<u32> = BTreeSet::new();
         v.insert(0);
+        v.insert(1 << 22);
         for t in &self.olders {
             v.insert(t.saturating_sub(1));
             v.insert(*t);
@@ -103,12 +104,36 @@ pub fn eval<Pk: MiniscriptKey>(p: &Semantic<Pk>, ctx: &TruthContext) -> bool {
         Semantic::Unsatisfiable => false,
         Semantic::Trivial => true,
         Semantic::Key(pk) => ctx.keys.get(&pk.to_string()).copied().unwrap_or(false),
-        Semantic::After(t) => ctx.height >= t.to_consensus_u32(),
-        Semantic::Older(t) => ctx.age >= t.to_consensus_u32(),
-        Semantic::Sha256(h) => ctx.hashes.get(&h.to_string()).copied().unwrap_or(false),
-        Semantic::Hash256(h) => ctx.hashes.get(&h.to_string()).copied().unwrap_or(false),
-        Semantic::Ripemd160(h) => ctx.hashes.get(&h.to_string()).copied().unwrap_or(false),
-        Semantic::Hash160(h) => ctx.hashes.get(&h.to_string()).copied().unwrap_or(false),
+        Semantic::After(t) => {
+            let lock = t.to_consensus_u32();
+            (ctx.height < 500_000_000) == (lock < 500_000_000) && ctx.height >= lock
+        }
+        Semantic::Older(t) => {
+            let lock = t.to_consensus_u32();
+            ctx.age & (1 << 31) == 0
+                && (ctx.age & (1 << 22)) == (lock & (1 << 22))
+                && (ctx.age & 0xffff) >= (lock & 0xffff)
+        }
+        Semantic::Sha256(h) => ctx
+            .hashes
+            .get(&format!("sha256:{h}"))
+            .copied()
+            .unwrap_or(false),
+        Semantic::Hash256(h) => ctx
+            .hashes
+            .get(&format!("hash256:{h}"))
+            .copied()
+            .unwrap_or(false),
+        Semantic::Ripemd160(h) => ctx
+            .hashes
+            .get(&format!("ripemd160:{h}"))
+            .copied()
+            .unwrap_or(false),
+        Semantic::Hash160(h) => ctx
+            .hashes
+            .get(&format!("hash160:{h}"))
+            .copied()
+            .unwrap_or(false),
         Semantic::Thresh(th) => {
             let k = th.k();
             th.data().iter().filter(|sub| eval(sub, ctx)).count() >= k
@@ -122,11 +147,10 @@ pub fn eval<Pk: MiniscriptKey>(p: &Semantic<Pk>, ctx: &TruthContext) -> bool {
 
 /// Exhaustive equivalence over the combined atom space.
 ///
-/// Soundness of the timelock point set: after/older atoms are pure
-/// functions of height/age respectively, and and/or/thresh preserve
-/// monotonicity, so each policy is a monotone step function per axis with
-/// steps only at its own atom values. Equal output at every union
-/// breakpoint (and zero) implies equality everywhere.
+/// Within each height/time domain, after/older are monotone step functions.
+/// Check each domain's start and the union of both policies' breakpoints.
+/// Transaction validity, signature validity and chain inclusion are outside
+/// this abstraction; the execution audit provides a separate witness check.
 ///
 /// Returns `true` only when every point agrees. Panics never; the caller
 /// bounds `boolean_count` before calling.
@@ -268,10 +292,10 @@ mod tests {
         let mut a = Atoms::default();
         a.afters.insert(500);
         a.afters.insert(1000);
-        assert_eq!(a.heights(), vec![0, 499, 500, 999, 1000]);
+        assert_eq!(a.heights(), vec![0, 499, 500, 999, 1000, 500_000_000]);
         let mut o = Atoms::default();
         o.olders.insert(16);
-        assert_eq!(o.ages(), vec![0, 15, 16]);
+        assert_eq!(o.ages(), vec![0, 15, 16, 1 << 22]);
     }
 
     #[test]
@@ -290,5 +314,27 @@ mod tests {
         for h in both.heights() {
             assert_eq!(f(h) != g(h), h == 500, "difference must be caught at {h}");
         }
+    }
+    #[test]
+    fn locks_do_not_cross_height_and_time_domains() {
+        use miniscript::policy::{Concrete, Liftable};
+        let semantic = |text: &str| text.parse::<Concrete<String>>().unwrap().lift().unwrap();
+        assert!(!eval(
+            &semantic("after(100)"),
+            &ctx(&[], &[], 500_000_100, 0)
+        ));
+        assert!(!eval(
+            &semantic("older(144)"),
+            &ctx(&[], &[], 0, (1 << 22) + 144)
+        ));
+        assert!(!eval(
+            &semantic("older(144)"),
+            &ctx(&[], &[], 0, (1 << 31) + 144)
+        ));
+        assert!(eval(
+            &semantic("older(4194448)"),
+            &ctx(&[], &[], 0, (1 << 22) + 144)
+        ));
+        assert!(!eval(&semantic("older(4194448)"), &ctx(&[], &[], 0, 144)));
     }
 }

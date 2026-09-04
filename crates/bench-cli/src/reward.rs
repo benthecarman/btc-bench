@@ -269,6 +269,34 @@ fn grade_one(req: RewardRequest, default_shaping: &Shaping) -> Result<RewardResp
                 components: c,
             })
         }
+        (Fixture::Judgment(j), TaskAnswer::Script(a)) => {
+            let r = bench_core::grade_judgment(j, &a.script);
+            let script = parse_script_answer(&a.script).ok();
+            let c = Components {
+                parsed: script.is_some(),
+                decoded: script
+                    .as_ref()
+                    .is_some_and(|s| decodes_in_context(j.context, s)),
+                equivalent: r.score == 1.0,
+                agreement: r.agreement,
+                lint_count: r.lint.len(),
+            };
+            // Never pay shaping for a forbidden spend or an invalid contract.
+            let shaped = if r.unsafe_spend || r.agreement.is_none() {
+                0.0
+            } else {
+                shape_script(r.score, &c, &shaping, false)
+            };
+            Ok(RewardResponse {
+                task_id: j.id.clone(),
+                score: r.score,
+                shaped,
+                size_score: None,
+                reason: r.reason,
+                lint: r.lint,
+                components: c,
+            })
+        }
         (Fixture::Optimize(o), TaskAnswer::Script(a)) => {
             let r = grade_optimize(o, &a.script);
             let c = script_components(
@@ -485,6 +513,8 @@ mod tests {
 
     fn write_fixture() -> WriteFixture {
         WriteFixture {
+            choose_context: false,
+            request: None,
             id: "t1-0000".into(),
             tier: Tier::Easy,
             context: ContextKind::SegwitV0,
@@ -651,5 +681,57 @@ mod tests {
         }
         .validate()
         .is_err());
+    }
+    #[test]
+    fn judgment_reward_matches_offline_and_never_pays_for_forbidden_spends() {
+        let fixtures = bench_gen::fixtures::generate(&bench_gen::fixtures::GenParams {
+            seed: 2026,
+            write: 0,
+            optimize: 0,
+            identify: 0,
+            judgment: 3,
+            ..Default::default()
+        });
+        for fixture in &fixtures {
+            let Fixture::Judgment(j) = fixture else {
+                unreachable!()
+            };
+            let reference = bench_gen::judgment::validate(j).unwrap().to_hex_string();
+            for answer in [&reference, "OP_0", "OP_1", "bad script", "OP_RETURN"] {
+                let offline = bench_core::grade_judgment(j, answer);
+                for structured in [false, true] {
+                    let r = grade_one(
+                        RewardRequest {
+                            task: fixture.clone(),
+                            answer: if structured {
+                                json!({"task": "script", "script": answer})
+                            } else {
+                                json!(answer)
+                            },
+                            shaping: None,
+                        },
+                        &Shaping::default(),
+                    )
+                    .unwrap();
+                    assert_eq!(r.score, offline.score);
+                    assert_eq!(r.shaped, offline.score);
+                }
+            }
+            let r = grade_one(
+                RewardRequest {
+                    task: fixture.clone(),
+                    answer: json!("OP_1"),
+                    shaping: None,
+                },
+                &Shaping {
+                    parse: 0.05,
+                    decode: 0.1,
+                    agreement: 0.2,
+                    ..Default::default()
+                },
+            )
+            .unwrap();
+            assert_eq!(r.shaped, 0.0, "forbidden spends cannot collect shaping");
+        }
     }
 }

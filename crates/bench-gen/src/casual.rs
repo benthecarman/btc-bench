@@ -56,6 +56,9 @@ fn key_lines(keys: &[bench_core::task::KeyVar], style: u64) -> String {
 }
 
 pub fn write_prompt(f: &WriteFixture, seed: u64, split: Split) -> String {
+    if let Some(request) = &f.request {
+        return request.clone();
+    }
     let mut rng = SeededRng::new(seed ^ 0xCA5A_CA5A);
     let template = match split {
         Split::Train => rng.below(3),
@@ -84,6 +87,9 @@ pub fn write_prompt(f: &WriteFixture, seed: u64, split: Split) -> String {
 }
 
 pub fn tree_prompt(f: &TreeFixture, seed: u64, split: Split) -> String {
+    if let Some(request) = &f.request {
+        return request.clone();
+    }
     let mut rng = SeededRng::new(seed ^ 0x7AB7_7AB7);
     let template = match split {
         Split::Train => rng.below(3),

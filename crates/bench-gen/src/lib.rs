@@ -15,3 +15,5 @@ pub mod prompt;
 pub mod protocol;
 pub mod rng;
 pub mod verbal;
+
+pub mod human;

@@ -48,6 +48,9 @@ pub struct KeyVar {
 
 /// Serde helper: omit zero-valued additive fields so fixtures written
 /// before the field existed stay byte-identical on regeneration.
+fn is_false(v: &bool) -> bool {
+    !*v
+}
 fn is_zero_u32(v: &u32) -> bool {
     *v == 0
 }
@@ -58,6 +61,13 @@ fn is_zero_usize(v: &usize) -> bool {
 /// Task 1: write the inner script satisfying the English spec.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct WriteFixture {
+    /// The request leaves the script context to the model. Reference keys
+    /// are compressed; tapscript answers use their corresponding x-only keys.
+    #[serde(default, skip_serializing_if = "is_false")]
+    pub choose_context: bool,
+    /// Complete authored request, used verbatim instead of a generated wrapper.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub request: Option<String>,
     pub id: String,
     pub tier: Tier,
     pub context: ContextKind,
@@ -123,6 +133,9 @@ pub struct OptimizeFixture {
 /// taproot design a single-leaf task cannot measure.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct TreeFixture {
+    /// Complete authored request, used verbatim instead of a generated wrapper.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub request: Option<String>,
     pub id: String,
     pub tier: Tier,
     /// Deterministic English specification (from the verbalizer).
@@ -179,20 +192,13 @@ pub struct IdentifyFixture {
     pub inner_script_hex: Option<String>,
 }
 
-/// One checkable requirement on a design: under these conditions, is
-/// the output spendable or not?
-///
-/// Judgment tasks are graded against a set of these rather than
-/// against a single reference script. A real request ("my two
-/// co-founders together, or me alone after a year") pins some
-/// behaviour and leaves the rest to the designer, so equality with
-/// one canonical answer is the wrong test — it rewards reproducing
-/// the compiler instead of meeting the requirement.
+/// One diagnostic example of the complete spending contract.
+/// These points do not define the safety boundary by themselves.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Requirement {
     /// Keys whose signatures are available at this point.
     pub keys: Vec<String>,
-    /// Hash preimages known at this point.
+    /// Algorithm-qualified digests whose preimages are known at this point.
     #[serde(default)]
     pub hashes: Vec<String>,
     /// Chain height (for absolute timelocks).
@@ -205,10 +211,14 @@ pub struct Requirement {
     pub description: String,
 }
 
-/// A judgment task: an underspecified design request, graded on
-/// whether the submitted script honours a set of requirements.
+/// A judgment task: a complete spending contract with diagnostic examples.
+/// Version 1 permits any equivalent encoding; spending behavior is explicit.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct JudgmentFixture {
+    /// Version 1 states the complete spending policy in the request.
+    /// Version 0 is the retired sparse-row format and must be regenerated.
+    #[serde(default)]
+    pub contract_version: u32,
     pub id: String,
     pub tier: Tier,
     pub context: ContextKind,
@@ -217,12 +227,11 @@ pub struct JudgmentFixture {
     pub keys: Vec<KeyVar>,
     /// What any acceptable design must do, and must never do.
     pub requirements: Vec<Requirement>,
-    /// Preimages for any hash atoms, so prompts can name them.
+    /// Private preimages for execution audits; never included in prompts.
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub hash_preimages: BTreeMap<String, String>,
-    /// Provenance only: the policy the requirements were derived from.
-    /// Never shown to a model and never graded against — a judgment
-    /// task has no single right answer by construction.
+    /// Machine-readable spending contract, fully stated by spec_en.
+    /// Compared by behavior, never by compiled bytes.
     pub reference_policy: String,
 }
 

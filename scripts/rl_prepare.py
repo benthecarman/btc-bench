@@ -1,38 +1,42 @@
 #!/usr/bin/env python3
-"""Render an RL task pool into a GRPO prompt dataset.
-
-Each row carries the rendered runner conversation (same system
-prompt, submit tool, and chat template as SFT) plus the full fixture
-JSON — the reward function forwards that fixture verbatim to the
-reward server, which grades exactly like `btc-bench grade`.
-
-Usage:
-  rl_prepare.py [--pool datasets/rl-pool-1]
-                [--out datasets/rl-train.jsonl]
-                [--model runs/sft-qwen3-4b/merged]
-"""
+"""Render an RL task pool with the runner's prompts and submit tools."""
 
 import argparse
 import json
+from pathlib import Path
+import subprocess
+import tempfile
 
-from transformers import AutoTokenizer
+from rl_common import add_thinking_arg
 
-from sft_format import SUBMIT_DESCRIPTOR, SUBMIT_IDENTIFY, SUBMIT_SCRIPT, SYSTEM_PROMPT
+KINDS = {"t1": "write", "t2": "optimize", "t3": "identify", "t4": "tree", "t5": "judgment"}
+
+
+def unwrap_fixture(wrapper):
+    if "id" in wrapper:
+        return wrapper
+    candidates = [v for v in wrapper.values() if isinstance(v, dict) and "id" in v]
+    if len(candidates) != 1:
+        raise ValueError("Expected one fixture per JSONL row")
+    return candidates[0]
 
 
 def kind_of(fixture):
-    tid = fixture.get("id", "")
-    return {"t1": "write", "t2": "optimize", "t3": "identify", "t4": "tree"}.get(
-        tid[:2], "unknown"
-    )
+    kind = fixture.get("task") or KINDS.get(fixture.get("id", "")[:2])
+    if kind not in KINDS.values():
+        raise ValueError(f"Unknown task kind for {fixture.get('id')!r}")
+    return kind
 
 
 def tool_for(kind):
-    if kind in ("write", "optimize"):
+    from sft_format import SUBMIT_DESCRIPTOR, SUBMIT_IDENTIFY, SUBMIT_SCRIPT
+    if kind in ("write", "optimize", "judgment"):
         return SUBMIT_SCRIPT
     if kind == "tree":
         return SUBMIT_DESCRIPTOR
-    return SUBMIT_IDENTIFY
+    if kind == "identify":
+        return SUBMIT_IDENTIFY
+    raise ValueError(f"Unknown task kind: {kind}")
 
 
 def main():
@@ -40,66 +44,46 @@ def main():
     ap.add_argument("--pool", default="datasets/rl-pool-1")
     ap.add_argument("--out", default="datasets/rl-train.jsonl")
     ap.add_argument("--model", default="runs/sft-qwen3-4b/merged")
+    add_thinking_arg(ap)
     args = ap.parse_args()
+    pool = Path(args.pool)
+    with (pool / "manifest.json").open() as f:
+        if json.load(f).get("evaluation_only"):
+            raise SystemExit("This dataset is reserved for evaluation; do not use it for RL.")
+    with (pool / "fixtures.jsonl").open() as f:
+        fixtures = [unwrap_fixture(json.loads(line)) for line in f if line.strip()]
+    for fixture in fixtures:
+        if kind_of(fixture) == "judgment" and fixture.get("contract_version") != 1:
+            raise SystemExit("Old judgment contract; regenerate the task pool before RL preparation.")
+    if not fixtures:
+        raise SystemExit("RL task pool is empty")
 
-    # The runner's prompt assembly lives in Rust; `prompts` dumps the
-    # exact text per fixture.
-    import subprocess
-
-    subprocess.run(
-        [
-            "./target/release/btc-bench",
-            "prompts",
-            "--dataset",
-            args.pool,
-            "--out",
-            "/tmp/rl-prompts.jsonl",
-        ],
-        check=True,
-    )
-    prompts = {}
-    for line in open("/tmp/rl-prompts.jsonl"):
-        r = json.loads(line)
-        prompts[r["id"]] = r["prompt"]
+    subprocess.run(["./target/release/btc-bench", "audit", "--dataset", str(pool)], check=True)
+    from transformers import AutoTokenizer
+    from sft_format import SYSTEM_PROMPT
+    with tempfile.TemporaryDirectory(prefix="btc-bench-rl-") as tmp:
+        prompt_path = Path(tmp) / "prompts.jsonl"
+        subprocess.run(["./target/release/btc-bench", "prompts", "--dataset", str(pool),
+                        "--out", str(prompt_path)], check=True)
+        with prompt_path.open() as f:
+            prompts = {row["id"]: row["prompt"] for row in map(json.loads, f)}
 
     tok = AutoTokenizer.from_pretrained(args.model)
-    n = 0
+    Path(args.out).parent.mkdir(parents=True, exist_ok=True)
     with open(args.out, "w") as out:
-        for line in open(f"{args.pool}/fixtures.jsonl"):
-            wrapper = json.loads(line)
-            # Fixture files wrap each task as {"kind": {...fields}} or
-            # flat; keep the whole line for the reward server.
-            fixture = wrapper
-            tid = None
-            for v in wrapper.values():
-                if isinstance(v, dict) and "id" in v:
-                    tid = v["id"]
-            if tid is None:
-                tid = wrapper.get("id")
-            kind = kind_of({"id": tid})
+        for fixture in fixtures:
+            tid, kind = fixture["id"], kind_of(fixture)
+            messages = [{"role": "system", "content": SYSTEM_PROMPT},
+                        {"role": "user", "content": prompts[tid]}]
+            tool_list = [tool_for(kind)]
             rendered = tok.apply_chat_template(
-                [
-                    {"role": "system", "content": SYSTEM_PROMPT},
-                    {"role": "user", "content": prompts[tid]},
-                ],
-                tools=[tool_for(kind)],
-                add_generation_prompt=True,
-                enable_thinking=False,
-                tokenize=False,
+                messages, tools=tool_list, add_generation_prompt=True,
+                enable_thinking=args.thinking, tokenize=False,
             )
-            out.write(
-                json.dumps(
-                    {
-                        "prompt": rendered,
-                        "task_json": json.dumps(fixture),
-                        "kind": kind,
-                        "task_id": tid,
-                    }
-                )
-                + "\n"
-            )
-            n += 1
-    print(f"rendered {n} RL prompts to {args.out}")
+            out.write(json.dumps({"prompt": rendered, "task_json": json.dumps(fixture),
+                                  "kind": kind, "task_id": tid, "thinking": args.thinking,
+                                  "messages": messages, "tools": tool_list}) + "\n")
+    print(f"rendered {len(fixtures)} RL prompts to {args.out}; thinking={args.thinking}")
 
 
 if __name__ == "__main__":

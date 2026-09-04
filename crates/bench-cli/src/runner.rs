@@ -202,6 +202,7 @@ impl Backend {
     async fn complete(
         &self,
         cfg: &ModelConfig,
+        system_prompt: &str,
         history: &[Message],
         tools: &[Tool],
     ) -> Result<(Vec<Message>, FinishInfo), ProviderError> {
@@ -212,7 +213,7 @@ impl Backend {
                     cfg,
                     &cfg.model_name,
                     &cfg.model_name,
-                    SYSTEM_PROMPT,
+                    system_prompt,
                     history,
                     tools,
                 )
@@ -223,14 +224,14 @@ impl Backend {
                     cfg,
                     &cfg.model_name,
                     &cfg.model_name,
-                    SYSTEM_PROMPT,
+                    system_prompt,
                     history,
                     tools,
                 )
                 .await?
             }
             Backend::Anthropic(p) => {
-                p.stream_for_model(cfg, &cfg.model_name, SYSTEM_PROMPT, history, tools)
+                p.stream_for_model(cfg, &cfg.model_name, system_prompt, history, tools)
                     .await?
             }
         };
@@ -280,6 +281,8 @@ pub enum ToolMode {
     /// human developer has. Measures mechanical recovery within one
     /// attempt; the semantic translation stays unaided.
     Basic,
+    /// Ordinary assistant text, without tools or benchmark instructions.
+    Chat,
 }
 
 impl std::str::FromStr for ToolMode {
@@ -288,7 +291,10 @@ impl std::str::FromStr for ToolMode {
         match s {
             "none" => Ok(ToolMode::None),
             "basic" => Ok(ToolMode::Basic),
-            other => Err(format!("unknown tool mode {other:?}; use none or basic")),
+            "chat" => Ok(ToolMode::Chat),
+            other => Err(format!(
+                "unknown tool mode {other:?}; use none, basic, or chat"
+            )),
         }
     }
 }
@@ -298,6 +304,7 @@ impl std::fmt::Display for ToolMode {
         f.write_str(match self {
             ToolMode::None => "none",
             ToolMode::Basic => "basic",
+            ToolMode::Chat => "chat",
         })
     }
 }
@@ -358,6 +365,10 @@ fn run_check(
         ("check_script", Fixture::Write(w)) => {
             let text = args.get("script").and_then(|v| v.as_str()).unwrap_or("");
             bench_core::toolbox::check_script(w.context, text).render()
+        }
+        ("check_script", Fixture::Judgment(j)) => {
+            let text = args.get("script").and_then(|v| v.as_str()).unwrap_or("");
+            bench_core::toolbox::check_script(j.context, text).render()
         }
         ("check_script", Fixture::Optimize(o)) => {
             let text = args.get("script").and_then(|v| v.as_str()).unwrap_or("");
@@ -780,6 +791,17 @@ fn evaluate(fixture: &Fixture, answer: &TaskAnswer) -> Evaluation {
                 }
             }
         }
+        (Fixture::Judgment(j), TaskAnswer::Script(a)) => {
+            let r = bench_core::grade_judgment(j, &a.script);
+            Evaluation {
+                passed: r.score == 1.0, score: r.score,
+                feedback: if r.score == 1.0 { String::new() } else {
+                    format!("Your answer was rejected: {}{}{}",
+                        r.reason.unwrap_or_default(), lint_note(&r.lint),
+                        consensus_note(j.context, &a.script))
+                },
+            }
+        }
         (Fixture::Optimize(o), TaskAnswer::Script(a)) => {
             let r = bench_core::grade_optimize(o, &a.script);
             if r.weight_score > 0.999 {
@@ -934,6 +956,84 @@ fn extract_answer_with_id(messages: &[Message]) -> (Option<TaskAnswer>, String, 
         Some((a, id)) => (Some(a), raw, Some(id)),
         None => (None, raw, None),
     }
+}
+
+/// Extract one final answer without consulting the fixture's answer key.
+/// Fenced blocks permit surrounding explanation. Multiple distinct script
+/// candidates are ambiguous: never select an answer using the correctness oracle.
+fn extract_chat_answer(
+    fixture: &Fixture,
+    messages: &[Message],
+) -> (Option<TaskAnswer>, String, Option<String>) {
+    let (_, raw, _) = extract_answer_with_id(messages);
+    let text = messages
+        .iter()
+        .flat_map(|m| &m.content)
+        .filter_map(|b| match b {
+            MessageContentBlock::Text(t) => Some(t.text.as_str()),
+            _ => None,
+        })
+        .collect::<Vec<_>>()
+        .join("\n");
+    let final_text = text
+        .rsplit_once("</think>")
+        .map_or(text.as_str(), |(_, s)| s);
+    // An unfinished reasoning block is not a final answer.
+    if final_text.contains("<think>") {
+        return (None, raw, None);
+    }
+    let parts: Vec<_> = final_text.split("```").collect();
+    if parts.len() % 2 == 0 {
+        return (None, raw, None);
+    }
+    let blocks: Vec<&str> = parts
+        .iter()
+        .skip(1)
+        .step_by(2)
+        .filter_map(|code| code.split_once('\n').map(|(_, body)| body.trim()))
+        .collect();
+    let answer = if parts.len() == 1 {
+        final_text.trim().trim_matches('`')
+    } else if blocks.len() == 1 {
+        blocks[0]
+    } else {
+        // Syntax alone can separate a script from a Python example or
+        // explanatory text. Equivalent hex/asm displays count as one answer.
+        let mut candidates = BTreeMap::new();
+        for code in &blocks {
+            let canonical = match fixture {
+                Fixture::Tree(_) => bench_core::parse_tr_answer(code)
+                    .ok()
+                    .map(|tr| tr.to_string()),
+                Fixture::Identify(_) => None,
+                _ => bench_core::answer::parse_script_answer(code)
+                    .ok()
+                    .map(|script| script.to_hex_string()),
+            };
+            if let Some(key) = canonical {
+                candidates.entry(key).or_insert(*code);
+            }
+        }
+        if candidates.len() != 1 {
+            return (None, raw, None);
+        }
+        candidates.into_values().next().expect("one candidate")
+    };
+    if answer.is_empty() {
+        return (None, raw, None);
+    }
+    let answer = match fixture {
+        Fixture::Tree(_) => TaskAnswer::Descriptor(bench_core::task::DescriptorAnswer {
+            descriptor: answer.into(),
+        }),
+        Fixture::Identify(_) => TaskAnswer::Identify(IdentifyAnswer {
+            label: answer.into(),
+        }),
+        _ => TaskAnswer::Script(ScriptAnswer {
+            script: answer.into(),
+        }),
+    };
+    (Some(answer), raw, None)
 }
 
 /// Extract diagnostic (check_*) calls from an assistant turn:
@@ -1153,6 +1253,9 @@ pub async fn run_resume(
     resume: bool,
     casual: bool,
 ) -> Result<RunStats> {
+    if tools == ToolMode::Chat && max_attempts != 1 {
+        bail!("chat mode requires --attempts 1; graded retry feedback is not ordinary chat");
+    }
     std::fs::create_dir_all(out_dir)?;
 
     // Resume: skip completed tasks, retry failed ones.
@@ -1274,7 +1377,16 @@ pub async fn run_resume(
                     Fixture::Tree(_) => (submit_descriptor_tool(), false),
                     _ => (submit_script_tool(), false),
                 };
-                let mut tools = vec![submit];
+                let mut tools = if tool_mode == ToolMode::Chat {
+                    vec![]
+                } else {
+                    vec![submit]
+                };
+                let system_prompt = if tool_mode == ToolMode::Chat {
+                    "You are a helpful assistant."
+                } else {
+                    SYSTEM_PROMPT
+                };
                 if tool_mode == ToolMode::Basic {
                     match &f {
                         Fixture::Write(_) | Fixture::Optimize(_) | Fixture::Judgment(_) => {
@@ -1327,7 +1439,9 @@ pub async fn run_resume(
                         let retries = entry_retries;
                         let mut tries: u32 = 0;
                         let result = loop {
-                            let outcome = backend.complete(&cfg, &history, &tools).await;
+                            let outcome = backend
+                                .complete(&cfg, system_prompt, &history, &tools)
+                                .await;
                             match outcome {
                                 Err(e) if is_transient(&e) && tries < retries => {
                                     let backoff = RETRY_BACKOFF_SECS
@@ -1363,13 +1477,17 @@ pub async fn run_resume(
                         if let Some(t) = finish.input_tokens {
                             cum_in = Some(cum_in.unwrap_or(0) + t);
                         }
-                        let (answer, raw, call_id) = extract_answer_with_id(&messages);
+                        let (answer, raw, call_id) = if tool_mode == ToolMode::Chat {
+                            extract_chat_answer(&f, &messages)
+                        } else {
+                            extract_answer_with_id(&messages)
+                        };
                         // Keep provider metadata even when no answer was
                         // extracted: losing finish_reason here made 49
                         // "no tool call" failures undiagnosable (was it a
                         // truncation or a refusal? the field was null).
                         final_finish = finish.clone();
-                        if answer.is_none() {
+                        if answer.is_none() && tool_mode != ToolMode::Chat {
                             let checks = extract_check_calls(&messages);
                             if !checks.is_empty() {
                                 history.extend(messages);
@@ -1410,7 +1528,12 @@ pub async fn run_resume(
                             attempt,
                             passed: false,
                             score: 0.0,
-                            feedback: "no tool call in response".into(),
+                            feedback: if tool_mode == ToolMode::Chat {
+                                "no unambiguous final answer"
+                            } else {
+                                "no tool call in response"
+                            }
+                            .into(),
                             answer: None,
                         });
                         if attempt < max_attempts.max(1) {
@@ -1478,7 +1601,7 @@ pub async fn run_resume(
                     final_raw,
                     final_finish,
                     transport_error,
-                    tool_calls: (tool_mode != ToolMode::None).then_some(checks_used),
+                    tool_calls: (tool_mode == ToolMode::Basic).then_some(checks_used),
                 });
             }
         });
@@ -1579,7 +1702,7 @@ pub async fn run_resume(
                         "{}",
                         serde_json::json!({
                             "task_id": f.id(),
-                            "error": "no tool call in response",
+                            "error": if tools == ToolMode::Chat { "no unambiguous final answer" } else { "no tool call in response" },
                             "raw": final_raw,
                             "identify_task": is_identify,
                             "attempts": attempts.len(),
@@ -2237,6 +2360,83 @@ mod tests {
             }],
             "usage": {"prompt_tokens": 1, "completion_tokens": 1, "total_tokens": 2}
         })
+    }
+
+    #[tokio::test]
+    async fn chat_sends_authored_request_without_submit_tools() {
+        let mut fixtures = generate(&GenParams {
+            seed: 5,
+            write: 1,
+            optimize: 0,
+            identify: 0,
+            ..Default::default()
+        });
+        let Fixture::Write(w) = &mut fixtures[0] else {
+            unreachable!()
+        };
+        w.request = Some("Can you write the script for our shared wallet?".into());
+        let hex = w.reference_script_hex.clone();
+        let raw = format!("Here is the script.\n```hex\n{hex}\n```\nBoth keys are shown above.");
+        let (base, captured) = spawn_mock(vec![completion_text(&raw)]);
+        let out = tmpdir("chat");
+        let stats = run(
+            &fixtures,
+            &entry(base),
+            &out,
+            1,
+            DisplayFormat::Asm,
+            1,
+            ToolMode::Chat,
+        )
+        .await
+        .unwrap();
+        assert_eq!((stats.answered, stats.failed), (1, 0));
+        let reqs = captured.lock().unwrap();
+        assert_eq!(reqs.len(), 1);
+        let req = body_json(&reqs[0]);
+        assert!(req
+            .get("tools")
+            .is_none_or(|v| v.is_null() || v.as_array().is_some_and(|a| a.is_empty())));
+        assert!(!req.to_string().contains("submit_script"));
+        assert!(!req.to_string().contains("automated pipeline"));
+        assert!(req["messages"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|m| m["content"] == "Can you write the script for our shared wallet?"));
+        let responses = crate::load_responses(&out.join("responses.jsonl")).unwrap();
+        assert_eq!(responses[0].raw.as_deref(), Some(raw.as_str()));
+        let TaskAnswer::Script(a) = &responses[0].answer else {
+            panic!("script answer")
+        };
+        assert_eq!(a.script, hex);
+        let _ = std::fs::remove_dir_all(out);
+    }
+
+    #[test]
+    fn chat_never_selects_an_answer_by_its_grade() {
+        let fixtures = generate(&GenParams {
+            seed: 5,
+            write: 1,
+            optimize: 0,
+            identify: 0,
+            ..Default::default()
+        });
+        let f = &fixtures[0];
+        let Fixture::Write(w) = f else { unreachable!() };
+        let extract =
+            |text: &str| extract_chat_answer(f, &[Message::assistant().with_text(text)]).0;
+        let correct = &w.reference_script_hex;
+        // A wrong candidate plus the answer key must not become a pass.
+        assert!(extract(&format!("```hex\n51\n```\n```hex\n{correct}\n```")).is_none());
+        assert!(extract("<think>51").is_none());
+        assert!(extract("```asm\nOP_1").is_none());
+        assert!(extract(&format!(
+            "<think>wrong draft</think>\n```hex\n{correct}\n```"
+        ))
+        .is_some());
+        assert!(extract("```hex\n51\n```\n```asm\nOP_1\n```").is_some());
+        assert!(extract("```python\nprint('hello')\n```\n```asm\nOP_1\n```").is_some());
     }
 
     fn entry(base_url: String) -> ModelEntry {
@@ -2937,6 +3137,8 @@ mod tests {
     fn graded_feedback_carries_consensus_violations() {
         let k = "32a9c1b6aa84caf9b6898e162f8967d618a2eba4f4e185481e5a373c874a6a14";
         let fixture = Fixture::Write(bench_core::task::WriteFixture {
+            choose_context: false,
+            request: None,
             id: "t1-x".into(),
             tier: bench_core::Tier::Easy,
             context: bench_core::ContextKind::Tap,
@@ -3115,5 +3317,38 @@ mod tests {
             "second diagnostic report missing"
         );
         let _ = std::fs::remove_dir_all(&out);
+    }
+    #[test]
+    fn judgment_runner_grades_and_exposes_script_diagnostics() {
+        let fixtures = bench_gen::fixtures::generate(&bench_gen::fixtures::GenParams {
+            seed: 2026,
+            write: 0,
+            optimize: 0,
+            identify: 0,
+            judgment: 3,
+            ..Default::default()
+        });
+        for fixture in &fixtures {
+            let Fixture::Judgment(j) = fixture else {
+                unreachable!()
+            };
+            let script = bench_gen::judgment::validate(j).unwrap().to_hex_string();
+            let result = evaluate(
+                fixture,
+                &TaskAnswer::Script(bench_core::task::ScriptAnswer { script }),
+            );
+            assert!(result.passed);
+            let wrong = evaluate(
+                fixture,
+                &TaskAnswer::Script(bench_core::task::ScriptAnswer {
+                    script: "OP_0".into(),
+                }),
+            );
+            assert!(!wrong.passed);
+            assert!(!wrong.feedback.contains("answer type"));
+            let args = json!({"script": "OP_0"});
+            let diagnostic = run_check(fixture, "check_script", args.as_object().unwrap());
+            assert!(!diagnostic.contains("not available"));
+        }
     }
 }

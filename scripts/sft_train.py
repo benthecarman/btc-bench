@@ -22,9 +22,6 @@ Usage:
 
 import argparse
 
-from datasets import load_dataset
-from peft import LoraConfig
-from trl import SFTConfig, SFTTrainer
 
 
 def main():
@@ -33,7 +30,13 @@ def main():
     ap.add_argument("--model", default="Qwen/Qwen3-4B")
     ap.add_argument("--out", default="runs/sft-qwen3-4b")
     ap.add_argument("--epochs", type=float, default=2.0)
+    ap.add_argument("--resume-from-checkpoint", nargs="?", const=True, default=None,
+                    help="Resume a checkpoint path, or the latest checkpoint in --out.")
     args = ap.parse_args()
+
+    from datasets import load_dataset
+    from peft import LoraConfig
+    from trl import SFTConfig, SFTTrainer
 
     dataset = load_dataset("json", data_files=args.data, split="train")
 
@@ -88,7 +91,7 @@ def main():
         peft_config=peft_config,
         args=config,
     )
-    trainer.train()
+    trainer.train(resume_from_checkpoint=args.resume_from_checkpoint)
     trainer.save_model(args.out + "/final")
     print(f"TRAIN-DONE adapters in {args.out}/final")
 

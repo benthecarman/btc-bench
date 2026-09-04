@@ -23,34 +23,34 @@ pub struct Weights {
     pub weight: usize,
 }
 
-fn legacy_weights(ms: Miniscript<bitcoin::PublicKey, Legacy>) -> Weights {
+fn legacy_weights(ms: Miniscript<bitcoin::PublicKey, Legacy>) -> Result<Weights, String> {
     let size = ms.encode().len();
     let weight = Descriptor::new_sh(ms)
-        .expect("decoded legacy miniscript wraps in sh")
+        .map_err(|e| e.to_string())?
         .max_weight_to_satisfy()
-        .expect("max satisfaction weight exists for in-range miniscript")
+        .map_err(|e| e.to_string())?
         .to_wu() as usize;
-    Weights { size, weight }
+    Ok(Weights { size, weight })
 }
 
-fn segwit_weights(ms: Miniscript<bitcoin::PublicKey, Segwitv0>) -> Weights {
+fn segwit_weights(ms: Miniscript<bitcoin::PublicKey, Segwitv0>) -> Result<Weights, String> {
     let size = ms.encode().len();
     let weight = Descriptor::new_wsh(ms)
-        .expect("decoded segwit miniscript wraps in wsh")
+        .map_err(|e| e.to_string())?
         .max_weight_to_satisfy()
-        .expect("max satisfaction weight exists for in-range miniscript")
+        .map_err(|e| e.to_string())?
         .to_wu() as usize;
-    Weights { size, weight }
+    Ok(Weights { size, weight })
 }
 
-fn tap_weights(ms: Miniscript<XOnlyPublicKey, Tap>) -> Weights {
+fn tap_weights(ms: Miniscript<XOnlyPublicKey, Tap>) -> Result<Weights, String> {
     let size = ms.encode().len();
     let weight = Tr::new(dummy_internal_key(), Some(TapTree::leaf(ms)))
-        .expect("decoded tap miniscript wraps in a single-leaf tr")
+        .map_err(|e| e.to_string())?
         .max_weight_to_satisfy()
-        .expect("max satisfaction weight exists for in-range miniscript")
+        .map_err(|e| e.to_string())?
         .to_wu() as usize;
-    Weights { size, weight }
+    Ok(Weights { size, weight })
 }
 
 /// Decode a script in the given context and compute its weights.
@@ -59,17 +59,17 @@ pub fn weights_for(kind: ContextKind, script: &ScriptBuf) -> Result<Weights, Str
         ContextKind::Legacy => {
             let ms: Miniscript<bitcoin::PublicKey, Legacy> =
                 Miniscript::decode_consensus(script.as_script()).map_err(|e| e.to_string())?;
-            Ok(legacy_weights(ms))
+            legacy_weights(ms)
         }
         ContextKind::SegwitV0 => {
             let ms: Miniscript<bitcoin::PublicKey, Segwitv0> =
                 Miniscript::decode_consensus(script.as_script()).map_err(|e| e.to_string())?;
-            Ok(segwit_weights(ms))
+            segwit_weights(ms)
         }
         ContextKind::Tap => {
             let ms: Miniscript<XOnlyPublicKey, Tap> =
                 Miniscript::decode_consensus(script.as_script()).map_err(|e| e.to_string())?;
-            Ok(tap_weights(ms))
+            tap_weights(ms)
         }
     }
 }
@@ -128,6 +128,44 @@ pub struct WriteResult {
     pub lint: Vec<String>,
 }
 
+/// Compare a context-free request to a candidate in one possible context.
+/// The same spending policy applies in every context; only key encoding changes.
+fn check_chosen_context(
+    fixture: &WriteFixture,
+    context: ContextKind,
+    candidate: &ScriptBuf,
+) -> Verdict {
+    use miniscript::policy::{Concrete, Liftable};
+    let mut policy = fixture.reference_policy.clone();
+    if context == ContextKind::Tap {
+        for key in &fixture.keys {
+            let Ok(pk) = key.pubkey.parse::<bitcoin::PublicKey>() else {
+                return Verdict::InvalidScript(
+                    "context-free fixture requires full public keys".into(),
+                );
+            };
+            policy = policy.replace(&key.pubkey, &XOnlyPublicKey::from(pk).to_string());
+        }
+    }
+    macro_rules! check {
+        ($key:ty, $ctx:ty) => {{
+            let reference = policy.parse::<Concrete<$key>>().and_then(|p| p.lift());
+            let candidate =
+                miniscript::Miniscript::<$key, $ctx>::decode_consensus(candidate.as_script())
+                    .and_then(|ms| ms.lift());
+            match (reference, candidate) {
+                (Ok(r), Ok(c)) => crate::oracle::check_semantic(&r, &c, None),
+                (Err(e), _) | (_, Err(e)) => Verdict::InvalidScript(e.to_string()),
+            }
+        }};
+    }
+    match context {
+        ContextKind::Legacy => check!(bitcoin::PublicKey, Legacy),
+        ContextKind::SegwitV0 => check!(bitcoin::PublicKey, Segwitv0),
+        ContextKind::Tap => check!(XOnlyPublicKey, Tap),
+    }
+}
+
 /// Task 1: parse, decode-gate, prove equivalence.
 pub fn grade_write(fixture: &WriteFixture, answer: &str) -> WriteResult {
     let candidate = match parse_script_answer(answer) {
@@ -143,9 +181,32 @@ pub fn grade_write(fixture: &WriteFixture, answer: &str) -> WriteResult {
     };
     let reference =
         ScriptBuf::from_hex(&fixture.reference_script_hex).expect("fixture hex is valid");
-    let verdict = check_equivalence(fixture.context, &reference, &candidate);
+    let mut context = fixture.context;
+    let mut verdict = check_equivalence(context, &reference, &candidate);
+    if fixture.choose_context {
+        for choice in [
+            fixture.context,
+            ContextKind::Legacy,
+            ContextKind::SegwitV0,
+            ContextKind::Tap,
+        ] {
+            let checked = check_chosen_context(fixture, choice, &candidate);
+            let equivalent = checked.is_equivalent();
+            // Prefer semantic failures to a decode error from another dialect.
+            if choice == fixture.context
+                || equivalent
+                || matches!(verdict, Verdict::InvalidScript(_))
+            {
+                verdict = checked;
+                context = choice;
+            }
+            if equivalent {
+                break;
+            }
+        }
+    }
     let score = if verdict.is_equivalent() { 1.0 } else { 0.0 };
-    let lint = lint_report(fixture.context, &candidate)
+    let lint = lint_report(context, &candidate)
         .into_iter()
         .map(str::to_string)
         .collect();
@@ -349,81 +410,70 @@ pub fn tree_agreement(fixture: &crate::task::TreeFixture, answer: &str) -> Optio
     crate::oracle::agreement_semantic(&sem_ref, &sem_cand, Some(&fixture.unspendable_key))
 }
 
-/// Task 4: parse a tr() descriptor, prove the lifted semantics
-/// equivalent to the reference (with the unspendable key pinned
-/// false on both sides), then score tree quality on the weight curve.
-/// Outcome of a judgment task: which requirements the design honours.
+/// Result of checking a complete judgment spending contract.
 #[derive(Clone, Debug)]
 pub struct JudgmentResult {
-    /// Fraction of requirements met, except that violating a
-    /// prohibition scores 0 outright: a design that lets the wrong
-    /// party spend is not partially right, it is unsafe.
     pub score: f64,
+    /// Diagnostic examples met (not the reward denominator).
     pub met: usize,
     pub total: usize,
-    /// Requirements the submission failed, in the fixture's own words.
     pub failures: Vec<String>,
     pub reason: Option<String>,
     pub lint: Vec<String>,
-    /// Worst-case input weight, when the script parsed and decoded.
     pub weight: Option<usize>,
+    pub agreement: Option<f64>,
+    /// Any candidate spend forbidden by the contract, across the union
+    /// of reference and candidate atoms and timelock boundaries.
+    pub unsafe_spend: bool,
 }
 
-/// Check one candidate against every requirement, in a fixed context.
-/// Returns (met, failed descriptions, any prohibition violated).
 fn judge_in_context<Ctx: ScriptContext>(
     script: &ScriptBuf,
-    requirements: &[crate::task::Requirement],
-) -> Result<(usize, Vec<String>, bool), String>
+    fixture: &crate::task::JudgmentFixture,
+) -> Result<(crate::truth::Agreement, usize), String>
 where
-    Ctx::Key: std::fmt::Display,
+    Ctx::Key: miniscript::FromStrKey,
 {
-    use crate::truth::{eval, TruthContext};
-    use miniscript::policy::Liftable as _;
-    use std::collections::BTreeMap;
+    use crate::truth::{eval, exhaustive_agreement, Atoms, TruthContext};
+    use miniscript::policy::{Concrete, Liftable};
 
     let ms: Miniscript<Ctx::Key, Ctx> =
         Miniscript::decode_consensus(script.as_script()).map_err(|e| e.to_string())?;
-    let semantic = ms.lift().map_err(|e| e.to_string())?;
-
-    let mut met = 0usize;
-    let mut failures = Vec::new();
-    let mut violated = false;
-    for req in requirements {
+    let candidate = ms.lift().map_err(|e| e.to_string())?;
+    let reference = fixture
+        .reference_policy
+        .parse::<Concrete<Ctx::Key>>()
+        .and_then(|p| p.lift())
+        .map_err(|e| e.to_string())?;
+    let mut atoms = Atoms::default();
+    Atoms::collect(&reference, &mut atoms);
+    Atoms::collect(&candidate, &mut atoms);
+    if atoms.boolean_count() > 20 {
+        return Err(Verdict::TooLarge.to_string());
+    }
+    let mut met = 0;
+    for req in &fixture.requirements {
         let ctx = TruthContext {
-            keys: req
-                .keys
-                .iter()
-                .map(|k| (k.clone(), true))
-                .collect::<BTreeMap<_, _>>(),
-            hashes: req
-                .hashes
-                .iter()
-                .map(|h| (h.clone(), true))
-                .collect::<BTreeMap<_, _>>(),
+            keys: req.keys.iter().map(|k| (k.clone(), true)).collect(),
+            hashes: req.hashes.iter().map(|h| (h.clone(), true)).collect(),
             height: req.height,
             age: req.age,
         };
-        if eval(&semantic, &ctx) == req.spendable {
-            met += 1;
-        } else {
-            failures.push(req.description.clone());
-            if !req.spendable {
-                violated = true;
-            }
+        if eval(&reference, &ctx) != req.spendable {
+            return Err("judgment fixture has a requirement inconsistent with its contract".into());
         }
+        met += usize::from(eval(&candidate, &ctx) == req.spendable);
     }
-    Ok((met, failures, violated))
+    let agreement = exhaustive_agreement(&reference, &candidate, &atoms);
+    if agreement.ref_true_total == 0 || agreement.ref_false_total == 0 {
+        return Err("judgment contract must allow some spends and forbid others".into());
+    }
+    Ok((agreement, met))
 }
 
-/// Grade a judgment task on its requirements rather than on equality
-/// with a reference.
-///
-/// There is deliberately no reference comparison. The request is
-/// underspecified by design, so any script honouring every requirement
-/// is correct whatever encoding it chose — which is the point: grading
-/// against one canonical answer rewards reproducing the compiler
-/// instead of meeting the requirement.
+/// Verify all behavior, including extra candidate keys, hashes and locks.
+/// Full credit requires every permitted spend and no forbidden spend.
+/// Encoding is free; sparse diagnostic examples cannot establish correctness.
 pub fn grade_judgment(fixture: &crate::task::JudgmentFixture, answer: &str) -> JudgmentResult {
     let total = fixture.requirements.len();
     let fail = |reason: String| JudgmentResult {
@@ -434,46 +484,48 @@ pub fn grade_judgment(fixture: &crate::task::JudgmentFixture, answer: &str) -> J
         reason: Some(reason),
         lint: Vec::new(),
         weight: None,
+        agreement: None,
+        unsafe_spend: false,
     };
-
+    if fixture.contract_version != 1 {
+        return fail(
+            "unsupported judgment contract; regenerate the dataset with the current generator"
+                .into(),
+        );
+    }
     let script = match parse_script_answer(answer) {
         Ok(s) => s,
         Err(e) => return fail(e.to_string()),
     };
-    let lint: Vec<String> = lint_report(fixture.context, &script)
-        .into_iter()
-        .map(|l| l.to_string())
-        .collect();
-    let weight = crate::weights_for(fixture.context, &script)
-        .ok()
-        .map(|w| w.weight);
-
     let judged = match fixture.context {
-        ContextKind::Legacy => judge_in_context::<Legacy>(&script, &fixture.requirements),
-        ContextKind::SegwitV0 => judge_in_context::<Segwitv0>(&script, &fixture.requirements),
-        ContextKind::Tap => judge_in_context::<Tap>(&script, &fixture.requirements),
+        ContextKind::Legacy => judge_in_context::<Legacy>(&script, fixture),
+        ContextKind::SegwitV0 => judge_in_context::<Segwitv0>(&script, fixture),
+        ContextKind::Tap => judge_in_context::<Tap>(&script, fixture),
     };
-    let (met, failures, violated) = match judged {
+    let (agreement, met) = match judged {
         Ok(v) => v,
         Err(e) => return fail(e),
     };
-
-    let score = if violated || total == 0 {
-        0.0
-    } else {
-        met as f64 / total as f64
-    };
+    let unsafe_spend = agreement.ref_false_agree != agreement.ref_false_total;
+    let equivalent = !unsafe_spend && agreement.ref_true_agree == agreement.ref_true_total;
     JudgmentResult {
-        score,
+        score: if equivalent { 1.0 } else { 0.0 },
         met,
         total,
-        failures,
-        reason: None,
-        lint,
-        weight,
+        // Counterexamples are not model feedback.
+        failures: Vec::new(),
+        reason: (!equivalent).then(|| Verdict::NotEquivalent.to_string()),
+        lint: lint_report(fixture.context, &script)
+            .into_iter()
+            .map(str::to_string)
+            .collect(),
+        weight: weights_for(fixture.context, &script).ok().map(|w| w.weight),
+        agreement: Some(agreement.balanced()),
+        unsafe_spend,
     }
 }
 
+/// Task 4: prove descriptor semantics, then score satisfaction weight.
 pub fn grade_tree(fixture: &crate::task::TreeFixture, answer: &str) -> TreeResult {
     use miniscript::policy::Liftable as _;
     let tr = match parse_tr_answer(answer) {
@@ -579,6 +631,8 @@ mod tests {
 
     fn fix(reference_hex: String) -> WriteFixture {
         WriteFixture {
+            choose_context: false,
+            request: None,
             id: "t1-0001".into(),
             tier: Tier::Easy,
             context: ContextKind::SegwitV0,
@@ -705,6 +759,7 @@ mod tests {
         let baseline_weight = baseline.max_weight_to_satisfy().unwrap().to_wu() as usize;
         assert!(baseline_weight > reference_weight, "task would be vacuous");
         let f = TreeFixture {
+            request: None,
             id: "t4-0000".into(),
             tier: Tier::Easy,
             spec_en: String::new(),
@@ -826,5 +881,92 @@ mod tests {
         );
         assert!(!miss.label_correct);
         assert_eq!(miss.score, 0.0);
+    }
+    fn judgment_fixture(policy: String) -> crate::task::JudgmentFixture {
+        crate::task::JudgmentFixture {
+            contract_version: 1,
+            id: "t5-test".into(),
+            tier: Tier::Hard,
+            context: ContextKind::SegwitV0,
+            spec_en: String::new(),
+            keys: vec![],
+            requirements: vec![],
+            hash_preimages: Default::default(),
+            reference_policy: policy,
+        }
+    }
+
+    #[test]
+    fn judgment_rejects_extra_paths_missing_paths_and_time_changes() {
+        let a = "0279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798";
+        let b = "02c6047f9441ed7d6d3045406e95c07cd85c778e4b8cef3ca7abac09b95c709ee5";
+        let c = "02f9308a019258c31049344f85f89d5229b531c845836f99b08601f113bce036f9";
+        let fixture = judgment_fixture(format!("or(and(pk({a}),pk({b})),and(pk({a}),older(144)))"));
+        let script = |text: String| {
+            Miniscript::<bitcoin::PublicKey, Segwitv0>::from_str_insane(&text)
+                .unwrap()
+                .encode()
+                .to_hex_string()
+        };
+        let correct = format!("and_v(v:pk({a}),or_d(pk({b}),older(144)))");
+        assert_eq!(
+            grade_judgment(&fixture, &script(correct.clone())).score,
+            1.0
+        );
+        for wrong in [
+            format!("or_i({correct},pk({c}))"), // unlisted signer, never in sparse rows
+            format!("or_i({correct},and_v(v:pk({b}),after(800000)))"), // new time boundary
+            format!("and_v(v:pk({a}),or_d(pk({b}),older(143)))"), // premature recovery
+            format!("and_v(v:pk({a}),or_d(pk({b}),older(145)))"), // unavailable at deadline
+            format!("and_v(v:pk({a}),pk({b}))"), // missing recovery path
+            format!("pk({a})"),                 // threshold-only shortcut
+        ] {
+            let result = grade_judgment(&fixture, &script(wrong));
+            assert_eq!(result.score, 0.0);
+            let reason = result.reason.unwrap();
+            for key in [a, b, c] {
+                assert!(!reason.contains(key));
+            }
+            assert!(result.failures.is_empty());
+        }
+    }
+
+    #[test]
+    fn judgment_hash_function_and_digest_are_part_of_the_contract() {
+        let a = "0279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798";
+        let hash = "11".repeat(32);
+        let fixture = judgment_fixture(format!("and(pk({a}),sha256({hash}))"));
+        for (hashlock, expected) in [
+            (format!("sha256({hash})"), 1.0),
+            (format!("hash256({hash})"), 0.0),
+            (format!("sha256({})", "22".repeat(32)), 0.0),
+        ] {
+            let script = Miniscript::<bitcoin::PublicKey, Segwitv0>::from_str_insane(&format!(
+                "and_v(v:pk({a}),{hashlock})"
+            ))
+            .unwrap()
+            .encode();
+            assert_eq!(
+                grade_judgment(&fixture, &script.to_hex_string()).score,
+                expected
+            );
+        }
+    }
+
+    #[test]
+    fn judgment_constants_malformed_answers_and_old_contracts_fail_without_panics() {
+        let a = "0279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798";
+        let mut fixture = judgment_fixture(format!("pk({a})"));
+        for answer in ["OP_0", "OP_1", "OP_RETURN", "not a script", "4c"] {
+            assert_eq!(grade_judgment(&fixture, answer).score, 0.0);
+        }
+        for ctx in [ContextKind::Legacy, ContextKind::SegwitV0, ContextKind::Tap] {
+            assert!(weights_for(ctx, &ScriptBuf::from_hex("00").unwrap()).is_err());
+        }
+        fixture.contract_version = 0;
+        assert!(grade_judgment(&fixture, "00")
+            .reason
+            .unwrap()
+            .contains("regenerate"));
     }
 }

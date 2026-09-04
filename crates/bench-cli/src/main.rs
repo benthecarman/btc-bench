@@ -24,6 +24,11 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Command {
+    /// Build the fixed human-v1 transfer eval (32 authored requests).
+    GenHuman {
+        #[arg(long, default_value = "datasets/human-v1")]
+        out: PathBuf,
+    },
     /// Generate a fixture dataset.
     Gen {
         /// Output directory for fixtures.jsonl and manifest.json.
@@ -46,9 +51,8 @@ enum Command {
         /// disturbs t1-t3.
         #[arg(long, default_value_t = 0)]
         tree: usize,
-        /// Number of judgment tasks (t5): underspecified design briefs
-        /// graded on whether the answer honours stated requirements,
-        /// not on equality with a reference script.
+        /// Number of judgment tasks (t5): complete spending contracts
+        /// graded by behavior across all relevant conditions.
         #[arg(long, default_value_t = 0)]
         judgment: usize,
         /// Verbalizer template family ids to draw from,
@@ -126,7 +130,7 @@ enum Command {
         #[arg(long, default_value_t = false)]
         resume: bool,
         /// Diagnostic tools offered beside the submit tool: "none"
-        /// (headline benchmark) or "basic" (check_script /
+        /// (headline benchmark), "chat" (ordinary text, no tools), or "basic" (check_script /
         /// check_descriptor — the compiler-and-lint loop; reference-
         /// free by construction).
         #[arg(long, default_value = "none")]
@@ -269,6 +273,44 @@ enum Command {
 fn main() -> Result<()> {
     let cli = Cli::parse();
     match cli.command {
+        Command::GenHuman { out } => {
+            if out.join("fixtures.jsonl").exists() {
+                bail!("{} already contains fixtures; choose a new directory to preserve the frozen eval", out.display());
+            }
+            let data = bench_gen::human::generate().map_err(anyhow::Error::msg)?;
+            bench_cli::write_dataset(&out, &data.fixtures, 0, &bench_cli::build_stamp())?;
+            let manifest_path = out.join("manifest.json");
+            let mut manifest: serde_json::Value =
+                serde_json::from_str(&fs::read_to_string(&manifest_path)?)?;
+            use bitcoin::hashes::{sha256, Hash};
+            manifest["suite"] = bench_gen::human::SUITE.into();
+            manifest["evaluation_only"] = true.into();
+            manifest["catalog_sha256"] = sha256::Hash::hash(bench_gen::human::CATALOG.as_bytes())
+                .to_string()
+                .into();
+            manifest["fixtures_sha256"] =
+                sha256::Hash::hash(&fs::read(out.join("fixtures.jsonl"))?)
+                    .to_string()
+                    .into();
+            fs::write(manifest_path, serde_json::to_string_pretty(&manifest)?)?;
+            fs::write(
+                out.join("groups.json"),
+                serde_json::to_string_pretty(&data.groups)?,
+            )?;
+            let prompts = data
+                .fixtures
+                .iter()
+                .map(|f| format!("## {}\n\n{}\n", f.id(), bench_gen::prompt::for_fixture(f)))
+                .collect::<Vec<_>>()
+                .join("\n");
+            fs::write(out.join("prompts.md"), prompts)?;
+            println!(
+                "wrote {} authored eval requests to {}; inspect prompts.md before running",
+                data.fixtures.len(),
+                out.display()
+            );
+            Ok(())
+        }
         Command::Gen {
             out,
             seed,
@@ -331,10 +373,11 @@ fn main() -> Result<()> {
                         bench_core::task::Fixture::Tree(t) => {
                             excluded.insert(t.reference_descriptor);
                         }
-                        // A judgment task has no answer key to exclude;
-                        // its brief is the specification, and any script
-                        // meeting it is correct.
-                        bench_core::task::Fixture::Judgment(_) => {}
+                        bench_core::task::Fixture::Judgment(j) => {
+                            let script =
+                                bench_gen::judgment::validate(&j).map_err(anyhow::Error::msg)?;
+                            excluded.insert(script.to_hex_string());
+                        }
                         bench_core::task::Fixture::Identify(i) => {
                             excluded.insert(i.spk_hex);
                             if let Some(inner) = i.inner_script_hex {
@@ -465,6 +508,19 @@ fn main() -> Result<()> {
                     .map(|d| d.as_secs())
                     .unwrap_or(0),
             });
+            if resume && out.join("run.json").exists() {
+                let previous: serde_json::Value =
+                    serde_json::from_str(&fs::read_to_string(out.join("run.json"))?)?;
+                for field in ["model", "dataset", "tools", "casual", "attempts"] {
+                    if previous.get(field).is_some() && previous[field] != run_meta[field] {
+                        bail!("cannot resume with a different {field}; use a separate output directory");
+                    }
+                }
+                let hash = &previous["dataset_manifest"]["fixtures_sha256"];
+                if !hash.is_null() && hash != &run_meta["dataset_manifest"]["fixtures_sha256"] {
+                    bail!("cannot resume after the eval fixtures changed");
+                }
+            }
             fs::write(
                 out.join("run.json"),
                 serde_json::to_string_pretty(&run_meta)?,
@@ -559,6 +615,7 @@ fn main() -> Result<()> {
             display,
             casual,
         } => {
+            bench_cli::ensure_training_dataset(&dataset)?;
             let fixtures = load_dataset(&dataset)?;
             let display_fmt = match display.as_str() {
                 "hex" => bench_gen::prompt::DisplayFormat::Hex,

@@ -50,7 +50,7 @@ fn tier_of(f: &Fixture) -> Option<Tier> {
 
 fn ctx_of(f: &Fixture) -> Option<ContextKind> {
     match f {
-        Fixture::Write(w) => Some(w.context),
+        Fixture::Write(w) => (!w.choose_context).then_some(w.context),
         Fixture::Optimize(o) => Some(o.context),
         Fixture::Identify(_) => None,
         // Tree tasks are taproot by definition; keeping them out of
@@ -290,6 +290,14 @@ pub fn report(dataset: &Path, runs: &[(String, std::path::PathBuf)], out: &Path)
 
     // Context breakdown.
     md.push_str("## Context breakdown (mean score)\n\n");
+    if fixtures
+        .iter()
+        .any(|f| matches!(f, Fixture::Write(w) if w.choose_context))
+    {
+        md.push_str(
+            "Requests that leave the script context open are excluded from this breakdown.\n\n",
+        );
+    }
     md.push_str("| model | legacy | segwit | tap |\n|---|---|---|---|\n");
     for (label, g) in &loaded {
         let mut cells: BTreeMap<&str, (f64, usize)> = BTreeMap::new();

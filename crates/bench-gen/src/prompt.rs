@@ -49,6 +49,9 @@ fn key_block(keys: &[bench_core::task::KeyVar]) -> String {
 }
 
 pub fn write_prompt(f: &WriteFixture) -> String {
+    if let Some(request) = &f.request {
+        return request.clone();
+    }
     format!(
         "Write a Bitcoin Script for the spending condition below.\n\
          \n\
@@ -102,6 +105,9 @@ pub fn optimize_prompt(f: &OptimizeFixture, display: DisplayFormat) -> String {
 }
 
 pub fn tree_prompt(f: &bench_core::task::TreeFixture) -> String {
+    if let Some(request) = &f.request {
+        return request.clone();
+    }
     format!(
         "Design a Taproot output for the spending condition below.\n\
          \n\
@@ -276,7 +282,7 @@ mod tests {
                 }
                 Fixture::Judgment(_) => {
                     assert!(
-                        p.contains("Any design meeting them is acceptable"),
+                        p.contains("The encoding is yours to choose"),
                         "judgment prompts must state that the encoding is free"
                     );
                     assert!(

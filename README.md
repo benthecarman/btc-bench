@@ -59,6 +59,16 @@ btc-bench grade --dataset datasets/my-set --responses runs/my-run/responses.json
 
 ## Datasets
 
+For ordinary technical requests, see the [human request transfer eval](evals/README.md).
+`btc-bench gen-human` builds 32 authored requests for review. Run them with
+`--tools chat` to use ordinary assistant text without submit tools or the
+benchmark system prompt. This is a pilot transfer set, kept out of training
+exports; it complements the generated regression benchmark.
+
+Judgment grading and RL preparation now require complete, versioned spending
+contracts. See [verifier repairs and training commands](evals/judgment.md) for
+migration, probe settings, saved-response regrading, and checkpoint resume.
+
 `datasets/` is not tracked in git. The benchmark set is pinned by its
 generator seed plus the dependency versions in the manifest: the same
 seed and the same pins regenerate byte-identical fixtures, and

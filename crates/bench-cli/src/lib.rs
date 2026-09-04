@@ -53,11 +53,20 @@ pub struct Manifest {
 
 /// Generate a fixture set on disk: `fixtures.jsonl` + `manifest.json`.
 pub fn gen_dataset(out_dir: &Path, params: &GenParams, generator_id: &str) -> Result<usize> {
+    write_dataset(out_dir, &generate(params), params.seed, generator_id)
+}
+
+/// Persist verified fixtures using the same manifest contract as generated sets.
+pub fn write_dataset(
+    out_dir: &Path,
+    fixtures: &[Fixture],
+    seed: u64,
+    generator_id: &str,
+) -> Result<usize> {
     fs::create_dir_all(out_dir).with_context(|| format!("create {}", out_dir.display()))?;
-    let fixtures = generate(params);
     let mut counts = BTreeMap::new();
     let mut file = fs::File::create(out_dir.join("fixtures.jsonl"))?;
-    for f in &fixtures {
+    for f in fixtures {
         *counts
             .entry(f.id().split('-').next().unwrap_or("other").to_string())
             .or_insert(0) += 1;
@@ -65,7 +74,7 @@ pub fn gen_dataset(out_dir: &Path, params: &GenParams, generator_id: &str) -> Re
     }
     let manifest = Manifest {
         schema_version: SCHEMA_VERSION,
-        seed: params.seed,
+        seed,
         counts,
         pins: [
             ("miniscript".to_string(), MINISCRIPT_VERSION.to_string()),
@@ -83,6 +92,19 @@ pub fn gen_dataset(out_dir: &Path, params: &GenParams, generator_id: &str) -> Re
     Ok(fixtures.len())
 }
 
+/// The authored transfer set is not a source of SFT targets or RL prompts.
+pub fn ensure_training_dataset(dir: &Path) -> Result<()> {
+    let manifest: serde_json::Value =
+        serde_json::from_str(&fs::read_to_string(dir.join("manifest.json"))?)?;
+    if manifest.get("evaluation_only").and_then(|v| v.as_bool()) == Some(true) {
+        bail!(
+            "{} is reserved for evaluation; do not export it for training",
+            dir.display()
+        );
+    }
+    Ok(())
+}
+
 /// Load a fixture set from disk.
 pub fn load_dataset(dir: &Path) -> Result<Vec<Fixture>> {
     let path = dir.join("fixtures.jsonl");
@@ -94,6 +116,15 @@ pub fn load_dataset(dir: &Path) -> Result<Vec<Fixture>> {
         }
         let f: Fixture = serde_json::from_str(line)
             .with_context(|| format!("parse fixture on line {}", i + 1))?;
+        if let Fixture::Judgment(j) = &f {
+            if j.contract_version != 1 {
+                bail!(
+                    "{}: unsupported judgment contract; regenerate {} with the current generator",
+                    j.id,
+                    dir.display()
+                );
+            }
+        }
         out.push(f);
     }
     if out.is_empty() {

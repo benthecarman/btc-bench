@@ -25,7 +25,6 @@ Usage:
 import argparse
 import json
 
-from transformers import AutoTokenizer
 
 # Mirrors bench-cli runner.rs SYSTEM_PROMPT verbatim.
 SYSTEM_PROMPT = (
@@ -102,6 +101,8 @@ def main():
     ap.add_argument("--out", default="datasets/sft-train-rendered.jsonl")
     ap.add_argument("--model", default="Qwen/Qwen3-4B")
     args = ap.parse_args()
+
+    from transformers import AutoTokenizer
 
     tok = AutoTokenizer.from_pretrained(args.model)
     n = 0

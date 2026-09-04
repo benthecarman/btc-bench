@@ -1,17 +1,5 @@
-//! Judgment tasks: underspecified design requests, graded on whether
-//! the submitted script honours a set of requirements.
-//!
-//! Every other task type compares a candidate to one reference, and
-//! every reference is the Miniscript compiler's canonical output. Train
-//! on that and the optimum is to become the compiler — which is what
-//! happened: a fine-tuned 4B reproduced the compiler byte-for-byte on
-//! 25 of the 25 hardest write tasks and scored 1.000. That measures
-//! compiler emulation, not design ability.
-//!
-//! Here there is no canonical answer. Requirements are derived from a
-//! sampled policy, stated in the prompt as a person would state them,
-//! and checked against the candidate's own truth table. Any design
-//! meeting them is correct, whatever encoding it chose.
+//! Judgment contracts state all spending rules in prose. Scripts are
+//! compared by behavior, not compiler bytes. Sparse rows are examples only.
 
 use bench_core::task::{ContextKind, KeyVar, Requirement};
 
@@ -25,8 +13,8 @@ fn holds(p: &Abs, keys: &[usize], hashes: &[String], height: u32, age: u32) -> b
         Abs::Key(i) => keys.contains(i),
         Abs::After(t) => height >= *t,
         Abs::Older(t) => age >= *t,
-        Abs::Sha256(h) => hashes.contains(&hex_of(h)),
-        Abs::Hash160(h) => hashes.contains(&hex_of(h)),
+        Abs::Sha256(h) => hashes.contains(&format!("sha256:{}", hex_of(h))),
+        Abs::Hash160(h) => hashes.contains(&format!("hash160:{}", hex_of(h))),
         Abs::And(v) => v.iter().all(|c| holds(c, keys, hashes, height, age)),
         Abs::Or(v) => v.iter().any(|c| holds(c, keys, hashes, height, age)),
         Abs::Thresh(k, ks) => ks.iter().filter(|i| keys.contains(i)).count() >= *k,
@@ -63,13 +51,13 @@ fn key_indices(p: &Abs, out: &mut Vec<usize>) {
 fn hash_atoms(p: &Abs, out: &mut Vec<String>) {
     match p {
         Abs::Sha256(h) => {
-            let x = hex_of(h);
+            let x = format!("sha256:{}", hex_of(h));
             if !out.contains(&x) {
                 out.push(x);
             }
         }
         Abs::Hash160(h) => {
-            let x = hex_of(h);
+            let x = format!("hash160:{}", hex_of(h));
             if !out.contains(&x) {
                 out.push(x);
             }
@@ -142,7 +130,10 @@ fn describe(
         cond = "nobody signs".into();
     }
     if !hashes.is_empty() {
-        cond.push_str(" and the preimage is revealed");
+        cond.push_str(&format!(
+            " and the 32-byte preimages for {} are revealed",
+            hashes.join(", ")
+        ));
     }
     let when = match (height, age) {
         (0, 0) => "immediately".to_string(),
@@ -157,12 +148,8 @@ fn describe(
     }
 }
 
-/// Derive the requirement set for a policy.
-///
-/// Positives are the policy's real spending paths; negatives are the
-/// near-misses that matter — each signer alone, and every path tried
-/// before its timelock. Points the requirements do not mention are
-/// left free: that freedom is what makes this a design task.
+/// Sample diagnostic examples. The full policy in the request defines
+/// correctness, including all states omitted by these examples.
 pub fn requirements_for(p: &Abs, keys: &[KeyVar], rng: &mut SeededRng) -> Vec<Requirement> {
     let mut ks = Vec::new();
     key_indices(p, &mut ks);
@@ -236,21 +223,123 @@ pub fn requirements_for(p: &Abs, keys: &[KeyVar], rng: &mut SeededRng) -> Vec<Re
     out
 }
 
-/// The request as a person would put it: the requirements, in prose,
-/// with no policy tree and no canonical answer implied.
-pub fn judgment_spec(reqs: &[Requirement], context: ContextKind) -> String {
-    let noun = match context {
-        ContextKind::Legacy => "P2SH redeem script",
-        ContextKind::SegwitV0 => "P2WSH witness script",
-        ContextKind::Tap => "tapscript leaf",
-    };
-    let mut lines = vec![format!(
-        "Design a {noun} that satisfies all of the following. Any \
-         design meeting them is acceptable; the encoding is yours to \
-         choose."
-    )];
-    for r in reqs {
-        lines.push(format!("- {}", r.description));
+/// The prose states the entire contract. No extra spending paths are allowed.
+pub fn judgment_spec(p: &Abs, keys: &[KeyVar], context: ContextKind) -> String {
+    format!(
+        "Design a {}. The encoding is yours to choose.\n\n{}\n\n\
+         These are the complete spending rules: spending must be possible if and only if \
+         these conditions hold. Do not add other spending paths or extra requirements.",
+        context.script_noun(),
+        crate::verbal::spec(p, keys),
+    )
+}
+
+/// Build one witness script to prove the contract is implementable.
+/// This is an audit witness, not a required encoding.
+pub fn reference_script(
+    f: &bench_core::task::JudgmentFixture,
+) -> Result<bitcoin::ScriptBuf, String> {
+    use miniscript::{policy::Concrete, Legacy, Segwitv0, Tap};
+    macro_rules! compile {
+        ($pk:ty, $ctx:ty) => {
+            f.reference_policy
+                .parse::<Concrete<$pk>>()
+                .and_then(|p| Ok(p.compile::<$ctx>()?))
+                .map(|ms| ms.encode())
+                .map_err(|e| e.to_string())
+        };
     }
-    lines.join("\n")
+    match f.context {
+        ContextKind::Legacy => compile!(bitcoin::PublicKey, Legacy),
+        ContextKind::SegwitV0 => compile!(bitcoin::PublicKey, Segwitv0),
+        ContextKind::Tap => compile!(bitcoin::XOnlyPublicKey, Tap),
+    }
+}
+
+pub fn validate(f: &bench_core::task::JudgmentFixture) -> Result<bitcoin::ScriptBuf, String> {
+    if f.contract_version != 1 {
+        return Err(
+            "unsupported judgment contract; regenerate the dataset with the current generator"
+                .into(),
+        );
+    }
+    let script = reference_script(f)?;
+    let result = bench_core::grade_judgment(f, &script.to_hex_string());
+    if result.score != 1.0 {
+        return Err(result
+            .reason
+            .unwrap_or_else(|| "contract witness did not pass".into()));
+    }
+    let preimages = bench_core::HashPreimages::from_hex_map(&f.hash_preimages)?;
+    bench_core::execution_check(f.context, &script, &preimages)?;
+    Ok(script)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::fixtures::{generate, GenParams};
+    use bench_core::task::{Fixture, Tier};
+
+    #[test]
+    fn judgment_pool_is_complete_satisfiable_and_prompts_include_hashes() {
+        let fixtures = generate(&GenParams {
+            seed: 2026,
+            write: 0,
+            optimize: 0,
+            identify: 0,
+            judgment: 100,
+            ..GenParams::default()
+        });
+        assert_eq!(fixtures.len(), 100);
+        let mut hashes = 0;
+        for fixture in fixtures {
+            let Fixture::Judgment(j) = fixture else {
+                unreachable!()
+            };
+            let reference = validate(&j).expect("satisfiable contract");
+            let prompt = crate::prompt::judgment_prompt(&j);
+            assert!(prompt.contains("if and only if"));
+            for (digest, preimage) in &j.hash_preimages {
+                hashes += 1;
+                assert!(prompt.contains(digest));
+                assert!(prompt.contains(if digest.len() == 64 {
+                    "SHA-256"
+                } else {
+                    "HASH160"
+                }));
+                assert!(
+                    !prompt.contains(preimage),
+                    "do not reveal private preimages"
+                );
+            }
+            assert_eq!(
+                bench_core::grade_judgment(&j, &reference.to_hex_string()).score,
+                1.0
+            );
+            // The old pool gave OP_0 negative-row credit and could panic.
+            assert_eq!(bench_core::grade_judgment(&j, "OP_0").score, 0.0);
+        }
+        assert!(hashes > 0);
+    }
+
+    #[test]
+    fn audit_rejects_inconsistent_examples_and_old_contracts() {
+        let mut fixtures = generate(&GenParams {
+            seed: 7,
+            write: 0,
+            optimize: 0,
+            identify: 0,
+            judgment: 1,
+            tiers: vec![Tier::Hard],
+            ..GenParams::default()
+        });
+        let Fixture::Judgment(j) = &mut fixtures[0] else {
+            unreachable!()
+        };
+        j.requirements[0].spendable = !j.requirements[0].spendable;
+        assert!(validate(j).unwrap_err().contains("inconsistent"));
+        j.contract_version = 0;
+        assert!(validate(j).unwrap_err().contains("regenerate"));
+    }
 }

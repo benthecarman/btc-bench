@@ -51,9 +51,9 @@ pub struct GenParams {
     /// keys of the eval set so training data never contains an eval
     /// task (same-seed reuse is the realistic contamination path).
     pub exclude: BTreeSet<String>,
-    /// Number of judgment tasks (t5): underspecified design requests
-    /// graded on requirements rather than on equality with a
-    /// reference. Appended last, so adding them never disturbs t1-t4.
+    /// Number of judgment tasks (t5): complete spending contracts,
+    /// verified over all relevant states. Uses its own RNG stream,
+    /// so adding these tasks never disturbs t1-t4.
     pub judgment: usize,
     /// Script-context cycle for write/optimize tasks. Empty = the
     /// default legacy/segwit/tap rotation. Non-empty = round-robin
@@ -483,6 +483,7 @@ fn tree_attempt(
     // marks, and every reference leaf must be executable (the same
     // dual-oracle discipline as write/optimize, applied per leaf).
     let fixture = TreeFixture {
+        request: None,
         id: String::new(),
         tier,
         spec_en: spec.clone(),
@@ -576,6 +577,8 @@ pub fn generate(params: &GenParams) -> Vec<Fixture> {
         let c = compile_task(&mut rng, tier, ctx, false, style, &params.exclude)
             .unwrap_or_else(|| panic!("write task {i} ({tier:?}/{ctx:?}) failed to generate"));
         out.push(Fixture::Write(WriteFixture {
+            choose_context: false,
+            request: None,
             id: format!("t1-{i:04}"),
             tier,
             context: ctx,
@@ -648,28 +651,34 @@ pub fn generate(params: &GenParams) -> Vec<Fixture> {
         let tier = tier_for(i, &params.tiers);
         let ctx = context_for(i, &params.contexts);
         let mut rng2 = SeededRng::new(params.seed ^ 0x3D9E_1B77 ^ (i as u64));
-        let mut pre = policy::Preimages::default();
-        let abs = policy::sample_pre(&mut rng2, tier, &mut pre);
-        // Size the key set to the policy, never the other way round: a
-        // policy may reference more keys than a fixed guess provides.
-        let ks = keys::generate(&mut rng2, abs.key_count().max(1).min(12));
-        let kvars = key_vars(&ks, ctx);
-        let reqs = crate::judgment::requirements_for(&abs, &kvars, &mut rng2);
-        // A brief nobody can satisfy, or one satisfied by anything, is
-        // not a design task: require at least one of each polarity.
-        if !reqs.iter().any(|r| r.spendable) || !reqs.iter().any(|r| !r.spendable) {
-            continue;
+        let mut generated = None;
+        for _ in 0..64 {
+            let mut pre = policy::Preimages::default();
+            let abs = policy::sample_pre(&mut rng2, tier, &mut pre);
+            let ks = keys::generate(&mut rng2, abs.key_count().clamp(1, 12));
+            let kvars = key_vars(&ks, ctx);
+            let reqs = crate::judgment::requirements_for(&abs, &kvars, &mut rng2);
+            let fixture = bench_core::task::JudgmentFixture {
+                contract_version: 1,
+                id: format!("t5-{i:04}"),
+                tier,
+                context: ctx,
+                spec_en: crate::judgment::judgment_spec(&abs, &kvars, ctx),
+                keys: kvars,
+                requirements: reqs,
+                hash_preimages: preimage_hex_map(&pre),
+                reference_policy: policy_string(&abs, &ks, ctx),
+            };
+            if let Ok(script) = crate::judgment::validate(&fixture) {
+                if !params.exclude.contains(&script.to_hex_string()) {
+                    generated = Some(Fixture::Judgment(fixture));
+                    break;
+                }
+            }
         }
-        out.push(Fixture::Judgment(bench_core::task::JudgmentFixture {
-            id: format!("t5-{i:04}"),
-            tier,
-            context: ctx,
-            spec_en: crate::judgment::judgment_spec(&reqs, ctx),
-            keys: kvars,
-            requirements: reqs,
-            hash_preimages: preimage_hex_map(&pre),
-            reference_policy: policy_string(&abs, &ks, ctx),
-        }));
+        out.push(
+            generated.unwrap_or_else(|| panic!("judgment task {i} ({tier:?}) failed to generate")),
+        );
     }
     for i in 0..params.tree {
         let tier = tier_for(i, &params.tiers);
@@ -677,6 +686,7 @@ pub fn generate(params: &GenParams) -> Vec<Fixture> {
         let c = compile_tree_task(&mut rng, tier, style, &params.exclude)
             .unwrap_or_else(|| panic!("tree task {i} ({tier:?}) failed to generate"));
         out.push(Fixture::Tree(TreeFixture {
+            request: None,
             id: format!("t4-{i:04}"),
             tier,
             spec_en: c.spec_en,

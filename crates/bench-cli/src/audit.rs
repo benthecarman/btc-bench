@@ -428,21 +428,10 @@ pub fn audit_dataset(dir: &Path) -> Result<AuditReport> {
                 }
             }
             Fixture::Tree(t) => report.check_tree(t),
-            Fixture::Judgment(j) => {
-                // A judgment task has no answer key to re-derive. What
-                // must hold is that the brief is satisfiable and not
-                // vacuous: at least one requirement of each polarity,
-                // and the policy it came from actually meets them all.
-                if !j.requirements.iter().any(|r| r.spendable) {
-                    report.fail(format!("{}: no requirement is satisfiable", j.id));
-                }
-                if !j.requirements.iter().any(|r| !r.spendable) {
-                    report.fail(format!("{}: no prohibition, so anything passes", j.id));
-                }
-                if j.keys.is_empty() {
-                    report.fail(format!("{}: no keys offered", j.id));
-                }
-            }
+            Fixture::Judgment(j) => match bench_gen::judgment::validate(j) {
+                Ok(script) => report.check_display_roundtrip(&j.id, &script, "contract witness"),
+                Err(e) => report.fail(format!("{}: {e}", j.id)),
+            },
         }
     }
     Ok(report)
@@ -644,5 +633,39 @@ mod tests {
             crate::BITCOIN_VERSION,
             "BITCOIN_VERSION constant is stale vs Cargo.lock"
         );
+    }
+    #[test]
+    fn judgment_audit_checks_actual_contract_witness() {
+        let dir = tmpdir("judgment");
+        crate::gen_dataset(
+            &dir,
+            &GenParams {
+                seed: 2026,
+                write: 0,
+                optimize: 0,
+                identify: 0,
+                judgment: 3,
+                ..Default::default()
+            },
+            "audit-test",
+        )
+        .unwrap();
+        let report = audit_dataset(&dir).unwrap();
+        assert!(report_ok(&report), "{:?}", report.failures);
+        let mut fixtures = crate::load_dataset(&dir).unwrap();
+        let Fixture::Judgment(j) = &mut fixtures[0] else {
+            unreachable!()
+        };
+        j.requirements[0].spendable = !j.requirements[0].spendable;
+        let content = fixtures
+            .iter()
+            .map(|f| serde_json::to_string(f).unwrap())
+            .collect::<Vec<_>>()
+            .join("\n");
+        std::fs::write(dir.join("fixtures.jsonl"), content).unwrap();
+        let report = audit_dataset(&dir).unwrap();
+        assert!(!report_ok(&report));
+        assert!(report.failures.iter().any(|e| e.contains("inconsistent")));
+        std::fs::remove_dir_all(dir).unwrap();
     }
 }
