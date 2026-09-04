@@ -46,6 +46,11 @@ enum Command {
         /// disturbs t1-t3.
         #[arg(long, default_value_t = 0)]
         tree: usize,
+        /// Number of judgment tasks (t5): underspecified design briefs
+        /// graded on whether the answer honours stated requirements,
+        /// not on equality with a reference script.
+        #[arg(long, default_value_t = 0)]
+        judgment: usize,
         /// Verbalizer template family ids to draw from,
         /// comma-separated (default: 0, the canonical benchmark
         /// phrasing). List only non-eval families (e.g. 1,2) when
@@ -271,6 +276,7 @@ fn main() -> Result<()> {
             optimize,
             identify,
             tree,
+            judgment,
             verbal_families,
             vary_structure,
             tiers,
@@ -325,6 +331,10 @@ fn main() -> Result<()> {
                         bench_core::task::Fixture::Tree(t) => {
                             excluded.insert(t.reference_descriptor);
                         }
+                        // A judgment task has no answer key to exclude;
+                        // its brief is the specification, and any script
+                        // meeting it is correct.
+                        bench_core::task::Fixture::Judgment(_) => {}
                         bench_core::task::Fixture::Identify(i) => {
                             excluded.insert(i.spk_hex);
                             if let Some(inner) = i.inner_script_hex {
@@ -352,6 +362,7 @@ fn main() -> Result<()> {
                 tiers,
                 exclude: excluded,
                 contexts,
+                judgment,
             };
             let n = gen_dataset(&out, &params, env!("CARGO_PKG_VERSION"))?;
             println!("wrote {n} fixtures to {}", out.display());
@@ -376,6 +387,7 @@ fn main() -> Result<()> {
                     bench_core::task::Fixture::Optimize(_) => "optimize",
                     bench_core::task::Fixture::Identify(_) => "identify",
                     bench_core::task::Fixture::Tree(_) => "tree",
+                    bench_core::task::Fixture::Judgment(_) => "judgment",
                 };
                 let line = serde_json::json!({
                     "id": f.id(),
@@ -600,6 +612,10 @@ fn main() -> Result<()> {
                         "task_id": t.id, "kind": "tree", "prompt": prompt,
                         "target_descriptor": t.reference_descriptor,
                     }),
+                    // Judgment tasks have no reference answer to export
+                    // — that is the point of them. They train through
+                    // the reward server, not through SFT pairs.
+                    bench_core::task::Fixture::Judgment(_) => continue,
                 };
                 if casual {
                     line.as_object_mut()

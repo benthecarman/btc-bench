@@ -128,7 +128,9 @@ pub fn prompt_for(f: &Fixture, seed: u64, split: Split) -> Option<String> {
     match f {
         Fixture::Write(w) => Some(write_prompt(w, seed, split)),
         Fixture::Tree(t) => Some(tree_prompt(t, seed, split)),
-        Fixture::Optimize(_) | Fixture::Identify(_) => None,
+        // Judgment prompts are already stated the way a person asks;
+        // wrapping them again would add nothing.
+        Fixture::Optimize(_) | Fixture::Identify(_) | Fixture::Judgment(_) => None,
     }
 }
 

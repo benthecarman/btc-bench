@@ -179,6 +179,53 @@ pub struct IdentifyFixture {
     pub inner_script_hex: Option<String>,
 }
 
+/// One checkable requirement on a design: under these conditions, is
+/// the output spendable or not?
+///
+/// Judgment tasks are graded against a set of these rather than
+/// against a single reference script. A real request ("my two
+/// co-founders together, or me alone after a year") pins some
+/// behaviour and leaves the rest to the designer, so equality with
+/// one canonical answer is the wrong test — it rewards reproducing
+/// the compiler instead of meeting the requirement.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct Requirement {
+    /// Keys whose signatures are available at this point.
+    pub keys: Vec<String>,
+    /// Hash preimages known at this point.
+    #[serde(default)]
+    pub hashes: Vec<String>,
+    /// Chain height (for absolute timelocks).
+    pub height: u32,
+    /// Confirmations elapsed (for relative timelocks).
+    pub age: u32,
+    /// True: the output must be spendable here. False: it must not be.
+    pub spendable: bool,
+    /// Prose used to state the requirement in the prompt.
+    pub description: String,
+}
+
+/// A judgment task: an underspecified design request, graded on
+/// whether the submitted script honours a set of requirements.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct JudgmentFixture {
+    pub id: String,
+    pub tier: Tier,
+    pub context: ContextKind,
+    /// The request as a person would put it.
+    pub spec_en: String,
+    pub keys: Vec<KeyVar>,
+    /// What any acceptable design must do, and must never do.
+    pub requirements: Vec<Requirement>,
+    /// Preimages for any hash atoms, so prompts can name them.
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub hash_preimages: BTreeMap<String, String>,
+    /// Provenance only: the policy the requirements were derived from.
+    /// Never shown to a model and never graded against — a judgment
+    /// task has no single right answer by construction.
+    pub reference_policy: String,
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(tag = "task", rename_all = "lowercase")]
 pub enum Fixture {
@@ -186,6 +233,7 @@ pub enum Fixture {
     Optimize(OptimizeFixture),
     Identify(IdentifyFixture),
     Tree(TreeFixture),
+    Judgment(JudgmentFixture),
 }
 
 impl Fixture {
@@ -195,6 +243,7 @@ impl Fixture {
             Fixture::Optimize(f) => &f.id,
             Fixture::Identify(f) => &f.id,
             Fixture::Tree(f) => &f.id,
+            Fixture::Judgment(f) => &f.id,
         }
     }
 }

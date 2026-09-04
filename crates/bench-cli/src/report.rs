@@ -34,6 +34,7 @@ fn kind_of(f: &Fixture) -> &'static str {
         Fixture::Optimize(_) => "optimize",
         Fixture::Identify(_) => "identify",
         Fixture::Tree(_) => "tree",
+        Fixture::Judgment(_) => "judgment",
     }
 }
 
@@ -43,6 +44,7 @@ fn tier_of(f: &Fixture) -> Option<Tier> {
         Fixture::Optimize(o) => Some(o.tier),
         Fixture::Identify(_) => None,
         Fixture::Tree(t) => Some(t.tier),
+        Fixture::Judgment(j) => Some(j.tier),
     }
 }
 
@@ -54,6 +56,7 @@ fn ctx_of(f: &Fixture) -> Option<ContextKind> {
         // Tree tasks are taproot by definition; keeping them out of
         // the context table keeps it a write/optimize comparison.
         Fixture::Tree(_) => None,
+        Fixture::Judgment(j) => Some(j.context),
     }
 }
 
@@ -65,6 +68,9 @@ fn atoms_of(f: &Fixture) -> Option<usize> {
         Fixture::Optimize(o) => (o.atoms > 0).then_some(o.atoms),
         Fixture::Identify(_) => None,
         Fixture::Tree(t) => (t.atoms > 0).then_some(t.atoms),
+        // Judgment difficulty is the requirement count, not an atom
+        // count; it is reported on its own axis.
+        Fixture::Judgment(_) => None,
     }
 }
 
@@ -74,6 +80,9 @@ fn family_of(f: &Fixture) -> Option<u32> {
         Fixture::Optimize(o) => Some(o.spec_family),
         Fixture::Identify(_) => None,
         Fixture::Tree(t) => Some(t.spec_family),
+        // Judgment briefs are stated as requirements, not verbalized
+        // from a template family.
+        Fixture::Judgment(_) => None,
     }
 }
 
@@ -578,7 +587,7 @@ mod tests {
         let perfect_answer = |f: &Fixture| match f {
             Fixture::Write(w) => w.reference_script_hex.clone(),
             Fixture::Optimize(o) => o.optimal_script_hex.clone(),
-            Fixture::Identify(_) | Fixture::Tree(_) => unreachable!(),
+            Fixture::Identify(_) | Fixture::Tree(_) | Fixture::Judgment(_) => unreachable!(),
         };
 
         for (label, sabotage) in [("a", false), ("b", true)] {
@@ -648,7 +657,7 @@ mod tests {
                     }
                 }
                 Fixture::Optimize(o) => o.optimal_script_hex.clone(),
-                Fixture::Identify(_) | Fixture::Tree(_) => unreachable!(),
+                Fixture::Identify(_) | Fixture::Tree(_) | Fixture::Judgment(_) => unreachable!(),
             };
             text.push_str(
                 &serde_json::json!({

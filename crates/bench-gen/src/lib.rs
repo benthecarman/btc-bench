@@ -7,6 +7,7 @@
 pub mod casual;
 pub mod corpus;
 pub mod fixtures;
+pub mod judgment;
 pub mod keys;
 pub mod naive;
 pub mod policy;

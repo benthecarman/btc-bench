@@ -882,7 +882,7 @@ fn evaluate(fixture: &Fixture, answer: &TaskAnswer) -> Evaluation {
             score: 0.0,
             feedback: format!(
                 "Wrong answer shape for this {} task; answer with the submit tool appropriate to the task.",
-                match f { Fixture::Write(_) => "write", Fixture::Optimize(_) => "optimize", Fixture::Identify(_) => "identify", Fixture::Tree(_) => "tree" }
+                match f { Fixture::Write(_) => "write", Fixture::Optimize(_) => "optimize", Fixture::Identify(_) => "identify", Fixture::Tree(_) => "tree", Fixture::Judgment(_) => "judgment" }
             ),
         },
     }
@@ -1277,7 +1277,9 @@ pub async fn run_resume(
                 let mut tools = vec![submit];
                 if tool_mode == ToolMode::Basic {
                     match &f {
-                        Fixture::Write(_) | Fixture::Optimize(_) => tools.push(check_script_tool()),
+                        Fixture::Write(_) | Fixture::Optimize(_) | Fixture::Judgment(_) => {
+                            tools.push(check_script_tool())
+                        }
                         Fixture::Tree(_) => tools.push(check_descriptor_tool()),
                         // Identify stays tool-less: the asm decode is
                         // already in the prompt, and anything more

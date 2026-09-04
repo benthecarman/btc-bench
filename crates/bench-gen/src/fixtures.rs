@@ -51,6 +51,10 @@ pub struct GenParams {
     /// keys of the eval set so training data never contains an eval
     /// task (same-seed reuse is the realistic contamination path).
     pub exclude: BTreeSet<String>,
+    /// Number of judgment tasks (t5): underspecified design requests
+    /// graded on requirements rather than on equality with a
+    /// reference. Appended last, so adding them never disturbs t1-t4.
+    pub judgment: usize,
     /// Script-context cycle for write/optimize tasks. Empty = the
     /// default legacy/segwit/tap rotation. Non-empty = round-robin
     /// through exactly these (repeat to weight), for curriculum pools
@@ -71,6 +75,7 @@ impl Default for GenParams {
             tiers: Vec::new(),
             exclude: BTreeSet::new(),
             contexts: Vec::new(),
+            judgment: 0,
         }
     }
 }
@@ -639,6 +644,33 @@ pub fn generate(params: &GenParams) -> Vec<Fixture> {
             }
         }
     }
+    for i in 0..params.judgment {
+        let tier = tier_for(i, &params.tiers);
+        let ctx = context_for(i, &params.contexts);
+        let mut rng2 = SeededRng::new(params.seed ^ 0x3D9E_1B77 ^ (i as u64));
+        let mut pre = policy::Preimages::default();
+        let abs = policy::sample_pre(&mut rng2, tier, &mut pre);
+        // Size the key set to the policy, never the other way round: a
+        // policy may reference more keys than a fixed guess provides.
+        let ks = keys::generate(&mut rng2, abs.key_count().max(1).min(12));
+        let kvars = key_vars(&ks, ctx);
+        let reqs = crate::judgment::requirements_for(&abs, &kvars, &mut rng2);
+        // A brief nobody can satisfy, or one satisfied by anything, is
+        // not a design task: require at least one of each polarity.
+        if !reqs.iter().any(|r| r.spendable) || !reqs.iter().any(|r| !r.spendable) {
+            continue;
+        }
+        out.push(Fixture::Judgment(bench_core::task::JudgmentFixture {
+            id: format!("t5-{i:04}"),
+            tier,
+            context: ctx,
+            spec_en: crate::judgment::judgment_spec(&reqs, ctx),
+            keys: kvars,
+            requirements: reqs,
+            hash_preimages: preimage_hex_map(&pre),
+            reference_policy: policy_string(&abs, &ks, ctx),
+        }));
+    }
     for i in 0..params.tree {
         let tier = tier_for(i, &params.tiers);
         let style = style_for(params, 0x54, i);
@@ -754,6 +786,7 @@ mod tests {
         let mut excluded = std::collections::BTreeSet::new();
         for f in &eval {
             match f {
+                Fixture::Judgment(_) => {}
                 Fixture::Write(w) => {
                     excluded.insert(w.reference_script_hex.clone());
                 }
@@ -785,6 +818,7 @@ mod tests {
         });
         for f in &train {
             let shipped: Vec<String> = match f {
+                Fixture::Judgment(_) => vec![],
                 Fixture::Write(w) => vec![w.reference_script_hex.clone()],
                 Fixture::Optimize(o) => {
                     vec![o.optimal_script_hex.clone(), o.baseline_script_hex.clone()]
@@ -898,7 +932,7 @@ mod tests {
                 Fixture::Write(w) => Some(w.reference_script_hex.clone()),
                 Fixture::Optimize(o) => Some(o.optimal_script_hex.clone()),
                 Fixture::Tree(t) => Some(t.reference_descriptor.clone()),
-                Fixture::Identify(_) => None,
+                Fixture::Identify(_) | Fixture::Judgment(_) => None,
             })
             .collect();
         // Same seed + exclusion: every colliding task must be resampled.
@@ -911,7 +945,7 @@ mod tests {
                 Fixture::Write(w) => &w.reference_script_hex,
                 Fixture::Optimize(o) => &o.optimal_script_hex,
                 Fixture::Tree(t) => &t.reference_descriptor,
-                Fixture::Identify(_) => continue,
+                Fixture::Identify(_) | Fixture::Judgment(_) => continue,
             };
             assert!(
                 !keys.contains(hex),

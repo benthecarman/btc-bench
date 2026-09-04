@@ -352,6 +352,128 @@ pub fn tree_agreement(fixture: &crate::task::TreeFixture, answer: &str) -> Optio
 /// Task 4: parse a tr() descriptor, prove the lifted semantics
 /// equivalent to the reference (with the unspendable key pinned
 /// false on both sides), then score tree quality on the weight curve.
+/// Outcome of a judgment task: which requirements the design honours.
+#[derive(Clone, Debug)]
+pub struct JudgmentResult {
+    /// Fraction of requirements met, except that violating a
+    /// prohibition scores 0 outright: a design that lets the wrong
+    /// party spend is not partially right, it is unsafe.
+    pub score: f64,
+    pub met: usize,
+    pub total: usize,
+    /// Requirements the submission failed, in the fixture's own words.
+    pub failures: Vec<String>,
+    pub reason: Option<String>,
+    pub lint: Vec<String>,
+    /// Worst-case input weight, when the script parsed and decoded.
+    pub weight: Option<usize>,
+}
+
+/// Check one candidate against every requirement, in a fixed context.
+/// Returns (met, failed descriptions, any prohibition violated).
+fn judge_in_context<Ctx: ScriptContext>(
+    script: &ScriptBuf,
+    requirements: &[crate::task::Requirement],
+) -> Result<(usize, Vec<String>, bool), String>
+where
+    Ctx::Key: std::fmt::Display,
+{
+    use crate::truth::{eval, TruthContext};
+    use miniscript::policy::Liftable as _;
+    use std::collections::BTreeMap;
+
+    let ms: Miniscript<Ctx::Key, Ctx> =
+        Miniscript::decode_consensus(script.as_script()).map_err(|e| e.to_string())?;
+    let semantic = ms.lift().map_err(|e| e.to_string())?;
+
+    let mut met = 0usize;
+    let mut failures = Vec::new();
+    let mut violated = false;
+    for req in requirements {
+        let ctx = TruthContext {
+            keys: req
+                .keys
+                .iter()
+                .map(|k| (k.clone(), true))
+                .collect::<BTreeMap<_, _>>(),
+            hashes: req
+                .hashes
+                .iter()
+                .map(|h| (h.clone(), true))
+                .collect::<BTreeMap<_, _>>(),
+            height: req.height,
+            age: req.age,
+        };
+        if eval(&semantic, &ctx) == req.spendable {
+            met += 1;
+        } else {
+            failures.push(req.description.clone());
+            if !req.spendable {
+                violated = true;
+            }
+        }
+    }
+    Ok((met, failures, violated))
+}
+
+/// Grade a judgment task on its requirements rather than on equality
+/// with a reference.
+///
+/// There is deliberately no reference comparison. The request is
+/// underspecified by design, so any script honouring every requirement
+/// is correct whatever encoding it chose — which is the point: grading
+/// against one canonical answer rewards reproducing the compiler
+/// instead of meeting the requirement.
+pub fn grade_judgment(fixture: &crate::task::JudgmentFixture, answer: &str) -> JudgmentResult {
+    let total = fixture.requirements.len();
+    let fail = |reason: String| JudgmentResult {
+        score: 0.0,
+        met: 0,
+        total,
+        failures: Vec::new(),
+        reason: Some(reason),
+        lint: Vec::new(),
+        weight: None,
+    };
+
+    let script = match parse_script_answer(answer) {
+        Ok(s) => s,
+        Err(e) => return fail(e.to_string()),
+    };
+    let lint: Vec<String> = lint_report(fixture.context, &script)
+        .into_iter()
+        .map(|l| l.to_string())
+        .collect();
+    let weight = crate::weights_for(fixture.context, &script)
+        .ok()
+        .map(|w| w.weight);
+
+    let judged = match fixture.context {
+        ContextKind::Legacy => judge_in_context::<Legacy>(&script, &fixture.requirements),
+        ContextKind::SegwitV0 => judge_in_context::<Segwitv0>(&script, &fixture.requirements),
+        ContextKind::Tap => judge_in_context::<Tap>(&script, &fixture.requirements),
+    };
+    let (met, failures, violated) = match judged {
+        Ok(v) => v,
+        Err(e) => return fail(e),
+    };
+
+    let score = if violated || total == 0 {
+        0.0
+    } else {
+        met as f64 / total as f64
+    };
+    JudgmentResult {
+        score,
+        met,
+        total,
+        failures,
+        reason: None,
+        lint,
+        weight,
+    }
+}
+
 pub fn grade_tree(fixture: &crate::task::TreeFixture, answer: &str) -> TreeResult {
     use miniscript::policy::Liftable as _;
     let tr = match parse_tr_answer(answer) {

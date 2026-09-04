@@ -175,6 +175,22 @@ pub fn identify_prompt(f: &bench_core::task::IdentifyFixture, display: DisplayFo
     )
 }
 
+/// Judgment prompts state the requirements and the available keys.
+/// No policy tree, no notation lecture beyond the answer format: the
+/// point is to see whether the model can design against a brief.
+pub fn judgment_prompt(f: &bench_core::task::JudgmentFixture) -> String {
+    format!(
+        "{}\n\nKeys:\n{}\n\n\
+         Answer with the script as a hex string or Bitcoin Core asm. \
+         In asm, opcode names carry the OP_ prefix (OP_CHECKMULTISIG, \
+         not CHECKMULTISIG) and data pushes are raw hex, except that a \
+         timelock value written directly before OP_CHECKLOCKTIMEVERIFY \
+         or OP_CHECKSEQUENCEVERIFY is decimal.",
+        f.spec_en,
+        key_block(&f.keys),
+    )
+}
+
 pub fn for_fixture(f: &Fixture) -> String {
     for_fixture_fmt(f, DisplayFormat::default())
 }
@@ -185,6 +201,7 @@ pub fn for_fixture_fmt(f: &Fixture, display: DisplayFormat) -> String {
         Fixture::Optimize(o) => optimize_prompt(o, display),
         Fixture::Identify(i) => identify_prompt(i, display),
         Fixture::Tree(t) => tree_prompt(t),
+        Fixture::Judgment(j) => judgment_prompt(j),
     }
 }
 
@@ -257,6 +274,16 @@ mod tests {
                     assert!(p.contains("submit_identify"), "prompt names the real tool");
                     assert!(!p.contains("params"), "identify is label-only");
                 }
+                Fixture::Judgment(_) => {
+                    assert!(
+                        p.contains("Any design meeting them is acceptable"),
+                        "judgment prompts must state that the encoding is free"
+                    );
+                    assert!(
+                        !p.contains("reference"),
+                        "a judgment brief must never mention a reference answer"
+                    );
+                }
                 Fixture::Tree(_) => {
                     assert!(p.contains("tr(INTERNAL_KEY,TREE)"));
                     assert!(
@@ -304,6 +331,7 @@ mod tests {
                     assert_ne!(hex_prompt, asm_prompt);
                 }
                 Fixture::Write(_) => unreachable!("no write fixtures generated"),
+                Fixture::Judgment(_) => unreachable!("no judgment fixtures generated"),
                 Fixture::Tree(_) => {
                     // Tree prompts embed no rendered script; the
                     // display toggle must not change them.

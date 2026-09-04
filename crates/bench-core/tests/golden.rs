@@ -101,6 +101,8 @@ fn answers_for(fixtures: &[Fixture]) -> Vec<ResponseRecord> {
                 // Not-equivalent rewrite.
                 out.push(record(o.id.clone(), "51".into()));
             }
+            // Judgment tasks have no reference answer by design.
+            Fixture::Judgment(_) => {}
             Fixture::Tree(t) => {
                 // The compiler's own tree: full marks.
                 out.push(tr_record(t.id.clone(), t.reference_descriptor.clone()));

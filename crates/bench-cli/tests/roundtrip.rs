@@ -31,6 +31,8 @@ fn displayed_scripts(f: &Fixture) -> Vec<(String, String)> {
             }
             out
         }
+        // Judgment fixtures embed no script in their prompt.
+        Fixture::Judgment(_) => vec![],
         Fixture::Tree(t) => {
             let d: miniscript::Descriptor<bitcoin::XOnlyPublicKey> =
                 t.reference_descriptor.parse().expect("fixture descriptor");

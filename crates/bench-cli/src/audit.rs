@@ -386,6 +386,7 @@ pub fn audit_dataset(dir: &Path) -> Result<AuditReport> {
             Fixture::Optimize(_) => "t2",
             Fixture::Identify(_) => "t3",
             Fixture::Tree(_) => "t4",
+            Fixture::Judgment(_) => "t5",
         };
         *seen_counts.entry(kind.to_string()).or_insert(0) += 1;
     }
@@ -427,6 +428,21 @@ pub fn audit_dataset(dir: &Path) -> Result<AuditReport> {
                 }
             }
             Fixture::Tree(t) => report.check_tree(t),
+            Fixture::Judgment(j) => {
+                // A judgment task has no answer key to re-derive. What
+                // must hold is that the brief is satisfiable and not
+                // vacuous: at least one requirement of each polarity,
+                // and the policy it came from actually meets them all.
+                if !j.requirements.iter().any(|r| r.spendable) {
+                    report.fail(format!("{}: no requirement is satisfiable", j.id));
+                }
+                if !j.requirements.iter().any(|r| !r.spendable) {
+                    report.fail(format!("{}: no prohibition, so anything passes", j.id));
+                }
+                if j.keys.is_empty() {
+                    report.fail(format!("{}: no keys offered", j.id));
+                }
+            }
         }
     }
     Ok(report)

@@ -16,8 +16,9 @@ pub mod toolbox;
 pub mod truth;
 
 pub use grade::{
-    grade_identify, grade_optimize, grade_tree, grade_write, lint_report, parse_tr_answer,
-    tree_agreement, weights_for, IdentifyResult, OptimizeResult, TreeResult, Weights, WriteResult,
+    grade_identify, grade_judgment, grade_optimize, grade_tree, grade_write, lint_report,
+    parse_tr_answer, tree_agreement, weights_for, IdentifyResult, JudgmentResult, OptimizeResult,
+    TreeResult, Weights, WriteResult,
 };
 pub use oracle::{
     agreement_semantic, check_equivalence, check_semantic, decodes_in_context, semantic_agreement,
