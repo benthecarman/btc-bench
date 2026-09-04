@@ -108,9 +108,13 @@ enum Command {
         /// How embedded scripts are shown in prompts.
         #[arg(long, default_value = "asm")]
         display: String,
-        /// Graded attempts per task with mechanical feedback between
-        /// turns (the benchmark's default mode); pass 1 for single-shot.
-        #[arg(long, default_value_t = 3)]
+        /// Graded attempts per task with oracle feedback between
+        /// turns. Default 1 (single-shot): check tools already carry
+        /// every real-world feedback signal, while graded retry
+        /// verdicts ("wrong semantics") exist only because the bench
+        /// holds a reference — measuring grader brute-force, not
+        /// ability. The multi-turn machinery stays for experiments.
+        #[arg(long, default_value_t = 1)]
         attempts: u32,
         /// Resume an interrupted run: completed tasks are skipped,
         /// failed tasks retried, output files appended.
