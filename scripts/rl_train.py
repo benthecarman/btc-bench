@@ -25,6 +25,7 @@ Usage:
 
 import argparse
 import json
+import os
 import re
 import urllib.request
 
@@ -32,7 +33,9 @@ from datasets import load_dataset
 from peft import LoraConfig
 from trl import GRPOConfig, GRPOTrainer
 
-REWARD_URL = "http://127.0.0.1:9900/reward/batch"
+REWARD_URL = os.environ.get(
+    "BTCBENCH_REWARD_URL", "http://127.0.0.1:9900/reward/batch"
+)
 TOOL_CALL_RE = re.compile(r"<tool_call>\s*(\{.*?\})\s*</tool_call>", re.DOTALL)
 
 

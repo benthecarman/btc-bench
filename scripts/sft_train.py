@@ -66,7 +66,11 @@ def main():
         # optimizer steps.
         warmup_steps=60,
         logging_steps=10,
-        save_strategy="epoch",
+        # Checkpoint often: two runs have already been lost whole (a
+        # session exit, then a GPU-contention crash at half an epoch).
+        save_strategy="steps",
+        save_steps=200,
+        save_total_limit=3,
         bf16=True,
         max_length=4096,
         gradient_checkpointing=True,
