@@ -45,7 +45,13 @@ use crate::rng::SeededRng;
 /// ("2-of-3 multisig", "timelocked until block N", "hashlock") — and
 /// is EVAL-ONLY like family 0: models must map real-world vocabulary
 /// to script without ever training on it through this generator.
-pub const FAMILIES: u32 = 5;
+///
+/// Families 5 (contractual) and 6 (declarative) are RL-training
+/// registers, held back from SFT so reinforcement learning has
+/// unsaturated phrasing to work on: a model that aced its SFT
+/// families scored ~1.0 on them while scoring 0.43 on family 0 at
+/// matched difficulty, leaving GRPO no reward variance to learn from.
+pub const FAMILIES: u32 = 7;
 
 /// Relative timelock in human units when the block count divides a
 /// day (144 blocks) cleanly; raw blocks otherwise. Teaches the
@@ -112,6 +118,8 @@ fn and_intro(family: u32) -> &'static str {
         2 => "all of these are true",
         3 => "all of this happens",
         4 => "all of the following",
+        5 => "each of these requirements is satisfied",
+        6 => "these all hold",
         _ => "all of the following hold",
     }
 }
@@ -122,6 +130,8 @@ fn or_intro(family: u32) -> &'static str {
         2 => "at least one of these is true",
         3 => "one of these happens",
         4 => "any of the following",
+        5 => "at least one of these requirements is satisfied",
+        6 => "any one of these holds",
         _ => "at least one of the following holds",
     }
 }
@@ -140,6 +150,8 @@ fn clause_in(p: &Abs, keys: &[KeyVar], family: u32, rng: &mut Option<SeededRng>)
             2 => format!("{} provides their signature", label(*i)),
             3 => format!("{} signs off", label(*i)),
             4 => format!("a signature from {}", label(*i)),
+            5 => format!("the spender must present {}'s signature", label(*i)),
+            6 => format!("{}'s signature is required", label(*i)),
             _ => format!("{} signs the transaction", label(*i)),
         },
         Abs::After(t) => match family {
@@ -151,6 +163,10 @@ fn clause_in(p: &Abs, keys: &[KeyVar], family: u32, rng: &mut Option<SeededRng>)
             ),
             3 => format!("the chain has passed block {t}"),
             4 => format!("a timelock until block height {t} (CLTV)"),
+            5 => format!(
+                "the transaction must not be mined before block {t} (absolute timelock, OP_CHECKLOCKTIMEVERIFY)"
+            ),
+            6 => format!("spending is permitted once block {t} is reached"),
             _ => format!(
                 "the chain has reached block height {t} (absolute timelock, OP_CHECKLOCKTIMEVERIFY)"
             ),
@@ -167,6 +183,10 @@ fn clause_in(p: &Abs, keys: &[KeyVar], family: u32, rng: &mut Option<SeededRng>)
                 human_blocks(*t)
             ),
             4 => format!("a relative timelock of {t} blocks (CSV)"),
+            5 => format!(
+                "the output must have been confirmed for {t} blocks (relative timelock, OP_CHECKSEQUENCEVERIFY)"
+            ),
+            6 => format!("spending is permitted {t} blocks after this output confirms"),
             _ => format!(
                 "{t} blocks have been mined since this output confirmed (relative timelock, OP_CHECKSEQUENCEVERIFY)"
             ),
@@ -182,6 +202,11 @@ fn clause_in(p: &Abs, keys: &[KeyVar], family: u32, rng: &mut Option<SeededRng>)
                 hex(h)
             ),
             4 => format!("a SHA-256 hashlock on {}", hex(h)),
+            5 => format!(
+                "the spender must disclose a value whose SHA-256 digest equals {}",
+                hex(h)
+            ),
+            6 => format!("a SHA-256 preimage of {} is required", hex(h)),
             _ => format!("a preimage of the SHA-256 hash {} is revealed", hex(h)),
         },
         Abs::Hash160(h) => match family {
@@ -195,6 +220,11 @@ fn clause_in(p: &Abs, keys: &[KeyVar], family: u32, rng: &mut Option<SeededRng>)
                 hex(h)
             ),
             4 => format!("a HASH160 hashlock on {}", hex(h)),
+            5 => format!(
+                "the spender must disclose a value whose HASH160 digest equals {}",
+                hex(h)
+            ),
+            6 => format!("a HASH160 preimage of {} is required", hex(h)),
             _ => format!("a preimage of the HASH160 hash {} is revealed", hex(h)),
         },
         Abs::And(v) => {
@@ -229,6 +259,13 @@ fn clause_in(p: &Abs, keys: &[KeyVar], family: u32, rng: &mut Option<SeededRng>)
                     l.to_string()
                 }),
                 4 => (String::new(), |l| l.to_string()),
+                5 => (
+                    format!("signatures from no fewer than {k} of these parties are presented"),
+                    |l| l.to_string(),
+                ),
+                6 => (format!("{k} or more of these signatures are required"), |l| {
+                    l.to_string()
+                }),
                 _ => (format!("at least {k} of these parties sign"), |l| {
                     format!("{l} signs the transaction")
                 }),
@@ -323,6 +360,8 @@ pub fn spec_styled(p: &Abs, keys: &[KeyVar], style: Style) -> String {
         2 => format!("This output can be spent only if {c}."),
         3 => format!("I want the coins spendable as soon as {c}."),
         4 => format!("The output requires {c}."),
+        5 => format!("Funds may be moved only if {c}."),
+        6 => format!("Spending is authorized when {c}."),
         _ => format!("The script can be spent when {c}."),
     }
 }
@@ -377,6 +416,27 @@ mod tests {
         assert_ne!(a, o);
     }
 
+    /// Every family must render the same policy distinctly: a
+    /// collision means an "unseen" register is really a seen one, and
+    /// the held-out-phrasing measurements silently stop meaning
+    /// anything.
+    #[test]
+    fn all_families_render_distinctly() {
+        let ks = keys();
+        let p = Abs::Or(vec![
+            Abs::And(vec![Abs::Key(0), Abs::Older(1008)]),
+            Abs::Thresh(2, vec![0, 1, 2]),
+            Abs::Sha256([7u8; 32]),
+            Abs::After(700_000),
+        ]);
+        let rendered: Vec<String> = (0..FAMILIES).map(|f| spec_with(&p, &ks, f)).collect();
+        for i in 0..rendered.len() {
+            for j in (i + 1)..rendered.len() {
+                assert_ne!(rendered[i], rendered[j], "families {i} and {j} collide");
+            }
+        }
+    }
+
     /// The jargon family renders thresh the way the community says it,
     /// and never appears in training pools (eval-only, like family 0
     /// — enforced by convention in the pool gen commands and pinned
@@ -390,7 +450,7 @@ mod tests {
         assert!(h.contains("SHA-256 hashlock"), "{h}");
         // No other family uses these words: they are the held-out
         // vocabulary the jargon eval measures.
-        for family in 0..4 {
+        for family in (0..FAMILIES).filter(|f| *f != 4) {
             let m = spec_with(&Abs::Thresh(2, vec![0, 1, 2]), &ks, family);
             assert!(!m.contains("multisig"), "family {family}: {m}");
             let h = spec_with(&Abs::Sha256([1u8; 32]), &ks, family);
