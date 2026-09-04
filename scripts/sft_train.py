@@ -1,6 +1,14 @@
 #!/usr/bin/env python3
 """LoRA SFT of Qwen3-4B on the rendered curriculum.
 
+Do not read training loss as progress here. 93% of completion
+tokens already appear in the prompt (each key's hex repeats across
+the policy, the Miniscript, the asm and the tool call), so loss is
+dominated by copy-with-attention and sits near 0.003 whether or not
+the model learned anything transferable: the no-think v1 hit that
+loss while scoring 0.34 on jargon trees. Only ~90 tokens per
+example carry a real decision. Judge runs by the held-out evals.
+
 Prompt/completion pairs from sft_format.py; loss on completions only
 (trl masks the prompt for this dataset shape). LoRA over attention
 and MLP projections, bf16, gradient checkpointing — fits a single
