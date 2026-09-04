@@ -21,8 +21,9 @@
 //! Invariants across all families and structures (test-pinned):
 //! - relative vs absolute timelocks use distinct vocabulary; the
 //!   formal families (0-2) also name the opcode
-//!   (OP_CHECKLOCKTIMEVERIFY / OP_CHECKSEQUENCEVERIFY), while the
-//!   informal family (3) disambiguates linguistically instead;
+//!   (OP_CHECKLOCKTIMEVERIFY / OP_CHECKSEQUENCEVERIFY), the informal
+//!   family (3) disambiguates linguistically, and the jargon family
+//!   (4) uses the community abbreviations (CLTV / CSV);
 //! - SHA-256 and HASH160 atoms name their hash function;
 //! - the same policy with the same style always yields the same prose.
 //!
@@ -39,8 +40,12 @@ use crate::rng::SeededRng;
 /// opcode names — disambiguation is linguistic ("after this output
 /// confirms" vs "the chain passes block N"). Training-only, like
 /// every non-zero family; it teaches the "hey, write me a script
-/// that..." register the formal families never exercise.
-pub const FAMILIES: u32 = 4;
+/// that..." register the formal families never exercise. Family 4 is
+/// the jargon register — the words the community actually uses
+/// ("2-of-3 multisig", "timelocked until block N", "hashlock") — and
+/// is EVAL-ONLY like family 0: models must map real-world vocabulary
+/// to script without ever training on it through this generator.
+pub const FAMILIES: u32 = 5;
 
 /// Relative timelock in human units when the block count divides a
 /// day (144 blocks) cleanly; raw blocks otherwise. Teaches the
@@ -106,6 +111,7 @@ fn and_intro(family: u32) -> &'static str {
         1 => "every condition below is met",
         2 => "all of these are true",
         3 => "all of this happens",
+        4 => "all of the following",
         _ => "all of the following hold",
     }
 }
@@ -115,6 +121,7 @@ fn or_intro(family: u32) -> &'static str {
         1 => "any condition below is met",
         2 => "at least one of these is true",
         3 => "one of these happens",
+        4 => "any of the following",
         _ => "at least one of the following holds",
     }
 }
@@ -132,6 +139,7 @@ fn clause_in(p: &Abs, keys: &[KeyVar], family: u32, rng: &mut Option<SeededRng>)
             1 => format!("a valid signature from {} is provided", label(*i)),
             2 => format!("{} provides their signature", label(*i)),
             3 => format!("{} signs off", label(*i)),
+            4 => format!("a signature from {}", label(*i)),
             _ => format!("{} signs the transaction", label(*i)),
         },
         Abs::After(t) => match family {
@@ -142,6 +150,7 @@ fn clause_in(p: &Abs, keys: &[KeyVar], family: u32, rng: &mut Option<SeededRng>)
                 "the chain tip height is {t} or greater (absolute timelock, OP_CHECKLOCKTIMEVERIFY)"
             ),
             3 => format!("the chain has passed block {t}"),
+            4 => format!("a timelock until block height {t} (CLTV)"),
             _ => format!(
                 "the chain has reached block height {t} (absolute timelock, OP_CHECKLOCKTIMEVERIFY)"
             ),
@@ -157,6 +166,7 @@ fn clause_in(p: &Abs, keys: &[KeyVar], family: u32, rng: &mut Option<SeededRng>)
                 "{} have gone by since this output confirmed",
                 human_blocks(*t)
             ),
+            4 => format!("a relative timelock of {t} blocks (CSV)"),
             _ => format!(
                 "{t} blocks have been mined since this output confirmed (relative timelock, OP_CHECKSEQUENCEVERIFY)"
             ),
@@ -171,6 +181,7 @@ fn clause_in(p: &Abs, keys: &[KeyVar], family: u32, rng: &mut Option<SeededRng>)
                 "whoever spends shows the secret behind this SHA-256 hash: {}",
                 hex(h)
             ),
+            4 => format!("a SHA-256 hashlock on {}", hex(h)),
             _ => format!("a preimage of the SHA-256 hash {} is revealed", hex(h)),
         },
         Abs::Hash160(h) => match family {
@@ -183,6 +194,7 @@ fn clause_in(p: &Abs, keys: &[KeyVar], family: u32, rng: &mut Option<SeededRng>)
                 "whoever spends shows the secret behind this HASH160 hash: {}",
                 hex(h)
             ),
+            4 => format!("a HASH160 hashlock on {}", hex(h)),
             _ => format!("a preimage of the HASH160 hash {} is revealed", hex(h)),
         },
         Abs::And(v) => {
@@ -196,6 +208,15 @@ fn clause_in(p: &Abs, keys: &[KeyVar], family: u32, rng: &mut Option<SeededRng>)
             format!("{}: {}", or_intro(family), inner.join("; or "))
         }
         Abs::Thresh(k, ks) => {
+            if family == 4 {
+                let ord = order(ks.len(), rng);
+                let names: Vec<&str> = ord.iter().map(|&i| label(ks[i])).collect();
+                return format!(
+                    "a {k}-of-{} multisig between {}",
+                    ks.len(),
+                    names.join(", ")
+                );
+            }
             let (intro, item): (String, fn(&str) -> String) = match family {
                 1 => (
                     format!("signatures from at least {k} of these parties are provided"),
@@ -207,6 +228,7 @@ fn clause_in(p: &Abs, keys: &[KeyVar], family: u32, rng: &mut Option<SeededRng>)
                 3 => (format!("at least {k} of this group sign off"), |l| {
                     l.to_string()
                 }),
+                4 => (String::new(), |l| l.to_string()),
                 _ => (format!("at least {k} of these parties sign"), |l| {
                     format!("{l} signs the transaction")
                 }),
@@ -300,6 +322,7 @@ pub fn spec_styled(p: &Abs, keys: &[KeyVar], style: Style) -> String {
         1 => format!("Spending this output requires that {c}."),
         2 => format!("This output can be spent only if {c}."),
         3 => format!("I want the coins spendable as soon as {c}."),
+        4 => format!("The output requires {c}."),
         _ => format!("The script can be spent when {c}."),
     }
 }
@@ -346,6 +369,33 @@ mod tests {
         assert!(!a.contains("OP_"), "{a}");
         assert!(!o.contains("OP_"), "{o}");
         assert_ne!(a, o);
+        // The jargon family uses the community abbreviations.
+        let a = spec_with(&Abs::After(700_000), &ks, 4);
+        let o = spec_with(&Abs::Older(144), &ks, 4);
+        assert!(a.contains("(CLTV)"), "{a}");
+        assert!(o.contains("(CSV)"), "{o}");
+        assert_ne!(a, o);
+    }
+
+    /// The jargon family renders thresh the way the community says it,
+    /// and never appears in training pools (eval-only, like family 0
+    /// — enforced by convention in the pool gen commands and pinned
+    /// here as vocabulary that must stay unique to family 4).
+    #[test]
+    fn jargon_family_says_multisig_and_hashlock() {
+        let ks = keys();
+        let m = spec_with(&Abs::Thresh(2, vec![0, 1, 2]), &ks, 4);
+        assert!(m.contains("2-of-3 multisig between"), "{m}");
+        let h = spec_with(&Abs::Sha256([1u8; 32]), &ks, 4);
+        assert!(h.contains("SHA-256 hashlock"), "{h}");
+        // No other family uses these words: they are the held-out
+        // vocabulary the jargon eval measures.
+        for family in 0..4 {
+            let m = spec_with(&Abs::Thresh(2, vec![0, 1, 2]), &ks, family);
+            assert!(!m.contains("multisig"), "family {family}: {m}");
+            let h = spec_with(&Abs::Sha256([1u8; 32]), &ks, family);
+            assert!(!h.contains("hashlock"), "family {family}: {h}");
+        }
     }
 
     #[test]
