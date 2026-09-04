@@ -131,6 +131,23 @@ pub fn tree_prompt(f: &bench_core::task::TreeFixture) -> String {
     )
 }
 
+/// Address form of a scriptPubKey, when it has one. Bare multisig and
+/// OP_RETURN outputs have no address; those lines are simply omitted.
+/// Real outputs are met as addresses far more often than as raw
+/// scripts, and some shapes are identified by the address alone —
+/// P2A is exactly `OP_1 <0x4e73>`, universally known as
+/// bc1pfeessrawgf.
+fn address_line(spk_hex: &str) -> String {
+    let script = match ScriptBuf::from_hex(spk_hex) {
+        Ok(s) => s,
+        Err(_) => return String::new(),
+    };
+    match bitcoin::Address::from_script(script.as_script(), bitcoin::Network::Bitcoin) {
+        Ok(addr) => format!("Address: {addr}\n"),
+        Err(_) => String::new(),
+    }
+}
+
 pub fn identify_prompt(f: &bench_core::task::IdentifyFixture, display: DisplayFormat) -> String {
     let inner = match &f.inner_script_hex {
         Some(h) => format!(
@@ -145,12 +162,14 @@ pub fn identify_prompt(f: &bench_core::task::IdentifyFixture, display: DisplayFo
     format!(
         "Identify the following Bitcoin output.\n\
          \n\
-         scriptPubKey {}: {}{}\
+         scriptPubKey {}: {}\n\
+         {}{}\
          \n\
          Call the submit_identify tool with one of the following labels:\n\
          - {}",
         display.label(),
         display.render(&f.spk_hex),
+        address_line(&f.spk_hex),
         inner,
         crate::corpus::FAMILIES.join(", "),
     )

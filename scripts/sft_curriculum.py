@@ -38,7 +38,12 @@ POOLS = sorted(
 EXPORTS = ["sft.jsonl", "sft-casual.jsonl"]
 SEED = 7100
 NON_TAP_KEEP_FRACTION = 0.5
-IDENTIFY_KEEP = 200
+# Identify was starved at 200 of 14,900 pairs (1.3%) because it
+# "was not a weak spot"; it then became the weakest tier, at 1.00 on
+# standard outputs but 0.00-0.83 on the protocol shapes, which are
+# memorized taxonomy rather than a compositional skill. Keep all of
+# them.
+IDENTIFY_KEEP = 10_000
 
 
 def tags(rec):

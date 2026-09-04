@@ -77,13 +77,17 @@ def script_observations(prompt):
     from the shape; inventing a rationale for why a shape implies a
     protocol would be fabricated reasoning.
     """
-    spk = inner = ""
+    spk = inner = addr = ""
     for line in prompt.splitlines():
         if line.startswith("scriptPubKey"):
             spk = line.split(": ", 1)[-1]
+        elif line.startswith("Address: "):
+            addr = line.split(": ", 1)[-1]
         elif line.startswith("Redeem script"):
             inner = line.split(": ", 1)[-1]
     notes = []
+    if addr:
+        notes.append(f"the address form is {addr}")
     if spk.startswith("OP_HASH160") and spk.endswith("OP_EQUAL"):
         notes.append("the scriptPubKey is a P2SH wrapper (OP_HASH160 <20 bytes> OP_EQUAL)")
     elif spk.startswith("OP_0 ") and len(spk.split()[-1]) == 64:
@@ -91,7 +95,25 @@ def script_observations(prompt):
     elif spk.startswith("OP_0 ") and len(spk.split()[-1]) == 40:
         notes.append("the scriptPubKey is a v0 witness program with a 20-byte hash (P2WPKH)")
     elif spk.startswith("OP_PUSHNUM_1 "):
-        notes.append("the scriptPubKey is a v1 witness program (Taproot output)")
+        # P2TR and P2A are both v1 witness programs; only the program
+        # length separates them. Calling every v1 program "Taproot"
+        # taught the model to answer p2tr for p2a (17 of 18 wrong).
+        prog = spk.split()[-1]
+        if prog == "4e73":
+            notes.append(
+                "the scriptPubKey is OP_1 followed by the exact 2-byte "
+                "program 4e73"
+            )
+        elif len(prog) == 64:
+            notes.append(
+                "the scriptPubKey is a v1 witness program with a 32-byte "
+                "program (a Taproot output key)"
+            )
+        else:
+            notes.append(
+                f"the scriptPubKey is a v1 witness program with a "
+                f"{len(prog) // 2}-byte program"
+            )
     elif spk.startswith("OP_DUP OP_HASH160"):
         notes.append("the scriptPubKey is the P2PKH pattern")
     elif spk.startswith("OP_RETURN"):
@@ -110,7 +132,22 @@ def script_observations(prompt):
         notes.append("it counts signatures with OP_CHECKSIGADD, the tapscript multisig form")
     if "OP_IF" in body or "OP_NOTIF" in body:
         notes.append("the branches split on an OP_IF, so there is more than one spending path")
+    if "OP_SIZE" in body:
+        notes.append("an OP_SIZE check pins the preimage length, the HTLC pattern")
+    if "OP_DROP" in body:
+        notes.append("a value is dropped after being checked")
+    keys = [w for w in body.split() if len(w) in (66, 64) and _is_hex(w)]
+    if len(keys) > 1:
+        notes.append(f"{len(keys)} public keys appear in the script")
     return notes
+
+
+def _is_hex(w):
+    try:
+        int(w, 16)
+        return True
+    except ValueError:
+        return False
 
 
 def context_noun(inner):

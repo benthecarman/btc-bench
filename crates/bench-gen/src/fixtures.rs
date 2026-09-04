@@ -611,17 +611,17 @@ pub fn generate(params: &GenParams) -> Vec<Fixture> {
     }
     for i in 0..params.identify {
         let ks = keys::generate(&mut rng, 3);
-        // Identify keys are seeded fresh per group, so collisions with
-        // an excluded set require key reuse; the filter still makes the
-        // no-contamination guarantee structural rather than accidental.
-        let clean = |f: &bench_core::task::IdentifyFixture| {
-            params.exclude.is_empty()
-                || (!params.exclude.contains(&f.spk_hex)
-                    && f.inner_script_hex
-                        .as_ref()
-                        .map(|h| !params.exclude.contains(h))
-                        .unwrap_or(true))
-        };
+        // Identify fixtures are deliberately NOT script-excluded.
+        // Fixed-form families have a constant scriptPubKey by
+        // construction — every P2A output is literally OP_1 <0x4e73>,
+        // address bc1pfeessrawgf — so
+        // excluding an eval set by script silently deletes the whole
+        // family from training. That happened: p2a and ln_tr_anchor
+        // reached zero training examples and then scored 0.00 on the
+        // eval, on shapes the model had never once seen. There is
+        // nothing to leak here either, since identify is graded on the
+        // label alone and the shape is public knowledge.
+        let clean = |_f: &bench_core::task::IdentifyFixture| true;
         out.extend(
             crate::corpus::standards(&mut rng, &ks, i)
                 .into_iter()
@@ -667,6 +667,52 @@ pub fn generate(params: &GenParams) -> Vec<Fixture> {
 mod tests {
     use super::*;
     use bitcoin::ScriptBuf;
+
+    /// Identify fixtures must survive exclusion: their fixed-form
+    /// families have one constant scriptPubKey, so filtering them by
+    /// script removes the whole family from training. p2a and
+    /// ln_tr_anchor once reached zero training examples this way and
+    /// then scored 0.00 on the eval.
+    #[test]
+    fn identify_families_survive_exclusion() {
+        let eval = generate(&GenParams {
+            seed: 11,
+            write: 0,
+            optimize: 0,
+            identify: 12,
+            ..GenParams::default()
+        });
+        let mut excluded = std::collections::BTreeSet::new();
+        for f in &eval {
+            if let Fixture::Identify(i) = f {
+                excluded.insert(i.spk_hex.clone());
+                if let Some(h) = &i.inner_script_hex {
+                    excluded.insert(h.clone());
+                }
+            }
+        }
+        let train = generate(&GenParams {
+            seed: 12,
+            write: 0,
+            optimize: 0,
+            identify: 12,
+            exclude: excluded,
+            ..GenParams::default()
+        });
+        let fams: std::collections::BTreeSet<String> = train
+            .iter()
+            .filter_map(|f| match f {
+                Fixture::Identify(i) => Some(i.family.clone()),
+                _ => None,
+            })
+            .collect();
+        for needed in ["p2a", "p2tr", "ln_tr_anchor"] {
+            assert!(
+                fams.contains(needed),
+                "{needed} was excluded out of the training set: {fams:?}"
+            );
+        }
+    }
 
     /// The context cycle knob pins every write/optimize task to the
     /// requested contexts (all-tap pools for multi_a curriculum);
@@ -744,11 +790,11 @@ mod tests {
                     vec![o.optimal_script_hex.clone(), o.baseline_script_hex.clone()]
                 }
                 Fixture::Tree(t) => vec![t.reference_descriptor.clone()],
-                Fixture::Identify(i) => {
-                    let mut v = vec![i.spk_hex.clone()];
-                    v.extend(i.inner_script_hex.clone());
-                    v
-                }
+                // Identify is exempt by design: fixed-form families
+                // share one constant script, so excluding by script
+                // deletes the family from training entirely (see the
+                // generator comment). Graded on the label alone.
+                Fixture::Identify(_) => vec![],
             };
             for s in shipped {
                 assert!(
