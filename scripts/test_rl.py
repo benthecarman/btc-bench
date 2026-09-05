@@ -23,6 +23,16 @@ def call(name="submit_script", arguments=None):
 
 
 class RolloutTests(unittest.TestCase):
+    def test_reward_rejects_a_complete_tool_call_in_a_truncated_rollout(self):
+        text = '<think>work</think>' + call(arguments={'script': '51'})
+        with patch.object(rl_train, 'completion_end_ids', {2, 0}), patch.object(
+            rl_train.urllib.request, 'urlopen', return_value=io.BytesIO(b'[{"shaped":0},{"shaped":1}]')
+        ) as request:
+            self.assertEqual(rl_train.oracle_reward([text, text], ['{"task":"write"}'] * 2,
+                thinking=[True, True], completion_ids=[[5, 6], [5, 2]]), [0, 1])
+            items = json.loads(request.call_args.args[0].data)['items']
+            self.assertEqual(items[0]['answer'], '')
+            self.assertEqual(items[1]['answer'], {'task':'script', 'script':'51'})
     def test_all_task_kinds_select_the_correct_tool(self):
         for prefix, kind in rl_prepare.KINDS.items():
             self.assertEqual(rl_prepare.kind_of({"id": prefix + "-0"}), kind)
@@ -113,7 +123,9 @@ class RolloutTests(unittest.TestCase):
                                                    (rl_train, "GRPOTrainer", "GRPOConfig")]:
             captured = {}
             class Trainer:
-                def __init__(self, **kwargs): captured["trainer"] = kwargs
+                def __init__(self, **kwargs):
+                    captured["trainer"] = kwargs
+                    self.processing_class = types.SimpleNamespace(eos_token_id=2, pad_token_id=0)
                 def train(self, **kwargs): captured["train"] = kwargs
                 def save_model(self, path): captured["saved"] = path
             def config(**kwargs):
@@ -123,15 +135,17 @@ class RolloutTests(unittest.TestCase):
             modules = {"datasets": types.SimpleNamespace(load_dataset=lambda *a, **k: [row]),
                        "peft": types.SimpleNamespace(LoraConfig=lambda **k: k),
                        "trl": types.SimpleNamespace(**{trainer_name: Trainer, config_name: config})}
-            args = [module.__file__, "--resume-from-checkpoint", "runs/checkpoint-200"]
+            args = [module.__file__, "--resume-from-checkpoint", "runs/checkpoint-200", "--warmup-steps", "3"]
             if module is rl_train:
                 args += ["--temperature", "0.8", "--k", "4", "--reward-url", "http://test/reward/batch"]
             with patch.dict(sys.modules, modules), patch.object(sys, "argv", args):
                 module.main()
             self.assertEqual(captured["train"]["resume_from_checkpoint"], "runs/checkpoint-200")
+            self.assertEqual(captured["config"]["warmup_steps"], 3)
             if module is rl_train:
                 self.assertEqual(captured["config"]["temperature"], 0.8)
                 self.assertEqual(captured["config"]["num_generations"], 4)
+                self.assertTrue(captured["config"]["mask_truncated_completions"])
 
     def test_prepare_refuses_evaluation_and_old_judgment_without_ml_dependencies(self):
         with tempfile.TemporaryDirectory() as tmp:

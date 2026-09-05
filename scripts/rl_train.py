@@ -8,9 +8,9 @@ grade` plus the configured shaping. Completions with no extractable
 answer fall back to the raw text (the server's answer parser handles
 hex/asm), so partial credit shaping still applies.
 
-The completion length limit is the trainer's rollout budget — the
-bench's no-caps rule explicitly assigns that knob to the RL config;
-a truncated rollout scores whatever the reward says (usually 0).
+The completion length limit is the trainer's rollout budget. Truncated
+rollouts receive zero reward and are masked from the loss, matching the
+budgeted probe even if an earlier tool call was complete.
 
 Prereqs:
   ./target/release/btc-bench reward-serve --bind 127.0.0.1:9900 \
@@ -32,17 +32,25 @@ from rl_common import (REWARD_URL, extract_answer, add_sampling_args,
 
 
 reward_url = REWARD_URL
+completion_end_ids = None
 
-def oracle_reward(completions, task_json, thinking=None, **kwargs):
+def oracle_reward(completions, task_json, thinking=None, completion_ids=None, **kwargs):
     if len(completions) != len(task_json):
         raise ValueError("Completion and fixture counts differ")
     if thinking is None:
         thinking = [False] * len(completions)
     if len(thinking) != len(completions):
         raise ValueError("Completion and thinking-mode counts differ")
+    if completion_ids is None:
+        truncated = [False] * len(completions)
+    else:
+        if len(completion_ids) != len(completions) or not completion_end_ids:
+            raise ValueError("Completion token IDs or tokenizer end tokens are missing")
+        truncated = [not ids or ids[-1] not in completion_end_ids for ids in completion_ids]
     items = [
-        {"task": json.loads(tj), "answer": extract_answer(c, thinking=mode)}
-        for c, tj, mode in zip(completions, task_json, thinking)
+        {"task": json.loads(tj), "answer": extract_answer(c, thinking=mode,
+         finish_reason="length" if clipped else None)}
+        for c, tj, mode, clipped in zip(completions, task_json, thinking, truncated)
     ]
     req = urllib.request.Request(
         reward_url,
@@ -65,6 +73,7 @@ def main():
     ap.add_argument("--batch-size", type=int, default=1)
     ap.add_argument("--gradient-accumulation-steps", type=int, default=8)
     ap.add_argument("--save-steps", type=int, default=10)
+    ap.add_argument("--warmup-steps", type=int, default=10)
     ap.add_argument("--reward-url", default=REWARD_URL)
     ap.add_argument("--resume-from-checkpoint", nargs="?", const=True, default=None,
                     help="Resume a checkpoint path, or the latest checkpoint in --out.")
@@ -105,7 +114,7 @@ def main():
         max_steps=args.steps,
         learning_rate=1e-5,
         lr_scheduler_type="cosine",
-        warmup_steps=10,
+        warmup_steps=args.warmup_steps,
         per_device_train_batch_size=args.batch_size,
         gradient_accumulation_steps=args.gradient_accumulation_steps,
         num_generations=args.k,
@@ -119,6 +128,7 @@ def main():
         save_steps=args.save_steps,
         bf16=True,
         gradient_checkpointing=True,
+        mask_truncated_completions=True,
         model_init_kwargs={"dtype": "bfloat16", "device_map": None, "attn_implementation": "sdpa"},
         use_vllm=True,
         vllm_mode="colocate",
@@ -136,6 +146,9 @@ def main():
         peft_config=peft_config,
         args=config,
     )
+    global completion_end_ids
+    completion_end_ids = {trainer.processing_class.eos_token_id,
+                          trainer.processing_class.pad_token_id} - {None}
     trainer.train(resume_from_checkpoint=args.resume_from_checkpoint)
     trainer.save_model(args.out + "/final")
     print(f"RL-DONE adapters in {args.out}/final")

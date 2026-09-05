@@ -88,6 +88,14 @@ That target-format change was an avoidable confound. The assembly repeat in
 The failed hex run, its raw generations and the interrupted control remain
 available. Neither is silently replaced by the corrected run.
 
+The assembly repeat scored 22/120 write and 0/40 tree tasks in chat. It
+recovered part of the hex pilot's loss but did not beat the original model.
+Its budgeted probe had 11/40 varying groups and mean write reward 0.366.
+The next small comparison uses that assembly checkpoint as a common parent:
+24 GRPO updates versus 24 further-SFT updates, learning rate 1e-5 and warmup
+3 steps. This measures whether either update method improves transfer from
+that starting point; the original checkpoint remains the baseline to beat.
+
 If a warmed checkpoint has enough reward variation, compare an RL branch
 with further SFT from that same checkpoint. Record steps, sampled tokens and
 data exposure; a small pilot is not a compute-matched algorithm comparison.
@@ -101,6 +109,10 @@ GRPO uses microbatches of one, accumulates eight batches and checkpoints every
 ten steps. Its colocated vLLM engine uses sleep mode and an 8192-token training
 context; the completion budget is 4096. These training budgets do not change
 the uncapped benchmark configuration.
+Truncated rollouts receive zero reward even if they contain an earlier
+complete tool call. The trainer checks the completion's final token against
+its tokenizer end/pad tokens and masks truncated sequences from the loss.
+This matches the budgeted probe's rejection of length-terminated answers.
 
 Local vLLM and RL launches must select the installed modern toolkit:
 `CUDA_HOME=/usr/local/cuda-13.1 PATH=/usr/local/cuda-13.1/bin:$PATH`.
