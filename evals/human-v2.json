@@ -1,0 +1,2430 @@
+[
+  {
+    "id": "shared-wallet",
+    "group": "joint-signing",
+    "kind": "write",
+    "context": "segwitv0",
+    "keys": [
+      "Maya",
+      "Leon"
+    ],
+    "tier": "easy",
+    "policy": "and(pk($0),pk($1))",
+    "prompt": "My partner and I are setting up a shared wallet. Neither of us should be able to move the money alone. Can you write the Bitcoin script? We should be able to spend together straight away.",
+    "choose_context": true
+  },
+  {
+    "id": "legacy-shared-wallet",
+    "group": "joint-signing",
+    "kind": "write",
+    "context": "legacy",
+    "keys": [
+      "Maya",
+      "Leon"
+    ],
+    "tier": "easy",
+    "policy": "and(pk($0),pk($1))",
+    "prompt": "I need the same basic arrangement for an older P2SH wallet: Maya and Leon must both sign, with no waiting period or other way to spend. What redeem script should I use?"
+  },
+  {
+    "id": "two-of-three-tap",
+    "group": "threshold-dialect",
+    "kind": "write",
+    "context": "tap",
+    "keys": [
+      "phone",
+      "laptop",
+      "backup"
+    ],
+    "tier": "easy",
+    "policy": "thresh(2,pk($0),pk($1),pk($2))",
+    "prompt": "Can you make me a Taproot leaf for a 2-of-3 wallet? The keys are my phone, laptop and backup. Any two should work immediately; one must never be enough. I only need the leaf script, not a descriptor."
+  },
+  {
+    "id": "two-of-three-wsh",
+    "group": "threshold-dialect",
+    "kind": "write",
+    "context": "segwitv0",
+    "keys": [
+      "phone",
+      "laptop",
+      "backup"
+    ],
+    "tier": "easy",
+    "policy": "thresh(2,pk($0),pk($1),pk($2))",
+    "prompt": "Please write a Bitcoin script where any two of my phone, laptop and backup keys can spend. No single key should be enough, and there are no time restrictions.",
+    "choose_context": true
+  },
+  {
+    "id": "treasury-quorum",
+    "group": "larger-quorum",
+    "kind": "write",
+    "context": "segwitv0",
+    "keys": [
+      "Ana",
+      "Bo",
+      "Chen",
+      "Dev",
+      "Eli"
+    ],
+    "tier": "medium",
+    "policy": "thresh(3,pk($0),pk($1),pk($2),pk($3),pk($4))",
+    "prompt": "There are five of us managing a club treasury. We want any three people to be able to approve a payment, but never just two. Could you write a Bitcoin script with no other spending paths?",
+    "choose_context": true
+  },
+  {
+    "id": "relative-delay",
+    "group": "clock-origin",
+    "kind": "write",
+    "context": "segwitv0",
+    "keys": [
+      "owner"
+    ],
+    "tier": "easy",
+    "policy": "and(pk($0),older(144))",
+    "prompt": "Write a Bitcoin script for my key, but make me wait 144 blocks after the output confirms before I can spend it. My signature must still be required after the wait. There should be no other way to spend.",
+    "choose_context": true
+  },
+  {
+    "id": "absolute-delay",
+    "group": "clock-origin",
+    "kind": "write",
+    "context": "segwitv0",
+    "keys": [
+      "owner"
+    ],
+    "tier": "easy",
+    "policy": "and(pk($0),after(900000))",
+    "prompt": "I want a Bitcoin output that only my key can spend, starting at block height 900000. This is a fixed block height, not a delay measured from when I fund it. Please give me the script.",
+    "choose_context": true
+  },
+  {
+    "id": "cooperative-recovery",
+    "group": "delay-scope",
+    "kind": "write",
+    "context": "segwitv0",
+    "keys": [
+      "daily",
+      "cosigner",
+      "recovery"
+    ],
+    "tier": "medium",
+    "policy": "or(and(pk($0),pk($1)),and(pk($2),older(1008)))",
+    "prompt": "I'm making a wallet with a recovery key. My daily key and cosigner should be able to spend together immediately. If that arrangement breaks down, the recovery key alone should work once the output is 1008 blocks old. Keep both options available after that point, and don't allow any other combination. Can you write the Bitcoin script?",
+    "choose_context": true
+  },
+  {
+    "id": "all-paths-delayed",
+    "group": "delay-scope",
+    "kind": "write",
+    "context": "segwitv0",
+    "keys": [
+      "daily",
+      "cosigner",
+      "recovery"
+    ],
+    "tier": "medium",
+    "policy": "and(older(1008),or(and(pk($0),pk($1)),pk($2)))",
+    "prompt": "For this Bitcoin wallet, nobody should be able to spend during the first 1008 blocks after funding confirms. After that, either the daily key plus cosigner, or the recovery key alone, should work. Those are the only options. What script does that?",
+    "choose_context": true
+  },
+  {
+    "id": "refund-with-secret",
+    "group": "hash-function",
+    "kind": "write",
+    "context": "segwitv0",
+    "keys": [
+      "buyer",
+      "seller"
+    ],
+    "tier": "medium",
+    "policy": "or(and(pk($1),sha256($sha256)),and(pk($0),after(910000)))",
+    "prompt": "I'm paying a seller who must reveal a secret to claim the payment. Use this SHA-256 digest of a 32-byte secret: $sha256. The seller's signature and the secret should work immediately. At block 910000, I also want the buyer to be able to refund with just their signature. The seller's claim should still work after that height. Please write the Bitcoin script with only these two routes.",
+    "choose_context": true
+  },
+  {
+    "id": "refund-with-hash160",
+    "group": "hash-function",
+    "kind": "write",
+    "context": "segwitv0",
+    "keys": [
+      "buyer",
+      "seller"
+    ],
+    "tier": "medium",
+    "policy": "or(and(pk($1),hash160($hash160)),and(pk($0),after(910000)))",
+    "prompt": "Can you write a Bitcoin script where the seller needs their signature plus a 32-byte secret matching HASH160 $hash160? Alternatively, the buyer can sign a refund at block 910000 or later. That refund date must not disable the seller's route. No other spends should be possible.",
+    "choose_context": true
+  },
+  {
+    "id": "recipient-role-swap",
+    "group": "hash-role",
+    "kind": "write",
+    "context": "tap",
+    "keys": [
+      "buyer",
+      "seller"
+    ],
+    "tier": "medium",
+    "policy": "or(and(pk($0),sha256($sha256)),and(pk($1),older(288)))",
+    "prompt": "This payment goes the other way around: the buyer claims with their signature and a 32-byte secret whose SHA-256 is $sha256. The seller can refund with their own signature after 288 blocks from confirmation. Both routes stay available once the wait is over. Can you give me just the tapscript leaf for those two possibilities?"
+  },
+  {
+    "id": "seller-relative-refund",
+    "group": "hash-role",
+    "kind": "write",
+    "context": "tap",
+    "keys": [
+      "buyer",
+      "seller"
+    ],
+    "tier": "medium",
+    "policy": "or(and(pk($1),sha256($sha256)),and(pk($0),older(288)))",
+    "prompt": "I need a tapscript leaf for a seller to claim with their signature and the 32-byte preimage of SHA-256 $sha256. If necessary, the buyer can refund after 288 blocks from the output confirming. The seller can still claim then. Please include exactly those two spending paths."
+  },
+  {
+    "id": "two-secrets",
+    "group": "two-hashes",
+    "kind": "write",
+    "context": "segwitv0",
+    "keys": [
+      "recipient"
+    ],
+    "tier": "medium",
+    "policy": "and(pk($0),and(sha256($sha256),hash160($hash160)))",
+    "prompt": "The recipient has to reveal two different 32-byte secrets to collect this payment. One must match SHA-256 $sha256 and the other HASH160 $hash160. Their signature is required too. Can you write the Bitcoin script? There is no timeout or alternative route.",
+    "choose_context": true
+  },
+  {
+    "id": "single-secret",
+    "group": "two-hashes",
+    "kind": "write",
+    "context": "segwitv0",
+    "keys": [
+      "recipient"
+    ],
+    "tier": "medium",
+    "policy": "and(pk($0),sha256($sha256))",
+    "prompt": "For this Bitcoin payment, the recipient only needs one 32-byte secret: a preimage for SHA-256 $sha256. Their signature is required as well. There is no second hashlock, timeout or other spending route. Can you give me the script?",
+    "choose_context": true
+  },
+  {
+    "id": "escrow-arbitration",
+    "group": "escrow",
+    "kind": "write",
+    "context": "segwitv0",
+    "keys": [
+      "buyer",
+      "seller",
+      "arbitrator"
+    ],
+    "tier": "medium",
+    "policy": "thresh(2,pk($0),pk($1),pk($2))",
+    "prompt": "Can you help with a Bitcoin escrow? Buyer and seller can settle together. If they disagree, the arbitrator can settle with either one of them. The arbitrator must not be able to take the funds alone, and neither can the buyer or seller. No delays. I need the script.",
+    "choose_context": true
+  },
+  {
+    "id": "mandatory-auditor",
+    "group": "mandatory-signer",
+    "kind": "write",
+    "context": "tap",
+    "keys": [
+      "auditor",
+      "manager1",
+      "manager2",
+      "manager3"
+    ],
+    "tier": "medium",
+    "policy": "and(pk($0),thresh(2,pk($1),pk($2),pk($3)))",
+    "prompt": "Our auditor must sign every payment, along with any two of the three managers. Three managers without the auditor must not work. Could you write a tapscript leaf for that arrangement? There are no delays or backup routes."
+  },
+  {
+    "id": "department-approval",
+    "group": "grouped-signers",
+    "kind": "write",
+    "context": "segwitv0",
+    "keys": [
+      "finance1",
+      "finance2",
+      "engineering1",
+      "engineering2"
+    ],
+    "tier": "medium",
+    "policy": "and(or(pk($0),pk($1)),or(pk($2),pk($3)))",
+    "prompt": "We need one signature from Finance and one from Engineering to release the money. Each department has two keys, so either person in each department can approve. Two people from the same department must not be enough. Can you write the Bitcoin script, with no other spending path?",
+    "choose_context": true
+  },
+  {
+    "id": "emergency-pair",
+    "group": "paired-recovery",
+    "kind": "write",
+    "context": "tap",
+    "keys": [
+      "primary1",
+      "primary2",
+      "backup1",
+      "backup2"
+    ],
+    "tier": "medium",
+    "policy": "or(and(pk($0),pk($1)),and(older(432),and(pk($2),pk($3))))",
+    "prompt": "I want a tapscript leaf with an everyday pair of keys and a backup pair. Both primary keys can sign at any time. Both backup keys can sign once the output has 432 confirmations. Mixing one primary and one backup must never be enough. Those should be the only two routes."
+  },
+  {
+    "id": "two-clocks",
+    "group": "combined-clocks",
+    "kind": "write",
+    "context": "segwitv0",
+    "keys": [
+      "owner"
+    ],
+    "tier": "medium",
+    "policy": "and(pk($0),and(after(920000),older(144)))",
+    "prompt": "Please write a Bitcoin script for my key that waits until BOTH conditions are met: block height 920000 has been reached, and the output is at least 144 blocks old. A signature is always required. No recovery route.",
+    "choose_context": true
+  },
+  {
+    "id": "delayed-secret",
+    "group": "delayed-hash",
+    "kind": "write",
+    "context": "tap",
+    "keys": [
+      "recipient"
+    ],
+    "tier": "medium",
+    "policy": "and(pk($0),and(older(72),sha256($sha256)))",
+    "prompt": "Could you write a tapscript leaf where the recipient needs their signature and the 32-byte secret for SHA-256 $sha256, but cannot claim until 72 blocks after the output confirms? Waiting alone must not let them skip the secret. There isn't a refund path."
+  },
+  {
+    "id": "height-boundary",
+    "group": "height-boundary",
+    "kind": "write",
+    "context": "legacy",
+    "keys": [
+      "owner"
+    ],
+    "tier": "medium",
+    "policy": "and(pk($0),after(499999999))",
+    "prompt": "I know this height is far in the future: 499999999. I want a P2SH redeem script that needs my signature and becomes spendable at that block height, not at a Unix timestamp. No other spending path. What should the script be?"
+  },
+  {
+    "id": "recovery-keeps-signature",
+    "group": "recovery-signature",
+    "kind": "write",
+    "context": "segwitv0",
+    "keys": [
+      "owner",
+      "backup"
+    ],
+    "tier": "medium",
+    "policy": "or(pk($0),and(pk($1),older(2016)))",
+    "prompt": "I want to spend with my normal key whenever I like. After 2016 blocks from confirmation, my backup key should also be able to spend. It must still need a signature then; the money must never become anyone-can-spend. Could you write the Bitcoin script with just those two options?",
+    "choose_context": true
+  },
+  {
+    "id": "secret-or-cosigner",
+    "group": "mixed-evidence",
+    "kind": "write",
+    "context": "tap",
+    "keys": [
+      "owner",
+      "cosigner"
+    ],
+    "tier": "medium",
+    "policy": "and(pk($0),or(pk($1),sha256($sha256)))",
+    "prompt": "Can you make a tapscript leaf where my owner key is always needed, plus either my cosigner or a 32-byte secret matching SHA-256 $sha256? The cosigner and secret together must not bypass me. No timing conditions or other routes."
+  },
+  {
+    "id": "tree-recovery",
+    "group": "tree-recovery",
+    "kind": "tree",
+    "context": "tap",
+    "keys": [
+      "owner",
+      "backup"
+    ],
+    "tier": "medium",
+    "policy": "or(pk($0),and(pk($1),older(1008)))",
+    "prompt": "Can you put together a tr() descriptor for my wallet? My owner key can spend immediately, or my backup key can spend once the output is 1008 blocks old. Both remain valid after that. Those are the only spending options. Please arrange it to keep the most expensive spend as small as possible."
+  },
+  {
+    "id": "tree-absolute-recovery",
+    "group": "tree-recovery",
+    "kind": "tree",
+    "context": "tap",
+    "keys": [
+      "owner",
+      "backup"
+    ],
+    "tier": "medium",
+    "policy": "or(pk($0),and(pk($1),after(930000)))",
+    "prompt": "I need a Taproot descriptor where the owner can always spend, and the backup can also spend at block 930000 or later. No one else can spend and there are no other conditions. Can you give me a tr() descriptor that minimizes the worst-case input weight?"
+  },
+  {
+    "id": "tree-two-backups",
+    "group": "tree-multiple-recovery",
+    "kind": "tree",
+    "context": "tap",
+    "keys": [
+      "owner",
+      "first_backup",
+      "last_resort"
+    ],
+    "tier": "medium",
+    "policy": "or(pk($0),or(and(pk($1),older(144)),and(pk($2),older(2016))))",
+    "prompt": "Help me lay out a Taproot wallet: the owner can spend now; the first backup can spend after 144 blocks from confirmation; and the last-resort key can spend after 2016 blocks. Earlier routes stay usable. I'd like a tr() descriptor with exactly these routes, arranged to keep the largest spending transaction input small."
+  },
+  {
+    "id": "tree-secret-payment",
+    "group": "tree-hash",
+    "kind": "tree",
+    "context": "tap",
+    "keys": [
+      "owner",
+      "recipient"
+    ],
+    "tier": "medium",
+    "policy": "or(pk($0),and(pk($1),sha256($sha256)))",
+    "prompt": "Please design a Taproot output with two ways to spend: the owner signs, or the recipient signs and reveals a 32-byte secret with SHA-256 $sha256. No waiting period and no other routes. Give me the tr() descriptor, choosing the layout to minimize the worst-case spend weight."
+  },
+  {
+    "id": "tree-team-backup",
+    "group": "tree-quorum",
+    "kind": "tree",
+    "context": "tap",
+    "keys": [
+      "owner",
+      "trustee1",
+      "trustee2",
+      "trustee3"
+    ],
+    "tier": "medium",
+    "policy": "or(pk($0),and(older(1008),thresh(2,pk($1),pk($2),pk($3))))",
+    "prompt": "I can spend with my owner key at any time. If I lose it, any two of my three trustees should be able to recover the funds after 1008 blocks from confirmation. One trustee must never be enough. Can you build a tr() descriptor with only those options and keep the worst-case spending cost down?"
+  },
+  {
+    "id": "tree-business",
+    "group": "tree-business",
+    "kind": "tree",
+    "context": "tap",
+    "keys": [
+      "owner",
+      "finance",
+      "operations",
+      "recovery"
+    ],
+    "tier": "medium",
+    "policy": "or(pk($0),or(and(pk($1),pk($2)),and(pk($3),older(432))))",
+    "prompt": "Can you design a Taproot output for a small business? The owner can spend alone. Finance and Operations together can also spend immediately. A separate recovery key becomes usable after 432 blocks from confirmation. All those options remain available thereafter, and there are no others. Please return a tr() descriptor optimized for the most expensive spending path."
+  },
+  {
+    "id": "tree-hash-and-refund",
+    "group": "tree-hash-refund",
+    "kind": "tree",
+    "context": "tap",
+    "keys": [
+      "owner",
+      "claimant",
+      "refund"
+    ],
+    "tier": "medium",
+    "policy": "or(pk($0),or(and(pk($1),sha256($sha256)),and(pk($2),after(940000))))",
+    "prompt": "I need a tr() descriptor with an owner override at any time, a claimant who must sign and reveal the 32-byte preimage of SHA-256 $sha256, and a refund key that can sign from block 940000 onward. The refund must not disable either earlier route. Include no other spends, and minimize the maximum input weight across these choices."
+  },
+  {
+    "id": "tree-four-options",
+    "group": "tree-layout",
+    "kind": "tree",
+    "context": "tap",
+    "keys": [
+      "owner",
+      "backup1",
+      "backup2",
+      "backup3"
+    ],
+    "tier": "medium",
+    "policy": "or(pk($0),or(and(pk($1),older(144)),or(and(pk($2),older(288)),and(pk($3),older(432)))))",
+    "prompt": "Could you give me a Taproot descriptor for four alternative keys? The owner has immediate access. Backup 1 starts working after 144 blocks from confirmation, backup 2 after 288, and backup 3 after 432. Once a key becomes usable it stays usable. These are the only routes. Choose the tree layout to minimize the worst-case input weight."
+  },
+  {
+    "id": "four-device-quorum-two",
+    "group": "four-device-quorum",
+    "kind": "write",
+    "context": "segwitv0",
+    "keys": [
+      "phone",
+      "laptop",
+      "tablet",
+      "offline"
+    ],
+    "tier": "medium",
+    "policy": "thresh(2,pk($0),pk($1),pk($2),pk($3))",
+    "prompt": "I keep wallet keys on four devices. Any two devices should be enough to pay, but one lost device must not expose the funds. Can you write the Bitcoin script? No delays or other spending options.",
+    "choose_context": true
+  },
+  {
+    "id": "four-device-quorum-three",
+    "group": "four-device-quorum",
+    "kind": "write",
+    "context": "segwitv0",
+    "keys": [
+      "phone",
+      "laptop",
+      "tablet",
+      "offline"
+    ],
+    "tier": "medium",
+    "policy": "thresh(3,pk($0),pk($1),pk($2),pk($3))",
+    "prompt": "For this four-device wallet, I want to require three devices to approve a payment. Two must not be enough, and all four should still work. Please write the Bitcoin script, with no recovery route or delay.",
+    "choose_context": true
+  },
+  {
+    "id": "six-member-board-half",
+    "group": "six-member-board",
+    "kind": "write",
+    "context": "tap",
+    "keys": [
+      "A",
+      "B",
+      "C",
+      "D",
+      "E",
+      "F"
+    ],
+    "tier": "hard",
+    "policy": "thresh(3,pk($0),pk($1),pk($2),pk($3),pk($4),pk($5))",
+    "prompt": "Our six board members each have a key. A payment needs approval from any three members. Please give me a tapscript leaf that rejects any group of fewer than three. Nobody has a special override."
+  },
+  {
+    "id": "six-member-board-majority",
+    "group": "six-member-board",
+    "kind": "write",
+    "context": "tap",
+    "keys": [
+      "A",
+      "B",
+      "C",
+      "D",
+      "E",
+      "F"
+    ],
+    "tier": "hard",
+    "policy": "thresh(4,pk($0),pk($1),pk($2),pk($3),pk($4),pk($5))",
+    "prompt": "There are six directors, and payments need a strict majority: any four signatures should work. Three directors cannot release funds. What tapscript leaf implements that, without any time conditions or exceptions?"
+  },
+  {
+    "id": "five-custodians-unanimous",
+    "group": "five-custodians",
+    "kind": "write",
+    "context": "segwitv0",
+    "keys": [
+      "A",
+      "B",
+      "C",
+      "D",
+      "E"
+    ],
+    "tier": "medium",
+    "policy": "and(pk($0),and(pk($1),and(pk($2),and(pk($3),pk($4)))))",
+    "prompt": "All five custodians must approve every withdrawal. Even four signatures must fail. I need a Bitcoin script for this unanimous arrangement, with no alternate way to spend.",
+    "choose_context": true
+  },
+  {
+    "id": "five-custodians-one-absent",
+    "group": "five-custodians",
+    "kind": "write",
+    "context": "segwitv0",
+    "keys": [
+      "A",
+      "B",
+      "C",
+      "D",
+      "E"
+    ],
+    "tier": "medium",
+    "policy": "thresh(4,pk($0),pk($1),pk($2),pk($3),pk($4))",
+    "prompt": "We need to tolerate one unavailable custodian out of five. Any four can withdraw; any three cannot. Can you write the Bitcoin script? There are no delays or special keys.",
+    "choose_context": true
+  },
+  {
+    "id": "chair-and-board-two",
+    "group": "chair-and-board",
+    "kind": "write",
+    "context": "segwitv0",
+    "keys": [
+      "chair",
+      "A",
+      "B",
+      "C",
+      "D"
+    ],
+    "tier": "hard",
+    "policy": "and(pk($0),thresh(2,pk($1),pk($2),pk($3),pk($4)))",
+    "prompt": "Our chair must approve each payment, together with any two of the four other board members. All four board members together must not bypass the chair. Please write the Bitcoin script. No other spending path.",
+    "choose_context": true
+  },
+  {
+    "id": "chair-and-board-three",
+    "group": "chair-and-board",
+    "kind": "write",
+    "context": "segwitv0",
+    "keys": [
+      "chair",
+      "A",
+      "B",
+      "C",
+      "D"
+    ],
+    "tier": "hard",
+    "policy": "and(pk($0),thresh(3,pk($1),pk($2),pk($3),pk($4)))",
+    "prompt": "Can you make a Bitcoin script that needs the chair and any three of A, B, C and D? The chair plus only two members must fail. The four members without the chair must also fail. No delays.",
+    "choose_context": true
+  },
+  {
+    "id": "two-officers-and-staff-one",
+    "group": "two-officers-and-staff",
+    "kind": "write",
+    "context": "segwitv0",
+    "keys": [
+      "president",
+      "treasurer",
+      "A",
+      "B",
+      "C"
+    ],
+    "tier": "hard",
+    "policy": "and(and(pk($0),pk($1)),or(pk($2),or(pk($3),pk($4))))",
+    "prompt": "The president and treasurer must both sign, plus at least one of the three staff keys. Staff approval cannot replace either officer. What Bitcoin script does that? These are the only conditions.",
+    "choose_context": true
+  },
+  {
+    "id": "two-officers-and-staff-two",
+    "group": "two-officers-and-staff",
+    "kind": "write",
+    "context": "segwitv0",
+    "keys": [
+      "president",
+      "treasurer",
+      "A",
+      "B",
+      "C"
+    ],
+    "tier": "hard",
+    "policy": "and(and(pk($0),pk($1)),thresh(2,pk($2),pk($3),pk($4)))",
+    "prompt": "Please write a Bitcoin script requiring the president, the treasurer, and any two staff members. Both officers remain compulsory even when all staff sign. There is no fallback route.",
+    "choose_context": true
+  },
+  {
+    "id": "three-departments-one-each",
+    "group": "three-departments",
+    "kind": "write",
+    "context": "segwitv0",
+    "keys": [
+      "finance1",
+      "finance2",
+      "engineering1",
+      "engineering2",
+      "legal1",
+      "legal2"
+    ],
+    "tier": "hard",
+    "policy": "and(or(pk($0),pk($1)),and(or(pk($2),pk($3)),or(pk($4),pk($5))))",
+    "prompt": "A withdrawal needs one person from each of Finance, Engineering and Legal. Each department has two keys. Extra signatures from one department cannot replace a missing department. Can you write the Bitcoin script? No other routes.",
+    "choose_context": true
+  },
+  {
+    "id": "three-departments-both-finance",
+    "group": "three-departments",
+    "kind": "write",
+    "context": "segwitv0",
+    "keys": [
+      "finance1",
+      "finance2",
+      "engineering1",
+      "engineering2",
+      "legal1",
+      "legal2"
+    ],
+    "tier": "hard",
+    "policy": "and(and(pk($0),pk($1)),and(or(pk($2),pk($3)),or(pk($4),pk($5))))",
+    "prompt": "For this withdrawal, both Finance keys are required, along with either Engineering key and either Legal key. More Engineering or Legal signatures must not excuse a missing Finance signature. Please give me the Bitcoin script.",
+    "choose_context": true
+  },
+  {
+    "id": "unequal-departments-engineering-quorum",
+    "group": "unequal-departments",
+    "kind": "write",
+    "context": "segwitv0",
+    "keys": [
+      "finance1",
+      "finance2",
+      "engineer1",
+      "engineer2",
+      "engineer3"
+    ],
+    "tier": "hard",
+    "policy": "and(or(pk($0),pk($1)),thresh(2,pk($2),pk($3),pk($4)))",
+    "prompt": "I need a Bitcoin script for one Finance signature and any two of the three Engineering signatures. Neither department can spend alone. No delays or recovery keys.",
+    "choose_context": true
+  },
+  {
+    "id": "unequal-departments-finance-quorum",
+    "group": "unequal-departments",
+    "kind": "write",
+    "context": "segwitv0",
+    "keys": [
+      "finance1",
+      "finance2",
+      "engineer1",
+      "engineer2",
+      "engineer3"
+    ],
+    "tier": "hard",
+    "policy": "and(and(pk($0),pk($1)),or(pk($2),or(pk($3),pk($4))))",
+    "prompt": "Switch the approval rule: both Finance people must sign, but only one Engineer is needed. Engineering unanimity cannot replace either Finance person. Please write the Bitcoin script with only this route.",
+    "choose_context": true
+  },
+  {
+    "id": "two-committee-quorums-both",
+    "group": "two-committee-quorums",
+    "kind": "write",
+    "context": "tap",
+    "keys": [
+      "north1",
+      "north2",
+      "north3",
+      "south1",
+      "south2",
+      "south3"
+    ],
+    "tier": "hard",
+    "policy": "and(thresh(2,pk($0),pk($1),pk($2)),thresh(2,pk($3),pk($4),pk($5)))",
+    "prompt": "Two committees share this wallet. A payment needs any two North signatures AND any two South signatures. Even all three North members cannot act without South. Give me the tapscript leaf; there are no other paths."
+  },
+  {
+    "id": "two-committee-quorums-either",
+    "group": "two-committee-quorums",
+    "kind": "write",
+    "context": "tap",
+    "keys": [
+      "north1",
+      "north2",
+      "north3",
+      "south1",
+      "south2",
+      "south3"
+    ],
+    "tier": "hard",
+    "policy": "or(thresh(2,pk($0),pk($1),pk($2)),thresh(2,pk($3),pk($4),pk($5)))",
+    "prompt": "Either committee should be able to pay independently: any two North members, or any two South members. One from each committee is insufficient. Could you write the tapscript leaf with exactly those options?"
+  },
+  {
+    "id": "asymmetric-teams-pair-or-quorum",
+    "group": "asymmetric-teams",
+    "kind": "write",
+    "context": "segwitv0",
+    "keys": [
+      "A",
+      "B",
+      "C",
+      "D",
+      "E"
+    ],
+    "tier": "hard",
+    "policy": "or(and(pk($0),pk($1)),thresh(2,pk($2),pk($3),pk($4)))",
+    "prompt": "A and B can spend together. Alternatively, any two of C, D and E can spend. A mixed pair from those two teams must fail. Please write the Bitcoin script, with neither delays nor other routes.",
+    "choose_context": true
+  },
+  {
+    "id": "asymmetric-teams-quorum-or-pair",
+    "group": "asymmetric-teams",
+    "kind": "write",
+    "context": "segwitv0",
+    "keys": [
+      "A",
+      "B",
+      "C",
+      "D",
+      "E"
+    ],
+    "tier": "hard",
+    "policy": "or(thresh(2,pk($0),pk($1),pk($2)),and(pk($3),pk($4)))",
+    "prompt": "Now the teams are A/B/C and D/E. Any two from the first team can spend, or D and E together can spend. One person from each team is not enough. What Bitcoin script implements this?",
+    "choose_context": true
+  },
+  {
+    "id": "executive-scope-override",
+    "group": "executive-scope",
+    "kind": "write",
+    "context": "segwitv0",
+    "keys": [
+      "executive",
+      "A",
+      "B",
+      "C"
+    ],
+    "tier": "hard",
+    "policy": "or(pk($0),thresh(2,pk($1),pk($2),pk($3)))",
+    "prompt": "The executive can spend alone. Without them, any two of the three delegates can spend together. A single delegate must never suffice. Please write the Bitcoin script with no other path.",
+    "choose_context": true
+  },
+  {
+    "id": "executive-scope-required",
+    "group": "executive-scope",
+    "kind": "write",
+    "context": "segwitv0",
+    "keys": [
+      "executive",
+      "A",
+      "B",
+      "C"
+    ],
+    "tier": "hard",
+    "policy": "and(pk($0),thresh(2,pk($1),pk($2),pk($3)))",
+    "prompt": "The executive must sign every payment and needs any two delegates as well. There is no executive-only override and no delegate-only route. Can you give me the Bitcoin script?",
+    "choose_context": true
+  },
+  {
+    "id": "auditor-scope-everywhere",
+    "group": "auditor-scope",
+    "kind": "write",
+    "context": "segwitv0",
+    "keys": [
+      "auditor",
+      "daily",
+      "cosigner",
+      "recovery"
+    ],
+    "tier": "hard",
+    "policy": "and(pk($0),or(and(pk($1),pk($2)),and(pk($3),older(1008))))",
+    "prompt": "Write a Bitcoin script where the auditor always signs. They also need either daily plus cosigner, or the recovery key once the output is 1008 blocks old. The early option remains available later. No route may skip the auditor.",
+    "choose_context": true
+  },
+  {
+    "id": "auditor-scope-recovery-only",
+    "group": "auditor-scope",
+    "kind": "write",
+    "context": "segwitv0",
+    "keys": [
+      "auditor",
+      "daily",
+      "cosigner",
+      "recovery"
+    ],
+    "tier": "hard",
+    "policy": "or(and(pk($1),pk($2)),and(pk($0),and(pk($3),older(1008))))",
+    "prompt": "Daily and cosigner can spend immediately without the auditor. Recovery needs both the auditor and recovery key, after 1008 blocks from confirmation. Keep the daily route available then too. Please write the Bitcoin script for only these routes.",
+    "choose_context": true
+  },
+  {
+    "id": "owner-scope-independent-recovery",
+    "group": "owner-scope",
+    "kind": "write",
+    "context": "segwitv0",
+    "keys": [
+      "owner",
+      "helper1",
+      "helper2",
+      "recovery"
+    ],
+    "tier": "hard",
+    "policy": "or(and(pk($0),or(pk($1),pk($2))),and(pk($3),older(2016)))",
+    "prompt": "I can spend with my owner key plus either helper. If I lose my key, recovery alone should work after 2016 blocks from confirmation. Earlier spending stays possible. Please write a Bitcoin script with these two routes.",
+    "choose_context": true
+  },
+  {
+    "id": "owner-scope-owner-stays",
+    "group": "owner-scope",
+    "kind": "write",
+    "context": "segwitv0",
+    "keys": [
+      "owner",
+      "helper1",
+      "helper2",
+      "recovery"
+    ],
+    "tier": "hard",
+    "policy": "and(pk($0),or(or(pk($1),pk($2)),and(pk($3),older(2016))))",
+    "prompt": "The owner key must always sign. Either helper can countersign now; after 2016 blocks the recovery key may countersign too. Recovery must never bypass the owner. Can you write the Bitcoin script?",
+    "choose_context": true
+  },
+  {
+    "id": "quorum-relaxation-three-to-two",
+    "group": "quorum-relaxation",
+    "kind": "write",
+    "context": "tap",
+    "keys": [
+      "A",
+      "B",
+      "C",
+      "D"
+    ],
+    "tier": "hard",
+    "policy": "or(thresh(3,pk($0),pk($1),pk($2),pk($3)),and(older(144),thresh(2,pk($0),pk($1),pk($2),pk($3))))",
+    "prompt": "Any three of our four keys can spend now. Once the output is 144 blocks old, any two should also work. One key must never be enough. I need the tapscript leaf for this relaxation schedule."
+  },
+  {
+    "id": "quorum-relaxation-four-to-two",
+    "group": "quorum-relaxation",
+    "kind": "write",
+    "context": "tap",
+    "keys": [
+      "A",
+      "B",
+      "C",
+      "D"
+    ],
+    "tier": "hard",
+    "policy": "or(and(pk($0),and(pk($1),and(pk($2),pk($3)))),and(older(144),thresh(2,pk($0),pk($1),pk($2),pk($3))))",
+    "prompt": "Before an output is 144 blocks old, require all four keys. After that, allow any two. The four-key route must keep working. Can you write a tapscript leaf with no single-key path?"
+  },
+  {
+    "id": "three-stage-quorum-single-late",
+    "group": "three-stage-quorum",
+    "kind": "write",
+    "context": "tap",
+    "keys": [
+      "A",
+      "B",
+      "C"
+    ],
+    "tier": "hard",
+    "policy": "or(and(pk($0),and(pk($1),pk($2))),or(and(older(144),thresh(2,pk($0),pk($1),pk($2))),and(older(1008),or(pk($0),or(pk($1),pk($2))))))",
+    "prompt": "Can you write a tapscript leaf for a three-stage wallet? All three keys work immediately. Any two also work after 144 blocks from confirmation. After 1008 blocks, any one key works. Earlier options remain valid; a signature is always needed."
+  },
+  {
+    "id": "three-stage-quorum-secret-late",
+    "group": "three-stage-quorum",
+    "kind": "write",
+    "context": "tap",
+    "keys": [
+      "A",
+      "B",
+      "C"
+    ],
+    "tier": "hard",
+    "policy": "or(and(pk($0),and(pk($1),pk($2))),or(and(older(144),thresh(2,pk($0),pk($1),pk($2))),and(older(1008),and(pk($0),sha256($sha256)))))",
+    "prompt": "All three keys may spend now; any two may spend after 144 blocks. After 1008 blocks, A alone may also spend if they reveal the 32-byte secret for SHA-256 $sha256. Keep the earlier routes. Please give me the tapscript leaf with exactly that schedule."
+  },
+  {
+    "id": "recovery-delay-scope-separate",
+    "group": "recovery-delay-scope",
+    "kind": "write",
+    "context": "segwitv0",
+    "keys": [
+      "owner",
+      "short_backup",
+      "long_backup"
+    ],
+    "tier": "hard",
+    "policy": "or(pk($0),or(and(pk($1),older(144)),and(pk($2),older(2016))))",
+    "prompt": "My owner key works at any time. The short backup starts at age 144 blocks and the long backup at age 2016 blocks, each measured from confirmation. Once usable, each remains usable. Can you write the Bitcoin script?",
+    "choose_context": true
+  },
+  {
+    "id": "recovery-delay-scope-shared",
+    "group": "recovery-delay-scope",
+    "kind": "write",
+    "context": "segwitv0",
+    "keys": [
+      "owner",
+      "short_backup",
+      "long_backup"
+    ],
+    "tier": "hard",
+    "policy": "or(pk($0),and(older(2016),or(pk($1),pk($2))))",
+    "prompt": "The owner can always spend, but neither backup should work before the output is 2016 blocks old. After that, either backup alone can spend. Please write the Bitcoin script. The short_backup name must not give that key an earlier start.",
+    "choose_context": true
+  },
+  {
+    "id": "recovery-clock-combination-both",
+    "group": "recovery-clock-combination",
+    "kind": "write",
+    "context": "segwitv0",
+    "keys": [
+      "owner",
+      "recovery"
+    ],
+    "tier": "hard",
+    "policy": "or(pk($0),and(pk($1),and(after(950000),older(288))))",
+    "prompt": "Owner access is immediate. Recovery needs its own signature, block height 950000 or later, AND an output age of at least 288 blocks. Neither clock alone is enough. Please write the Bitcoin script with no other paths.",
+    "choose_context": true
+  },
+  {
+    "id": "recovery-clock-combination-either",
+    "group": "recovery-clock-combination",
+    "kind": "write",
+    "context": "segwitv0",
+    "keys": [
+      "owner",
+      "recovery"
+    ],
+    "tier": "hard",
+    "policy": "or(pk($0),and(pk($1),or(after(950000),older(288))))",
+    "prompt": "The owner can spend now. Recovery may spend when either block height 950000 has been reached OR the output is 288 blocks old. Recovery still needs its signature. What Bitcoin script implements these choices?",
+    "choose_context": true
+  },
+  {
+    "id": "team-recovery-delay-backup-delay",
+    "group": "team-recovery-delay",
+    "kind": "write",
+    "context": "segwitv0",
+    "keys": [
+      "daily",
+      "cosigner",
+      "trustee1",
+      "trustee2",
+      "trustee3"
+    ],
+    "tier": "hard",
+    "policy": "or(and(pk($0),pk($1)),and(older(1008),thresh(2,pk($2),pk($3),pk($4))))",
+    "prompt": "Daily and cosigner work together immediately. After 1008 blocks from confirmation, any two trustees can also spend. Trustees cannot mix with daily or cosigner to make a valid pair. Please write the Bitcoin script with only these routes.",
+    "choose_context": true
+  },
+  {
+    "id": "team-recovery-delay-global-delay",
+    "group": "team-recovery-delay",
+    "kind": "write",
+    "context": "segwitv0",
+    "keys": [
+      "daily",
+      "cosigner",
+      "trustee1",
+      "trustee2",
+      "trustee3"
+    ],
+    "tier": "hard",
+    "policy": "and(older(1008),or(and(pk($0),pk($1)),thresh(2,pk($2),pk($3),pk($4))))",
+    "prompt": "Nobody can spend in the first 1008 blocks after confirmation. Then allow either daily plus cosigner, or any two of the three trustees. Mixed pairs must fail. Could you write the Bitcoin script?",
+    "choose_context": true
+  },
+  {
+    "id": "three-route-delay-one-delayed",
+    "group": "three-route-delay",
+    "kind": "write",
+    "context": "segwitv0",
+    "keys": [
+      "A",
+      "B",
+      "C",
+      "D",
+      "recovery"
+    ],
+    "tier": "hard",
+    "policy": "or(and(pk($0),pk($1)),or(and(pk($2),pk($3)),and(pk($4),older(432))))",
+    "prompt": "For this Bitcoin wallet, A with B can spend now, and C with D can spend now. Recovery alone becomes possible after 432 blocks from confirmation. All routes remain available. Please give me the script, without cross-team combinations.",
+    "choose_context": true
+  },
+  {
+    "id": "three-route-delay-two-delayed",
+    "group": "three-route-delay",
+    "kind": "write",
+    "context": "segwitv0",
+    "keys": [
+      "A",
+      "B",
+      "C",
+      "D",
+      "recovery"
+    ],
+    "tier": "hard",
+    "policy": "or(and(pk($0),pk($1)),and(older(432),or(and(pk($2),pk($3)),pk($4))))",
+    "prompt": "Only A with B can spend immediately. Once the output is 432 blocks old, C with D or recovery alone can also spend. No mixing of the two pairs. Can you write the Bitcoin script?",
+    "choose_context": true
+  },
+  {
+    "id": "absolute-branch-scope-staggered",
+    "group": "absolute-branch-scope",
+    "kind": "write",
+    "context": "segwitv0",
+    "keys": [
+      "A",
+      "B",
+      "C"
+    ],
+    "tier": "hard",
+    "policy": "or(and(pk($0),after(951000)),or(and(pk($1),after(952000)),and(pk($2),after(953000))))",
+    "prompt": "Please write a Bitcoin script with three independent keys. A becomes usable at height 951000, B at 952000, and C at 953000. Each keeps working thereafter. Before its own height, a key must not spend; there are no other routes.",
+    "choose_context": true
+  },
+  {
+    "id": "absolute-branch-scope-common",
+    "group": "absolute-branch-scope",
+    "kind": "write",
+    "context": "segwitv0",
+    "keys": [
+      "A",
+      "B",
+      "C"
+    ],
+    "tier": "hard",
+    "policy": "and(after(953000),or(pk($0),or(pk($1),pk($2))))",
+    "prompt": "I want the three keys A, B and C to have the same start: block height 953000. From then on, any one can spend. None may act earlier, even together. What Bitcoin script should I use?",
+    "choose_context": true
+  },
+  {
+    "id": "owner-two-clock-gate-both",
+    "group": "owner-two-clock-gate",
+    "kind": "write",
+    "context": "segwitv0",
+    "keys": [
+      "owner",
+      "cosigner"
+    ],
+    "tier": "hard",
+    "policy": "and(and(pk($0),pk($1)),and(after(960000),older(144)))",
+    "prompt": "Both owner and cosigner are needed for every payment. Also require block height 960000 and an output age of 144 blocks. Both timing conditions must hold. Please write the Bitcoin script; there is no fallback.",
+    "choose_context": true
+  },
+  {
+    "id": "owner-two-clock-gate-either",
+    "group": "owner-two-clock-gate",
+    "kind": "write",
+    "context": "segwitv0",
+    "keys": [
+      "owner",
+      "cosigner"
+    ],
+    "tier": "hard",
+    "policy": "and(and(pk($0),pk($1)),or(after(960000),older(144)))",
+    "prompt": "Owner and cosigner must both sign. They can pay once either height 960000 has arrived or the output is 144 blocks old. One timing condition suffices, but both signatures remain compulsory. I need the Bitcoin script.",
+    "choose_context": true
+  },
+  {
+    "id": "global-age-local-height-age-everywhere",
+    "group": "global-age-local-height",
+    "kind": "write",
+    "context": "segwitv0",
+    "keys": [
+      "owner",
+      "backup1",
+      "backup2"
+    ],
+    "tier": "hard",
+    "policy": "and(older(144),or(pk($0),and(after(961000),and(pk($1),pk($2)))))",
+    "prompt": "No spending before age 144 blocks. After that the owner can spend, or both backup keys can spend if height 961000 has also been reached. Write the Bitcoin script; backups never work individually.",
+    "choose_context": true
+  },
+  {
+    "id": "global-age-local-height-age-backups",
+    "group": "global-age-local-height",
+    "kind": "write",
+    "context": "segwitv0",
+    "keys": [
+      "owner",
+      "backup1",
+      "backup2"
+    ],
+    "tier": "hard",
+    "policy": "or(pk($0),and(and(older(144),after(961000)),and(pk($1),pk($2))))",
+    "prompt": "The owner must be able to spend immediately. Both backup keys together gain access only when height 961000 and age 144 blocks are both satisfied. Please write the Bitcoin script with exactly these options.",
+    "choose_context": true
+  },
+  {
+    "id": "height-with-override-different-heights",
+    "group": "height-with-override",
+    "kind": "write",
+    "context": "segwitv0",
+    "keys": [
+      "override",
+      "A",
+      "B"
+    ],
+    "tier": "hard",
+    "policy": "or(pk($0),or(and(pk($1),after(962000)),and(pk($2),after(963000))))",
+    "prompt": "Override can spend at any height. A can also spend from block 962000 and B from 963000. Earlier routes stay usable. Can you write the Bitcoin script without any additional approvals or spending paths?",
+    "choose_context": true
+  },
+  {
+    "id": "height-with-override-joint-late",
+    "group": "height-with-override",
+    "kind": "write",
+    "context": "segwitv0",
+    "keys": [
+      "override",
+      "A",
+      "B"
+    ],
+    "tier": "hard",
+    "policy": "or(pk($0),and(after(963000),and(pk($1),pk($2))))",
+    "prompt": "Override can always spend alone. The only alternative is A and B together from block 963000 onward. Neither A nor B may ever spend alone. Please write the Bitcoin script.",
+    "choose_context": true
+  },
+  {
+    "id": "maximum-block-delay-either",
+    "group": "maximum-block-delay",
+    "kind": "write",
+    "context": "segwitv0",
+    "keys": [
+      "A",
+      "B"
+    ],
+    "tier": "hard",
+    "policy": "and(older(65535),or(pk($0),pk($1)))",
+    "prompt": "I need a Bitcoin script that waits 65535 blocks from confirmation, then lets either A or B sign a spend. Even both keys together must not bypass the delay. No other route.",
+    "choose_context": true
+  },
+  {
+    "id": "maximum-block-delay-both",
+    "group": "maximum-block-delay",
+    "kind": "write",
+    "context": "segwitv0",
+    "keys": [
+      "A",
+      "B"
+    ],
+    "tier": "hard",
+    "policy": "and(older(65535),and(pk($0),pk($1)))",
+    "prompt": "Please write a Bitcoin script requiring both A and B, and a wait of 65535 blocks after confirmation. Waiting must not reduce the required signatures. There is no recovery option.",
+    "choose_context": true
+  },
+  {
+    "id": "absolute-lock-domain-timestamp",
+    "group": "absolute-lock-domain",
+    "kind": "write",
+    "context": "segwitv0",
+    "keys": [
+      "owner"
+    ],
+    "tier": "medium",
+    "policy": "and(pk($0),after(1800000000))",
+    "prompt": "Can you write a Bitcoin script that needs my owner signature and a time-based transaction locktime of at least Unix timestamp 1800000000? This is the Bitcoin locktime clock, not a wall-clock promise or a block height. No other way to spend.",
+    "choose_context": true
+  },
+  {
+    "id": "absolute-lock-domain-height",
+    "group": "absolute-lock-domain",
+    "kind": "write",
+    "context": "segwitv0",
+    "keys": [
+      "owner"
+    ],
+    "tier": "medium",
+    "policy": "and(pk($0),after(499999999))",
+    "prompt": "For this Bitcoin script, the cutoff is block height 499999999, not a timestamp. My owner signature is required at and after that height. Nobody can spend earlier and there is no alternate route.",
+    "choose_context": true
+  },
+  {
+    "id": "relative-lock-domain-seconds",
+    "group": "relative-lock-domain",
+    "kind": "write",
+    "context": "segwitv0",
+    "keys": [
+      "owner"
+    ],
+    "tier": "medium",
+    "policy": "and(pk($0),older(4194306))",
+    "prompt": "Please write a Bitcoin script requiring my signature and a relative time lock of 1024 seconds, measured by the Bitcoin relative-lock clock from confirmation. This means two 512-second units, not 1024 blocks. No alternate route.",
+    "choose_context": true
+  },
+  {
+    "id": "relative-lock-domain-blocks",
+    "group": "relative-lock-domain",
+    "kind": "write",
+    "context": "segwitv0",
+    "keys": [
+      "owner"
+    ],
+    "tier": "medium",
+    "policy": "and(pk($0),older(1024))",
+    "prompt": "I want the Bitcoin script to require my signature and a relative wait of 1024 blocks from confirmation. Do not turn this into seconds or a fixed height. No other spending path.",
+    "choose_context": true
+  },
+  {
+    "id": "mixed-lock-domains-time-and-blocks",
+    "group": "mixed-lock-domains",
+    "kind": "write",
+    "context": "segwitv0",
+    "keys": [
+      "owner"
+    ],
+    "tier": "hard",
+    "policy": "and(pk($0),and(after(1800000000),older(144)))",
+    "prompt": "Write a Bitcoin script for my key that requires both a time-based transaction locktime of at least Unix timestamp 1800000000 and an output age of at least 144 blocks. The signature is always required. These are Bitcoin locktime conditions; there is no other spending route.",
+    "choose_context": true
+  },
+  {
+    "id": "mixed-lock-domains-height-and-seconds",
+    "group": "mixed-lock-domains",
+    "kind": "write",
+    "context": "segwitv0",
+    "keys": [
+      "owner"
+    ],
+    "tier": "hard",
+    "policy": "and(pk($0),and(after(970000),older(4194314)))",
+    "prompt": "Could you write a Bitcoin script requiring my signature, height 970000 or later, and a relative time lock of 5120 seconds? The latter is ten 512-second units on the Bitcoin relative-lock clock. Both clocks must be satisfied. No backup path.",
+    "choose_context": true
+  },
+  {
+    "id": "hash-function-with-quorum-sha",
+    "group": "hash-function-with-quorum",
+    "kind": "write",
+    "context": "tap",
+    "keys": [
+      "A",
+      "B",
+      "C"
+    ],
+    "tier": "hard",
+    "policy": "and(thresh(2,pk($0),pk($1),pk($2)),sha256($sha256))",
+    "prompt": "Any two of A, B and C must sign, and a 32-byte preimage of SHA-256 $sha256 must also be revealed. Even all three signatures cannot skip the secret. Please write the tapscript leaf with only that path."
+  },
+  {
+    "id": "hash-function-with-quorum-hash160",
+    "group": "hash-function-with-quorum",
+    "kind": "write",
+    "context": "tap",
+    "keys": [
+      "A",
+      "B",
+      "C"
+    ],
+    "tier": "hard",
+    "policy": "and(thresh(2,pk($0),pk($1),pk($2)),hash160($hash160))",
+    "prompt": "Can you write a tapscript leaf requiring any two of A, B and C plus a 32-byte secret whose HASH160 is $hash160? Extra signatures do not replace the secret. There is no timed refund or other route."
+  },
+  {
+    "id": "two-secret-scope-both-on-claim",
+    "group": "two-secret-scope",
+    "kind": "write",
+    "context": "segwitv0",
+    "keys": [
+      "claimant",
+      "refund"
+    ],
+    "tier": "hard",
+    "policy": "or(and(pk($0),and(sha256($sha256),hash160($hash160))),and(pk($1),after(971000)))",
+    "prompt": "The claimant needs a signature and two separate 32-byte secrets, matching SHA-256 $sha256 and HASH160 $hash160. Refund may instead sign from height 971000. The claim route remains available. Write the Bitcoin script with only these two choices.",
+    "choose_context": true
+  },
+  {
+    "id": "two-secret-scope-one-per-route",
+    "group": "two-secret-scope",
+    "kind": "write",
+    "context": "segwitv0",
+    "keys": [
+      "claimant",
+      "refund"
+    ],
+    "tier": "hard",
+    "policy": "or(and(pk($0),sha256($sha256)),and(pk($1),and(after(971000),hash160($hash160))))",
+    "prompt": "For this Bitcoin payment, claimant signs with the 32-byte preimage of SHA-256 $sha256. Refund can sign from height 971000, but must reveal a different 32-byte secret matching HASH160 $hash160. Neither route needs the other secret. Please write the script.",
+    "choose_context": true
+  },
+  {
+    "id": "shared-secret-scope-all-routes",
+    "group": "shared-secret-scope",
+    "kind": "write",
+    "context": "segwitv0",
+    "keys": [
+      "A",
+      "B",
+      "recovery"
+    ],
+    "tier": "hard",
+    "policy": "and(sha256($sha256),or(and(pk($0),pk($1)),and(pk($2),older(576))))",
+    "prompt": "A and B together may spend now, or recovery may sign after 576 blocks from confirmation. Either route must also reveal the 32-byte secret for SHA-256 $sha256. Recovery cannot skip it. What Bitcoin script implements exactly these options?",
+    "choose_context": true
+  },
+  {
+    "id": "shared-secret-scope-early-only",
+    "group": "shared-secret-scope",
+    "kind": "write",
+    "context": "segwitv0",
+    "keys": [
+      "A",
+      "B",
+      "recovery"
+    ],
+    "tier": "hard",
+    "policy": "or(and(and(pk($0),pk($1)),sha256($sha256)),and(pk($2),older(576)))",
+    "prompt": "A and B need both signatures and the 32-byte secret for SHA-256 $sha256 to spend immediately. After age 576 blocks, recovery may spend with just its signature. The first route stays available. Please write the Bitcoin script.",
+    "choose_context": true
+  },
+  {
+    "id": "claimant-assignment-seller-claims",
+    "group": "claimant-assignment",
+    "kind": "write",
+    "context": "tap",
+    "keys": [
+      "buyer",
+      "seller",
+      "referee"
+    ],
+    "tier": "hard",
+    "policy": "or(and(pk($1),sha256($sha256)),and(older(288),and(pk($0),pk($2))))",
+    "prompt": "Seller can claim immediately with a signature and the 32-byte secret for SHA-256 $sha256. The only alternative is buyer and referee together after 288 blocks from confirmation. Both routes stay valid later. Please write the tapscript leaf."
+  },
+  {
+    "id": "claimant-assignment-buyer-claims",
+    "group": "claimant-assignment",
+    "kind": "write",
+    "context": "tap",
+    "keys": [
+      "buyer",
+      "seller",
+      "referee"
+    ],
+    "tier": "hard",
+    "policy": "or(and(pk($0),sha256($sha256)),and(older(288),and(pk($1),pk($2))))",
+    "prompt": "Buyer is the immediate claimant this time: buyer signs and reveals the 32-byte secret for SHA-256 $sha256. After 288 blocks from confirmation, seller and referee together may also spend. Keep both routes available. I need the tapscript leaf."
+  },
+  {
+    "id": "cooperation-and-delivery-two-route",
+    "group": "cooperation-and-delivery",
+    "kind": "write",
+    "context": "segwitv0",
+    "keys": [
+      "buyer",
+      "seller",
+      "refund"
+    ],
+    "tier": "hard",
+    "policy": "or(and(pk($0),pk($1)),and(pk($1),sha256($sha256)))",
+    "prompt": "Buyer and seller can settle together without a secret. Seller can also claim alone by signing and revealing the 32-byte preimage of SHA-256 $sha256. The supplied refund key has no authority in this version. Please write the Bitcoin script with exactly those routes.",
+    "choose_context": true
+  },
+  {
+    "id": "cooperation-and-delivery-three-route",
+    "group": "cooperation-and-delivery",
+    "kind": "write",
+    "context": "segwitv0",
+    "keys": [
+      "buyer",
+      "seller",
+      "refund"
+    ],
+    "tier": "hard",
+    "policy": "or(and(pk($0),pk($1)),or(and(pk($1),sha256($sha256)),and(pk($2),older(1008))))",
+    "prompt": "Please write a Bitcoin script with three routes: buyer and seller settle together; seller signs with the 32-byte secret for SHA-256 $sha256; or refund signs after 1008 blocks from confirmation. Earlier routes remain usable. No other spends.",
+    "choose_context": true
+  },
+  {
+    "id": "two-party-refund-referee-on-refund",
+    "group": "two-party-refund",
+    "kind": "write",
+    "context": "segwitv0",
+    "keys": [
+      "buyer",
+      "seller",
+      "referee"
+    ],
+    "tier": "hard",
+    "policy": "or(and(pk($1),sha256($sha256)),and(after(972000),and(pk($0),pk($2))))",
+    "prompt": "Seller signs with the 32-byte secret matching SHA-256 $sha256 to claim. From block 972000, buyer and referee together can refund without a secret. Referee must not be needed for a seller claim. Please write the Bitcoin script; both routes remain available.",
+    "choose_context": true
+  },
+  {
+    "id": "two-party-refund-referee-on-claim",
+    "group": "two-party-refund",
+    "kind": "write",
+    "context": "segwitv0",
+    "keys": [
+      "buyer",
+      "seller",
+      "referee"
+    ],
+    "tier": "hard",
+    "policy": "or(and(and(pk($1),pk($2)),sha256($sha256)),and(after(972000),pk($0)))",
+    "prompt": "Seller and referee must both sign a claim and reveal the 32-byte secret for SHA-256 $sha256. Buyer alone can sign a refund at height 972000 or later. The claim route stays valid. Can you write the Bitcoin script?",
+    "choose_context": true
+  },
+  {
+    "id": "refund-still-needs-secret-protected-refund",
+    "group": "refund-still-needs-secret",
+    "kind": "write",
+    "context": "segwitv0",
+    "keys": [
+      "seller",
+      "buyer"
+    ],
+    "tier": "hard",
+    "policy": "or(and(pk($0),sha256($sha256)),and(older(2016),and(pk($1),hash160($hash160))))",
+    "prompt": "Seller may claim with a signature and the 32-byte secret for SHA-256 $sha256. After 2016 blocks from confirmation, buyer may refund only with a signature AND the 32-byte preimage of HASH160 $hash160. The claim remains valid. Please write the Bitcoin script.",
+    "choose_context": true
+  },
+  {
+    "id": "refund-still-needs-secret-secret-free-refund",
+    "group": "refund-still-needs-secret",
+    "kind": "write",
+    "context": "segwitv0",
+    "keys": [
+      "seller",
+      "buyer"
+    ],
+    "tier": "hard",
+    "policy": "or(and(pk($0),sha256($sha256)),and(older(2016),pk($1)))",
+    "prompt": "Seller needs a signature and the 32-byte secret for SHA-256 $sha256. Buyer can instead refund after 2016 blocks from confirmation using only a signature, without any secret. Keep the seller route available. I need the Bitcoin script.",
+    "choose_context": true
+  },
+  {
+    "id": "delayed-claim-refund-claim-delayed",
+    "group": "delayed-claim-refund",
+    "kind": "write",
+    "context": "segwitv0",
+    "keys": [
+      "claimant",
+      "refund"
+    ],
+    "tier": "hard",
+    "policy": "or(and(pk($0),and(older(72),sha256($sha256))),and(pk($1),after(973000)))",
+    "prompt": "Claimant signs with the 32-byte secret for SHA-256 $sha256, but only once the output is 72 blocks old. Refund can separately sign from height 973000 without waiting for that age. Both routes stay available. Please write the Bitcoin script.",
+    "choose_context": true
+  },
+  {
+    "id": "delayed-claim-refund-age-everywhere",
+    "group": "delayed-claim-refund",
+    "kind": "write",
+    "context": "segwitv0",
+    "keys": [
+      "claimant",
+      "refund"
+    ],
+    "tier": "hard",
+    "policy": "and(older(72),or(and(pk($0),sha256($sha256)),and(pk($1),after(973000))))",
+    "prompt": "Nobody may spend before age 72 blocks. After that, claimant can sign with the 32-byte secret for SHA-256 $sha256, or refund can sign if height 973000 has arrived. Both routes stay available later. Can you write the Bitcoin script?",
+    "choose_context": true
+  },
+  {
+    "id": "audited-secret-payment-audit-both",
+    "group": "audited-secret-payment",
+    "kind": "write",
+    "context": "tap",
+    "keys": [
+      "auditor",
+      "claimant",
+      "refund"
+    ],
+    "tier": "hard",
+    "policy": "and(pk($0),or(and(pk($1),sha256($sha256)),and(pk($2),older(1008))))",
+    "prompt": "The auditor signs every spend. They also need either claimant with the 32-byte preimage of SHA-256 $sha256, or refund once the output is 1008 blocks old. A timeout must not bypass the auditor. Please write the tapscript leaf."
+  },
+  {
+    "id": "audited-secret-payment-audit-claim",
+    "group": "audited-secret-payment",
+    "kind": "write",
+    "context": "tap",
+    "keys": [
+      "auditor",
+      "claimant",
+      "refund"
+    ],
+    "tier": "hard",
+    "policy": "or(and(pk($0),and(pk($1),sha256($sha256))),and(pk($2),older(1008)))",
+    "prompt": "Claiming needs auditor and claimant signatures plus the 32-byte secret matching SHA-256 $sha256. Refund signs alone after 1008 blocks from confirmation. The auditor is not required for refund. Both routes stay available. Please give me the tapscript leaf."
+  },
+  {
+    "id": "quorum-secret-recovery-secret-everywhere",
+    "group": "quorum-secret-recovery",
+    "kind": "write",
+    "context": "segwitv0",
+    "keys": [
+      "A",
+      "B",
+      "C",
+      "recovery"
+    ],
+    "tier": "hard",
+    "policy": "and(sha256($sha256),or(thresh(2,pk($0),pk($1),pk($2)),and(pk($3),older(432))))",
+    "prompt": "Either two of A/B/C can spend now, or recovery can spend after age 432 blocks. In both cases the 32-byte preimage of SHA-256 $sha256 is required. No one may spend with signatures alone. Can you write the Bitcoin script?",
+    "choose_context": true
+  },
+  {
+    "id": "quorum-secret-recovery-recovery-exempt",
+    "group": "quorum-secret-recovery",
+    "kind": "write",
+    "context": "segwitv0",
+    "keys": [
+      "A",
+      "B",
+      "C",
+      "recovery"
+    ],
+    "tier": "hard",
+    "policy": "or(and(thresh(2,pk($0),pk($1),pk($2)),sha256($sha256)),and(pk($3),older(432)))",
+    "prompt": "Two of A/B/C and the 32-byte secret for SHA-256 $sha256 can spend immediately. Recovery alone can sign after 432 blocks from confirmation and needs no secret. Earlier spending remains valid. Please write the Bitcoin script.",
+    "choose_context": true
+  },
+  {
+    "id": "pair-or-secret-assisted-secret-fallback",
+    "group": "pair-or-secret-assisted",
+    "kind": "write",
+    "context": "segwitv0",
+    "keys": [
+      "owner",
+      "helper",
+      "backup"
+    ],
+    "tier": "hard",
+    "policy": "and(pk($0),or(pk($1),and(pk($2),sha256($sha256))))",
+    "prompt": "Owner and helper together can spend without a secret. The other route needs owner, backup and the 32-byte secret matching SHA-256 $sha256. Owner is always required. Please write the Bitcoin script, without delays or other options.",
+    "choose_context": true
+  },
+  {
+    "id": "pair-or-secret-assisted-secret-everywhere",
+    "group": "pair-or-secret-assisted",
+    "kind": "write",
+    "context": "segwitv0",
+    "keys": [
+      "owner",
+      "helper",
+      "backup"
+    ],
+    "tier": "hard",
+    "policy": "and(pk($0),and(sha256($sha256),or(pk($1),pk($2))))",
+    "prompt": "Owner must sign with either helper or backup, and every spend must reveal the 32-byte preimage of SHA-256 $sha256. Helper cannot skip the secret. I need the Bitcoin script for exactly this approval rule.",
+    "choose_context": true
+  },
+  {
+    "id": "three-commercial-routes-two-secret-free",
+    "group": "three-commercial-routes",
+    "kind": "write",
+    "context": "segwitv0",
+    "keys": [
+      "buyer",
+      "seller",
+      "manager",
+      "refund"
+    ],
+    "tier": "hard",
+    "policy": "or(and(pk($0),pk($2)),or(and(pk($1),sha256($sha256)),and(pk($3),after(974000))))",
+    "prompt": "Buyer with manager can spend without a secret. Seller can sign with the 32-byte preimage of SHA-256 $sha256. Refund can sign alone from height 974000. Earlier routes stay open. Please write a Bitcoin script for exactly those three options.",
+    "choose_context": true
+  },
+  {
+    "id": "three-commercial-routes-manager-on-refund",
+    "group": "three-commercial-routes",
+    "kind": "write",
+    "context": "segwitv0",
+    "keys": [
+      "buyer",
+      "seller",
+      "manager",
+      "refund"
+    ],
+    "tier": "hard",
+    "policy": "or(and(pk($0),pk($2)),or(and(pk($1),sha256($sha256)),and(after(974000),and(pk($3),pk($2)))))",
+    "prompt": "Buyer and manager may settle together. Seller may instead sign with the 32-byte secret for SHA-256 $sha256. Refund from height 974000 needs both refund and manager signatures. Keep all earlier routes usable. Can you write the Bitcoin script?",
+    "choose_context": true
+  },
+  {
+    "id": "delayed-secret-partnership-partnership-delayed",
+    "group": "delayed-secret-partnership",
+    "kind": "write",
+    "context": "segwitv0",
+    "keys": [
+      "owner",
+      "partner",
+      "recovery"
+    ],
+    "tier": "hard",
+    "policy": "or(and(older(144),and(pk($0),and(pk($1),sha256($sha256)))),and(pk($2),after(975000)))",
+    "prompt": "Owner and partner can spend with the 32-byte preimage of SHA-256 $sha256 once the output is 144 blocks old. Recovery can separately sign from block 975000, regardless of that age. Please write the Bitcoin script, keeping both routes available later.",
+    "choose_context": true
+  },
+  {
+    "id": "delayed-secret-partnership-every-route-delayed",
+    "group": "delayed-secret-partnership",
+    "kind": "write",
+    "context": "segwitv0",
+    "keys": [
+      "owner",
+      "partner",
+      "recovery"
+    ],
+    "tier": "hard",
+    "policy": "and(older(144),or(and(pk($0),and(pk($1),sha256($sha256))),and(pk($2),after(975000))))",
+    "prompt": "Before age 144 blocks, nobody can spend. Then owner and partner may sign with the 32-byte secret for SHA-256 $sha256. Recovery may also sign if block 975000 has been reached. Please give me the Bitcoin script; these are the only choices.",
+    "choose_context": true
+  },
+  {
+    "id": "arbitrator-authority-optional",
+    "group": "arbitrator-authority",
+    "kind": "write",
+    "context": "tap",
+    "keys": [
+      "buyer",
+      "seller",
+      "arbitrator"
+    ],
+    "tier": "medium",
+    "policy": "thresh(2,pk($0),pk($1),pk($2))",
+    "prompt": "For this escrow, buyer and seller may settle together, or the arbitrator may settle with either party. Nobody may spend alone. Could you write the tapscript leaf with no timing conditions or extra routes?"
+  },
+  {
+    "id": "arbitrator-authority-required",
+    "group": "arbitrator-authority",
+    "kind": "write",
+    "context": "tap",
+    "keys": [
+      "buyer",
+      "seller",
+      "arbitrator"
+    ],
+    "tier": "medium",
+    "policy": "and(pk($2),or(pk($0),pk($1)))",
+    "prompt": "Every escrow spend must involve the arbitrator plus buyer or seller. Buyer and seller together must not bypass arbitration. No one can act alone. Please write the tapscript leaf. There are no time conditions."
+  },
+  {
+    "id": "two-arbitrators-party-required",
+    "group": "two-arbitrators",
+    "kind": "write",
+    "context": "segwitv0",
+    "keys": [
+      "buyer",
+      "seller",
+      "arb1",
+      "arb2"
+    ],
+    "tier": "hard",
+    "policy": "or(and(pk($0),pk($1)),and(or(pk($0),pk($1)),or(pk($2),pk($3))))",
+    "prompt": "Buyer and seller can settle together. Otherwise either party can settle with either arbitrator. The two arbitrators together must not take the money without a party. Please write the Bitcoin script. No one can act alone.",
+    "choose_context": true
+  },
+  {
+    "id": "two-arbitrators-arbitrators-joint",
+    "group": "two-arbitrators",
+    "kind": "write",
+    "context": "segwitv0",
+    "keys": [
+      "buyer",
+      "seller",
+      "arb1",
+      "arb2"
+    ],
+    "tier": "hard",
+    "policy": "or(and(pk($0),pk($1)),or(and(or(pk($0),pk($1)),or(pk($2),pk($3))),and(pk($2),pk($3))))",
+    "prompt": "Keep buyer-plus-seller and either-party-plus-either-arbitrator spending. Also let the two arbitrators settle together without a party. No single key can spend. I need the Bitcoin script, with no time restrictions.",
+    "choose_context": true
+  },
+  {
+    "id": "timed-arbitration-cooperate-now",
+    "group": "timed-arbitration",
+    "kind": "write",
+    "context": "segwitv0",
+    "keys": [
+      "buyer",
+      "seller",
+      "arbitrator"
+    ],
+    "tier": "hard",
+    "policy": "or(and(pk($0),pk($1)),or(and(older(144),and(pk($0),pk($2))),and(after(976000),and(pk($1),pk($2)))))",
+    "prompt": "Buyer and seller may settle now. Buyer with arbitrator may settle after 144 blocks from confirmation; seller with arbitrator may settle from height 976000. Earlier routes keep working. Can you write the Bitcoin script with no solo spends?",
+    "choose_context": true
+  },
+  {
+    "id": "timed-arbitration-cooperate-waits",
+    "group": "timed-arbitration",
+    "kind": "write",
+    "context": "segwitv0",
+    "keys": [
+      "buyer",
+      "seller",
+      "arbitrator"
+    ],
+    "tier": "hard",
+    "policy": "or(and(older(144),and(pk($0),pk($1))),or(and(older(144),and(pk($0),pk($2))),and(after(976000),and(pk($1),pk($2)))))",
+    "prompt": "Buyer-plus-seller and buyer-plus-arbitrator both wait until the output is 144 blocks old. Seller-plus-arbitrator only needs height 976000 or later. No one acts alone, and earlier routes stay valid. Please write the Bitcoin script.",
+    "choose_context": true
+  },
+  {
+    "id": "owner-and-departments-either-department",
+    "group": "owner-and-departments",
+    "kind": "write",
+    "context": "segwitv0",
+    "keys": [
+      "owner",
+      "finance1",
+      "finance2",
+      "ops1",
+      "ops2"
+    ],
+    "tier": "hard",
+    "policy": "and(pk($0),or(and(pk($1),pk($2)),and(pk($3),pk($4))))",
+    "prompt": "Owner must sign every withdrawal, together with either both Finance keys or both Operations keys. One from each department is not enough. Please write the Bitcoin script, without delays or exceptions.",
+    "choose_context": true
+  },
+  {
+    "id": "owner-and-departments-both-departments",
+    "group": "owner-and-departments",
+    "kind": "write",
+    "context": "segwitv0",
+    "keys": [
+      "owner",
+      "finance1",
+      "finance2",
+      "ops1",
+      "ops2"
+    ],
+    "tier": "hard",
+    "policy": "and(pk($0),and(or(pk($1),pk($2)),or(pk($3),pk($4))))",
+    "prompt": "A withdrawal needs owner, one Finance signer and one Operations signer. Two from the same department must not replace the missing department. The owner is always needed. Can you write the Bitcoin script?",
+    "choose_context": true
+  },
+  {
+    "id": "business-secret-expiry-secret-can-be-skipped",
+    "group": "business-secret-expiry",
+    "kind": "write",
+    "context": "tap",
+    "keys": [
+      "A",
+      "B"
+    ],
+    "tier": "hard",
+    "policy": "and(and(pk($0),pk($1)),or(sha256($sha256),older(1008)))",
+    "prompt": "A and B must always both sign. They can spend now with the 32-byte preimage of SHA-256 $sha256, or after 1008 blocks from confirmation without the secret. No signature requirement expires. Please write the tapscript leaf."
+  },
+  {
+    "id": "business-secret-expiry-secret-never-skipped",
+    "group": "business-secret-expiry",
+    "kind": "write",
+    "context": "tap",
+    "keys": [
+      "A",
+      "B"
+    ],
+    "tier": "hard",
+    "policy": "and(and(pk($0),pk($1)),and(sha256($sha256),older(1008)))",
+    "prompt": "Require both A and B, the 32-byte secret for SHA-256 $sha256, AND a wait of 1008 blocks from confirmation. Waiting does not excuse the secret or either signature. Please give me the tapscript leaf."
+  },
+  {
+    "id": "threshold-of-teams-two-whole-teams",
+    "group": "threshold-of-teams",
+    "kind": "write",
+    "context": "tap",
+    "keys": [
+      "A1",
+      "A2",
+      "B1",
+      "B2",
+      "C1",
+      "C2"
+    ],
+    "tier": "hard",
+    "policy": "thresh(2,and(pk($0),pk($1)),and(pk($2),pk($3)),and(pk($4),pk($5)))",
+    "prompt": "Three teams each have two keys. A spend needs any two complete teams: both members of each chosen team must sign. One signer from every team is not enough. Can you write the tapscript leaf with no other routes?"
+  },
+  {
+    "id": "threshold-of-teams-all-teams-represented",
+    "group": "threshold-of-teams",
+    "kind": "write",
+    "context": "tap",
+    "keys": [
+      "A1",
+      "A2",
+      "B1",
+      "B2",
+      "C1",
+      "C2"
+    ],
+    "tier": "hard",
+    "policy": "and(or(pk($0),pk($1)),and(or(pk($2),pk($3)),or(pk($4),pk($5))))",
+    "prompt": "Now each of the three teams must be represented, but only one member per team is needed. All members of just two teams must fail. Please write the tapscript leaf. There are no delays or recovery keys."
+  },
+  {
+    "id": "threshold-of-delayed-keys-local-clocks",
+    "group": "threshold-of-delayed-keys",
+    "kind": "write",
+    "context": "tap",
+    "keys": [
+      "A",
+      "B",
+      "C"
+    ],
+    "tier": "hard",
+    "policy": "thresh(2,and(pk($0),older(144)),and(pk($1),older(288)),and(pk($2),older(432)))",
+    "prompt": "A is eligible after age 144 blocks, B after 288 and C after 432. Any two eligible signatures must be enough. An ineligible key must not count toward two. Could you write the tapscript leaf with no other spending path?"
+  },
+  {
+    "id": "threshold-of-delayed-keys-common-clock",
+    "group": "threshold-of-delayed-keys",
+    "kind": "write",
+    "context": "tap",
+    "keys": [
+      "A",
+      "B",
+      "C"
+    ],
+    "tier": "hard",
+    "policy": "and(older(432),thresh(2,pk($0),pk($1),pk($2)))",
+    "prompt": "No pair may spend until the output is 432 blocks old. Then any two of A, B and C work. One key never suffices. Please give me the tapscript leaf for this common-delay version."
+  },
+  {
+    "id": "asymmetric-three-way-approval-three-routes",
+    "group": "asymmetric-three-way-approval",
+    "kind": "write",
+    "context": "segwitv0",
+    "keys": [
+      "A",
+      "B",
+      "C",
+      "D",
+      "E",
+      "F"
+    ],
+    "tier": "hard",
+    "policy": "or(and(pk($0),pk($1)),or(thresh(2,pk($2),pk($3),pk($4)),and(pk($5),older(2016))))",
+    "prompt": "A plus B can spend now. Any two of C/D/E can also spend now. F alone may sign after 2016 blocks from confirmation. These groups must not be mixed, and earlier routes stay available. Please write the Bitcoin script.",
+    "choose_context": true
+  },
+  {
+    "id": "asymmetric-three-way-approval-f-needs-partner",
+    "group": "asymmetric-three-way-approval",
+    "kind": "write",
+    "context": "segwitv0",
+    "keys": [
+      "A",
+      "B",
+      "C",
+      "D",
+      "E",
+      "F"
+    ],
+    "tier": "hard",
+    "policy": "or(and(pk($0),pk($1)),or(thresh(2,pk($2),pk($3),pk($4)),and(older(2016),and(pk($5),pk($0)))))",
+    "prompt": "Allow A+B immediately and any two of C/D/E immediately. The late route, after 2016 blocks from confirmation, requires F AND A. F must never spend alone. Can you write the Bitcoin script, keeping the earlier routes?",
+    "choose_context": true
+  },
+  {
+    "id": "replacement-device-schedule-two-replacements",
+    "group": "replacement-device-schedule",
+    "kind": "write",
+    "context": "segwitv0",
+    "keys": [
+      "A",
+      "B",
+      "C",
+      "D",
+      "E"
+    ],
+    "tier": "hard",
+    "policy": "or(and(pk($0),pk($1)),or(and(older(144),and(pk($0),pk($2))),and(older(2016),and(pk($3),pk($4)))))",
+    "prompt": "A+B can spend now. After age 144 blocks, C can replace B, so A+C also works. At age 2016 blocks, D+E can recover independently. Earlier options stay available; mixed pairs must fail. Please write the Bitcoin script.",
+    "choose_context": true
+  },
+  {
+    "id": "replacement-device-schedule-b-always-needed",
+    "group": "replacement-device-schedule",
+    "kind": "write",
+    "context": "segwitv0",
+    "keys": [
+      "A",
+      "B",
+      "C",
+      "D",
+      "E"
+    ],
+    "tier": "hard",
+    "policy": "and(pk($1),or(pk($0),or(and(older(144),pk($2)),and(older(2016),and(pk($3),pk($4))))))",
+    "prompt": "B must sign every spend. B can pair with A now, with C after 144 blocks from confirmation, or with both D and E after 2016 blocks. Earlier options remain valid. Please write the Bitcoin script; recovery must not bypass B.",
+    "choose_context": true
+  },
+  {
+    "id": "tree-large-recovery-three",
+    "group": "tree-large-recovery",
+    "kind": "tree",
+    "context": "tap",
+    "keys": [
+      "owner",
+      "A",
+      "B",
+      "C",
+      "D",
+      "E"
+    ],
+    "tier": "hard",
+    "policy": "or(pk($0),and(older(1008),thresh(3,pk($1),pk($2),pk($3),pk($4),pk($5))))",
+    "prompt": "Please design a tr() descriptor. Owner can spend at any time. Any three of the five recovery keys can also spend after 1008 blocks from confirmation. Two recovery keys must fail. These are the only routes; minimize the worst-case input weight."
+  },
+  {
+    "id": "tree-large-recovery-secret-two",
+    "group": "tree-large-recovery",
+    "kind": "tree",
+    "context": "tap",
+    "keys": [
+      "owner",
+      "A",
+      "B",
+      "C",
+      "D",
+      "E"
+    ],
+    "tier": "hard",
+    "policy": "or(pk($0),and(older(1008),and(thresh(2,pk($1),pk($2),pk($3),pk($4),pk($5)),sha256($sha256))))",
+    "prompt": "Owner can always spend. Recovery needs any two of A/B/C/D/E, age 1008 blocks, and the 32-byte preimage of SHA-256 $sha256. No recovery spend may skip the secret. Give me a tr() descriptor with only those routes and the smallest worst-case input weight you can achieve."
+  },
+  {
+    "id": "tree-department-scope-either-pair",
+    "group": "tree-department-scope",
+    "kind": "tree",
+    "context": "tap",
+    "keys": [
+      "owner",
+      "finance1",
+      "finance2",
+      "ops1",
+      "ops2"
+    ],
+    "tier": "hard",
+    "policy": "or(pk($0),or(and(pk($1),pk($2)),and(pk($3),pk($4))))",
+    "prompt": "Owner can spend alone. Both Finance keys can also spend together, or both Operations keys can spend together. A mixed pair must fail. Can you return a tr() descriptor with exactly these paths and minimize the heaviest spend?"
+  },
+  {
+    "id": "tree-department-scope-one-each",
+    "group": "tree-department-scope",
+    "kind": "tree",
+    "context": "tap",
+    "keys": [
+      "owner",
+      "finance1",
+      "finance2",
+      "ops1",
+      "ops2"
+    ],
+    "tier": "hard",
+    "policy": "or(pk($0),and(or(pk($1),pk($2)),or(pk($3),pk($4))))",
+    "prompt": "Owner access is independent. The only other route requires one Finance signature and one Operations signature. Neither department can act by itself. Please design the tr() descriptor to minimize worst-case input weight."
+  },
+  {
+    "id": "tree-two-party-refund-relative",
+    "group": "tree-two-party-refund",
+    "kind": "tree",
+    "context": "tap",
+    "keys": [
+      "owner",
+      "claimant",
+      "buyer",
+      "referee"
+    ],
+    "tier": "hard",
+    "policy": "or(pk($0),or(and(pk($1),sha256($sha256)),and(older(288),and(pk($2),pk($3)))))",
+    "prompt": "Owner has an immediate override. Claimant may sign with the 32-byte secret for SHA-256 $sha256. Buyer and referee together may refund after 288 blocks from confirmation. Keep earlier routes. Please return a tr() descriptor with only these paths and minimize worst-case input weight."
+  },
+  {
+    "id": "tree-two-party-refund-absolute",
+    "group": "tree-two-party-refund",
+    "kind": "tree",
+    "context": "tap",
+    "keys": [
+      "owner",
+      "claimant",
+      "buyer",
+      "referee"
+    ],
+    "tier": "hard",
+    "policy": "or(pk($0),or(and(pk($1),sha256($sha256)),and(after(980000),and(pk($2),pk($3)))))",
+    "prompt": "Give me a tr() descriptor for an owner override, a claimant signature with the 32-byte secret for SHA-256 $sha256, and a buyer-plus-referee refund from block 980000. Refund must not disable claiming. No other paths; minimize the most expensive spend."
+  },
+  {
+    "id": "tree-backup-two-clocks-both",
+    "group": "tree-backup-two-clocks",
+    "kind": "tree",
+    "context": "tap",
+    "keys": [
+      "owner",
+      "A",
+      "B"
+    ],
+    "tier": "hard",
+    "policy": "or(pk($0),and(and(pk($1),pk($2)),and(after(981000),older(576))))",
+    "prompt": "Owner can spend immediately. A and B together can recover only when height 981000 has arrived AND the output is at least 576 blocks old. Either clock alone is insufficient. Please give me a tr() descriptor with no other routes and minimal worst-case input weight."
+  },
+  {
+    "id": "tree-backup-two-clocks-either",
+    "group": "tree-backup-two-clocks",
+    "kind": "tree",
+    "context": "tap",
+    "keys": [
+      "owner",
+      "A",
+      "B"
+    ],
+    "tier": "hard",
+    "policy": "or(pk($0),and(and(pk($1),pk($2)),or(after(981000),older(576))))",
+    "prompt": "Owner access is immediate. A+B recovery becomes available when either height 981000 has arrived OR age 576 blocks has been reached. Both signatures remain required. Build the tr() descriptor with only these options and minimize worst-case input weight."
+  },
+  {
+    "id": "tree-recovery-stages-pair-then-single",
+    "group": "tree-recovery-stages",
+    "kind": "tree",
+    "context": "tap",
+    "keys": [
+      "owner",
+      "A",
+      "B",
+      "C"
+    ],
+    "tier": "hard",
+    "policy": "or(pk($0),or(and(older(144),and(pk($1),pk($2))),and(older(2016),pk($3))))",
+    "prompt": "I want a tr() descriptor with owner access now, A+B recovery after 144 blocks from confirmation, and C alone after 2016 blocks. Keep every earlier route available. No mixing or other routes. Choose a layout that minimizes worst-case input weight."
+  },
+  {
+    "id": "tree-recovery-stages-overlapping-pairs",
+    "group": "tree-recovery-stages",
+    "kind": "tree",
+    "context": "tap",
+    "keys": [
+      "owner",
+      "A",
+      "B",
+      "C"
+    ],
+    "tier": "hard",
+    "policy": "or(pk($0),or(and(older(144),and(pk($1),pk($2))),and(older(2016),and(pk($2),pk($3)))))",
+    "prompt": "Owner can always spend. A+B starts working at age 144 blocks; B+C starts working at age 2016 blocks. C must never work alone, and earlier routes remain available. Could you give me the tr() descriptor optimized for the largest input weight?"
+  },
+  {
+    "id": "tree-separate-secrets-one-per-claim",
+    "group": "tree-separate-secrets",
+    "kind": "tree",
+    "context": "tap",
+    "keys": [
+      "owner",
+      "first",
+      "second"
+    ],
+    "tier": "hard",
+    "policy": "or(pk($0),or(and(pk($1),sha256($sha256)),and(pk($2),hash160($hash160))))",
+    "prompt": "Owner can always spend. First can sign with the 32-byte preimage of SHA-256 $sha256; second can sign with a different 32-byte preimage of HASH160 $hash160. Each needs only their own secret. Please return the tr() descriptor with no other paths and minimum worst-case input weight."
+  },
+  {
+    "id": "tree-separate-secrets-second-needs-both",
+    "group": "tree-separate-secrets",
+    "kind": "tree",
+    "context": "tap",
+    "keys": [
+      "owner",
+      "first",
+      "second"
+    ],
+    "tier": "hard",
+    "policy": "or(pk($0),or(and(pk($1),sha256($sha256)),and(pk($2),and(sha256($sha256),hash160($hash160)))))",
+    "prompt": "Owner has immediate access. First signs with the 32-byte secret for SHA-256 $sha256. Second must sign and reveal that secret plus the separate 32-byte secret for HASH160 $hash160. Give me a tr() descriptor with only these choices and minimize the heaviest spend."
+  },
+  {
+    "id": "tree-auditor-scope-audit-all-leaves",
+    "group": "tree-auditor-scope",
+    "kind": "tree",
+    "context": "tap",
+    "keys": [
+      "owner",
+      "auditor",
+      "A",
+      "B",
+      "C",
+      "recovery"
+    ],
+    "tier": "hard",
+    "policy": "or(pk($0),and(pk($1),or(thresh(2,pk($2),pk($3),pk($4)),and(older(1008),pk($5)))))",
+    "prompt": "Owner can spend independently. Every other route needs auditor: either auditor with two of A/B/C now, or auditor with recovery after age 1008 blocks. The earlier routes stay open. Please construct a tr() descriptor with only these paths and minimize worst-case input weight."
+  },
+  {
+    "id": "tree-auditor-scope-audit-team-only",
+    "group": "tree-auditor-scope",
+    "kind": "tree",
+    "context": "tap",
+    "keys": [
+      "owner",
+      "auditor",
+      "A",
+      "B",
+      "C",
+      "recovery"
+    ],
+    "tier": "hard",
+    "policy": "or(pk($0),or(and(pk($1),thresh(2,pk($2),pk($3),pk($4))),and(older(1008),pk($5))))",
+    "prompt": "Owner can spend now. Auditor with two of A/B/C can also spend now. Recovery alone may sign once the output is 1008 blocks old and does not need auditor. Earlier routes remain available. Please give me the tr() descriptor with minimal worst-case input weight."
+  },
+  {
+    "id": "tree-mixed-conditions-independent",
+    "group": "tree-mixed-conditions",
+    "kind": "tree",
+    "context": "tap",
+    "keys": [
+      "owner",
+      "age_key",
+      "height_key",
+      "secret_key"
+    ],
+    "tier": "hard",
+    "policy": "or(pk($0),or(and(pk($1),older(144)),or(and(pk($2),after(982000)),and(pk($3),sha256($sha256)))))",
+    "prompt": "Owner is always able to spend. Age_key may sign after 144 blocks from confirmation, height_key may sign from block 982000, and secret_key may sign with the 32-byte secret for SHA-256 $sha256. These are independent routes. Return a tr() descriptor minimizing worst-case input weight."
+  },
+  {
+    "id": "tree-mixed-conditions-secret-key-delayed",
+    "group": "tree-mixed-conditions",
+    "kind": "tree",
+    "context": "tap",
+    "keys": [
+      "owner",
+      "age_key",
+      "height_key",
+      "secret_key"
+    ],
+    "tier": "hard",
+    "policy": "or(pk($0),or(and(pk($1),older(144)),or(and(pk($2),after(982000)),and(pk($3),and(older(432),sha256($sha256))))))",
+    "prompt": "Please make a tr() descriptor for owner at any time, age_key from age 144 blocks, height_key from height 982000, and secret_key with the 32-byte preimage of SHA-256 $sha256 only from age 432 blocks. Earlier routes stay available. No other paths; minimize the heaviest spend."
+  },
+  {
+    "id": "tree-three-teams-recovery-age",
+    "group": "tree-three-teams",
+    "kind": "tree",
+    "context": "tap",
+    "keys": [
+      "owner",
+      "A",
+      "B",
+      "C",
+      "D",
+      "E",
+      "F"
+    ],
+    "tier": "hard",
+    "policy": "or(pk($0),or(and(pk($1),pk($2)),or(and(pk($3),pk($4)),and(older(1008),and(pk($5),pk($6))))))",
+    "prompt": "Owner, A+B, and C+D can each spend immediately. E+F can also spend after 1008 blocks from confirmation. Teams must not mix and earlier routes remain valid. Can you give me a tr() descriptor with exactly these routes, minimizing worst-case input weight?"
+  },
+  {
+    "id": "tree-three-teams-recovery-both-clocks",
+    "group": "tree-three-teams",
+    "kind": "tree",
+    "context": "tap",
+    "keys": [
+      "owner",
+      "A",
+      "B",
+      "C",
+      "D",
+      "E",
+      "F"
+    ],
+    "tier": "hard",
+    "policy": "or(pk($0),or(and(pk($1),pk($2)),or(and(pk($3),pk($4)),and(and(older(1008),after(983000)),and(pk($5),pk($6))))))",
+    "prompt": "Owner, A+B and C+D work now. E+F needs both age 1008 blocks and height 983000 before it can spend. No other combinations work; earlier routes stay usable. Please write the tr() descriptor and minimize the most expensive input."
+  },
+  {
+    "id": "tree-split-recovery-quorums-three-late",
+    "group": "tree-split-recovery-quorums",
+    "kind": "tree",
+    "context": "tap",
+    "keys": [
+      "owner",
+      "A",
+      "B",
+      "C",
+      "D",
+      "E"
+    ],
+    "tier": "hard",
+    "policy": "or(pk($0),or(and(after(984000),thresh(3,pk($1),pk($2),pk($3),pk($4),pk($5))),and(older(288),and(pk($1),pk($2)))))",
+    "prompt": "Owner can always spend. A+B may also spend after age 288 blocks. From height 984000, any three of A/B/C/D/E gain a separate recovery route. Keep earlier routes. Give me a tr() descriptor with only these options and minimize worst-case input weight."
+  },
+  {
+    "id": "tree-split-recovery-quorums-four-late",
+    "group": "tree-split-recovery-quorums",
+    "kind": "tree",
+    "context": "tap",
+    "keys": [
+      "owner",
+      "A",
+      "B",
+      "C",
+      "D",
+      "E"
+    ],
+    "tier": "hard",
+    "policy": "or(pk($0),or(and(after(984000),thresh(4,pk($1),pk($2),pk($3),pk($4),pk($5))),and(older(288),and(pk($1),pk($2)))))",
+    "prompt": "Owner has unrestricted access. A+B works after 288 blocks from confirmation. The height-984000 recovery route requires FOUR of A/B/C/D/E; three must not qualify through it. Earlier routes remain available. Please return a tr() descriptor minimizing worst-case input weight."
+  },
+  {
+    "id": "tree-secret-on-team-quorum-secret",
+    "group": "tree-secret-on-team",
+    "kind": "tree",
+    "context": "tap",
+    "keys": [
+      "owner",
+      "A",
+      "B",
+      "C",
+      "finance",
+      "ops"
+    ],
+    "tier": "hard",
+    "policy": "or(pk($0),or(and(thresh(2,pk($1),pk($2),pk($3)),sha256($sha256)),and(pk($4),pk($5))))",
+    "prompt": "Owner can spend alone. Two of A/B/C can spend with the 32-byte preimage of SHA-256 $sha256. Finance+ops can spend without a secret. No other routes or delays. Can you design a tr() descriptor with minimum worst-case input weight?"
+  },
+  {
+    "id": "tree-secret-on-team-pair-secret",
+    "group": "tree-secret-on-team",
+    "kind": "tree",
+    "context": "tap",
+    "keys": [
+      "owner",
+      "A",
+      "B",
+      "C",
+      "finance",
+      "ops"
+    ],
+    "tier": "hard",
+    "policy": "or(pk($0),or(thresh(2,pk($1),pk($2),pk($3)),and(and(pk($4),pk($5)),sha256($sha256))))",
+    "prompt": "Owner can spend alone. Any two of A/B/C can spend without a secret. Finance+ops must both sign AND reveal the 32-byte preimage of SHA-256 $sha256. Please give me a tr() descriptor with only these options, minimizing the heaviest spend."
+  },
+  {
+    "id": "tree-delay-ladder-four-starts",
+    "group": "tree-delay-ladder",
+    "kind": "tree",
+    "context": "tap",
+    "keys": [
+      "owner",
+      "A",
+      "B",
+      "C",
+      "D"
+    ],
+    "tier": "hard",
+    "policy": "or(pk($0),or(and(pk($1),older(72)),or(and(pk($2),older(144)),or(and(pk($3),older(288)),and(pk($4),older(576))))))",
+    "prompt": "Please build a tr() descriptor with owner access now and independent backup keys A, B, C, D starting at ages 72, 144, 288, 576 blocks respectively. Once available, each remains available. No other paths. Minimize worst-case input weight across all five options."
+  },
+  {
+    "id": "tree-delay-ladder-late-pair",
+    "group": "tree-delay-ladder",
+    "kind": "tree",
+    "context": "tap",
+    "keys": [
+      "owner",
+      "A",
+      "B",
+      "C",
+      "D"
+    ],
+    "tier": "hard",
+    "policy": "or(pk($0),or(and(pk($1),older(72)),or(and(pk($2),older(144)),and(older(576),and(pk($3),pk($4))))))",
+    "prompt": "Owner can spend now. A starts at age 72 blocks and B at age 144. The final backup path is C+D together from age 576 blocks; neither C nor D can act alone. Keep earlier routes available. Give me the tr() descriptor with minimal worst-case input weight."
+  },
+  {
+    "id": "tree-two-immediate-keys-one-pair",
+    "group": "tree-two-immediate-keys",
+    "kind": "tree",
+    "context": "tap",
+    "keys": [
+      "owner",
+      "operator",
+      "A",
+      "B",
+      "C"
+    ],
+    "tier": "hard",
+    "policy": "or(pk($0),or(pk($1),or(and(older(144),and(pk($2),pk($3))),and(older(1008),pk($4)))))",
+    "prompt": "Owner and operator can each spend independently right away. A+B can recover at age 144 blocks, and C alone at age 1008. Keep earlier options. Please choose the internal key and tree layout for a tr() descriptor minimizing worst-case input weight. No other routes."
+  },
+  {
+    "id": "tree-two-immediate-keys-two-pairs",
+    "group": "tree-two-immediate-keys",
+    "kind": "tree",
+    "context": "tap",
+    "keys": [
+      "owner",
+      "operator",
+      "A",
+      "B",
+      "C"
+    ],
+    "tier": "hard",
+    "policy": "or(pk($0),or(pk($1),or(and(older(144),and(pk($2),pk($3))),and(older(1008),and(pk($3),pk($4))))))",
+    "prompt": "Either owner or operator can spend immediately. A+B becomes usable at age 144 blocks, and B+C at age 1008. C alone must never work. Earlier routes remain valid. Return a tr() descriptor with exactly these routes and minimal worst-case input weight."
+  },
+  {
+    "id": "tree-department-quorums-engineering-majority",
+    "group": "tree-department-quorums",
+    "kind": "tree",
+    "context": "tap",
+    "keys": [
+      "owner",
+      "finance1",
+      "finance2",
+      "eng1",
+      "eng2",
+      "eng3"
+    ],
+    "tier": "hard",
+    "policy": "or(pk($0),and(or(pk($1),pk($2)),thresh(2,pk($3),pk($4),pk($5))))",
+    "prompt": "Owner may spend independently. Otherwise, one Finance key and any two Engineering keys must sign. No one department can bypass the other. Please return a tr() descriptor with only these routes, choosing a layout that minimizes worst-case input weight."
+  },
+  {
+    "id": "tree-department-quorums-finance-unanimity",
+    "group": "tree-department-quorums",
+    "kind": "tree",
+    "context": "tap",
+    "keys": [
+      "owner",
+      "finance1",
+      "finance2",
+      "eng1",
+      "eng2",
+      "eng3"
+    ],
+    "tier": "hard",
+    "policy": "or(pk($0),and(and(pk($1),pk($2)),or(pk($3),or(pk($4),pk($5)))))",
+    "prompt": "Owner can always spend alone. The alternative requires both Finance keys plus any one Engineer. Engineering unanimity cannot replace a Finance signer. Can you give me the tr() descriptor with minimal worst-case input weight and no other routes?"
+  },
+  {
+    "id": "tree-two-hash-clocks-claim-height",
+    "group": "tree-two-hash-clocks",
+    "kind": "tree",
+    "context": "tap",
+    "keys": [
+      "owner",
+      "claimant",
+      "refund"
+    ],
+    "tier": "hard",
+    "policy": "or(pk($0),or(and(pk($1),and(after(985000),sha256($sha256))),and(pk($2),and(older(576),hash160($hash160)))))",
+    "prompt": "Owner can spend at any time. Claimant signs with a 32-byte SHA-256 preimage for $sha256 from height 985000. Refund signs with a separate 32-byte HASH160 preimage for $hash160 after age 576 blocks. Earlier routes remain valid. Return the tr() descriptor minimizing worst-case input weight."
+  },
+  {
+    "id": "tree-two-hash-clocks-claim-age",
+    "group": "tree-two-hash-clocks",
+    "kind": "tree",
+    "context": "tap",
+    "keys": [
+      "owner",
+      "claimant",
+      "refund"
+    ],
+    "tier": "hard",
+    "policy": "or(pk($0),or(and(pk($1),and(older(576),sha256($sha256))),and(pk($2),and(after(985000),hash160($hash160)))))",
+    "prompt": "Owner always has access. Claimant needs its signature, age 576 blocks, and the 32-byte preimage of SHA-256 $sha256. Refund needs its signature, height 985000, and the separate 32-byte preimage of HASH160 $hash160. Both routes stay open later. Please return a tr() descriptor with minimal worst-case input weight."
+  },
+  {
+    "id": "tree-two-secrets-and-team-two-secrets-now",
+    "group": "tree-two-secrets-and-team",
+    "kind": "tree",
+    "context": "tap",
+    "keys": [
+      "owner",
+      "recipient",
+      "A",
+      "B",
+      "C"
+    ],
+    "tier": "hard",
+    "policy": "or(pk($0),or(and(pk($1),and(sha256($sha256),hash160($hash160))),thresh(2,pk($2),pk($3),pk($4))))",
+    "prompt": "Owner may spend alone. Recipient may sign with TWO separate 32-byte secrets matching SHA-256 $sha256 and HASH160 $hash160. Any two of A/B/C can also spend without secrets. No timing restrictions or other routes. Please give me a tr() descriptor minimizing worst-case input weight."
+  },
+  {
+    "id": "tree-two-secrets-and-team-one-secret-delayed-team",
+    "group": "tree-two-secrets-and-team",
+    "kind": "tree",
+    "context": "tap",
+    "keys": [
+      "owner",
+      "recipient",
+      "A",
+      "B",
+      "C"
+    ],
+    "tier": "hard",
+    "policy": "or(pk($0),or(and(pk($1),sha256($sha256)),and(older(1008),thresh(2,pk($2),pk($3),pk($4)))))",
+    "prompt": "Owner can spend now, or recipient can sign with the 32-byte secret for SHA-256 $sha256. Any two of A/B/C gain access after age 1008 blocks. Keep earlier routes. Please write a tr() descriptor with no other choices and minimal worst-case input weight."
+  }
+]

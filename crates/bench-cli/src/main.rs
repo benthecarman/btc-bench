@@ -24,10 +24,13 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Command {
-    /// Build the fixed human-v1 transfer eval (32 authored requests).
+    /// Build a fixed, authored human request evaluation suite.
     GenHuman {
-        #[arg(long, default_value = "datasets/human-v1")]
-        out: PathBuf,
+        #[arg(long, default_value = "human-v1", value_parser = ["human-v1", "human-v2"])]
+        suite: String,
+        /// Defaults to datasets/<suite>.
+        #[arg(long)]
+        out: Option<PathBuf>,
     },
     /// Generate a fixture dataset.
     Gen {
@@ -273,21 +276,26 @@ enum Command {
 fn main() -> Result<()> {
     let cli = Cli::parse();
     match cli.command {
-        Command::GenHuman { out } => {
+        Command::GenHuman { suite, out } => {
+            let out = out.unwrap_or_else(|| PathBuf::from("datasets").join(&suite));
             if out.join("fixtures.jsonl").exists() {
                 bail!("{} already contains fixtures; choose a new directory to preserve the frozen eval", out.display());
             }
-            let data = bench_gen::human::generate().map_err(anyhow::Error::msg)?;
+            let data = bench_gen::human::generate_suite(&suite).map_err(anyhow::Error::msg)?;
             bench_cli::write_dataset(&out, &data.fixtures, 0, &bench_cli::build_stamp())?;
             let manifest_path = out.join("manifest.json");
             let mut manifest: serde_json::Value =
                 serde_json::from_str(&fs::read_to_string(&manifest_path)?)?;
             use bitcoin::hashes::{sha256, Hash};
-            manifest["suite"] = bench_gen::human::SUITE.into();
+            manifest["suite"] = suite.clone().into();
             manifest["evaluation_only"] = true.into();
-            manifest["catalog_sha256"] = sha256::Hash::hash(bench_gen::human::CATALOG.as_bytes())
-                .to_string()
-                .into();
+            manifest["catalog_sha256"] = sha256::Hash::hash(
+                bench_gen::human::catalog(&suite)
+                    .map_err(anyhow::Error::msg)?
+                    .as_bytes(),
+            )
+            .to_string()
+            .into();
             manifest["fixtures_sha256"] =
                 sha256::Hash::hash(&fs::read(out.join("fixtures.jsonl"))?)
                     .to_string()
@@ -296,6 +304,10 @@ fn main() -> Result<()> {
             fs::write(
                 out.join("groups.json"),
                 serde_json::to_string_pretty(&data.groups)?,
+            )?;
+            fs::write(
+                out.join("reference-notes.json"),
+                serde_json::to_string_pretty(&data.reference_notes)?,
             )?;
             let prompts = data
                 .fixtures

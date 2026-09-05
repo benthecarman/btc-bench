@@ -1,5 +1,48 @@
 # Human request transfer eval
 
+`human-v2.json` expands the pilot to **160 requests: 120 write and 40 tree**.
+It retains the original 32 entries and generated fixtures without changes.
+The 128 additions form 64 pairs that change approval rules, recovery paths,
+hash requirements, clock domains or tree layouts. They include 115 operator
+shapes absent from the pilot. See the [coverage audit](human-v2-coverage.md)
+for the method, training comparison and limits, and
+[six requests for review](human-v2-spot-checks.md) for examples.
+
+Generate and check the expanded set with:
+
+```bash
+cargo build --release
+./target/release/btc-bench gen-human --suite human-v2
+./target/release/btc-bench audit --dataset datasets/human-v2
+python scripts/audit_human_catalog.py
+```
+
+The default suite remains `human-v1`; the default output is `datasets/<suite>`.
+Use `datasets/human-v2` in the run, grade and report commands below to measure
+the expanded set. It has no model results yet. The SFT file comparison covers
+stored policy traces, not all historical training inputs. Do not describe
+this development set as a blind holdout or count its paired requests as
+independent samples.
+
+Some new policies reuse keys across branches or combine alternatives that
+the optimizing compiler cannot handle. The generator then uses a simple
+Miniscript encoding and compares its decoded meaning with the authored
+policy over all relevant signer, secret and clock states. It also checks
+execution with assumed-valid signatures and full-credit grading. The audit
+checks authored policies directly, without requiring optimizer output.
+It still checks script text against bytes, descriptor weights and execution.
+This does not test real signatures or complete transactions.
+
+`reference-notes.json` records each fallback. A plain write reference is a
+correctness target, not a size, standardness or witness-malleability target.
+For trees that need a fallback, alternative routes become separate leaves.
+Their baseline puts the owner into a leaf under a NUMS internal key; their
+reference promotes the owner to the key path. Other cases retain the existing
+single-leaf baseline. Neither tree construction proves a global minimum.
+Report semantic correctness separately from this relative weight score.
+
+## Original pilot
+
 `human-v1.json` contains 32 synthetic requests authored for this project:
 24 script-writing requests and 8 Taproot design requests. These are not
 collected user conversations. The set is a draft under review.

@@ -12,6 +12,8 @@
 //! - the stored policy must recompile to a byte-identical script
 //!   (byte drift is a warning — the compiler is version-pinned — while
 //!   non-equivalence is a hard failure);
+//!   authored requests instead compare their policy directly with decoded
+//!   script semantics, so they can use a checked non-compiler encoding;
 //! - stored weights/sizes must match freshly computed values;
 //! - optimize baselines must stay oracle-equivalent to the reference
 //!   and strictly heavier;
@@ -28,7 +30,7 @@ use bench_core::task::{ContextKind, Fixture, OptimizeFixture, WriteFixture};
 use bench_core::{check_equivalence, execution_check, weights_for, HashPreimages, Verdict};
 
 use bitcoin::{PublicKey, ScriptBuf, XOnlyPublicKey};
-use miniscript::{policy::Concrete, Legacy, Segwitv0, Tap};
+use miniscript::{policy::Concrete, policy::Liftable, Legacy, Miniscript, Segwitv0, Tap};
 
 use crate::{load_dataset, Manifest, BITCOIN_VERSION, MINISCRIPT_VERSION};
 
@@ -164,6 +166,35 @@ impl AuditReport {
         else {
             return;
         };
+        if w.request.is_some() {
+            let verify = || -> Result<()> {
+                macro_rules! compare {
+                    ($key:ty, $ctx:ty) => {{
+                        let expected = w.reference_policy.parse::<Concrete<$key>>()?.lift()?;
+                        let actual =
+                            Miniscript::<$key, $ctx>::decode_consensus(&reference)?.lift()?;
+                        let verdict = bench_core::check_semantic(&expected, &actual, None);
+                        anyhow::ensure!(verdict.is_equivalent(), "{verdict}");
+                        let stored =
+                            Miniscript::<$key, $ctx>::from_str_insane(&w.reference_miniscript)?;
+                        anyhow::ensure!(
+                            stored.encode() == reference,
+                            "stored Miniscript differs from script bytes"
+                        );
+                    }};
+                }
+                match w.context {
+                    ContextKind::Legacy => compare!(PublicKey, Legacy),
+                    ContextKind::SegwitV0 => compare!(PublicKey, Segwitv0),
+                    ContextKind::Tap => compare!(XOnlyPublicKey, Tap),
+                }
+                Ok(())
+            };
+            if let Err(e) = verify() {
+                self.fail(format!("{}: authored policy/reference mismatch: {e}", w.id));
+            }
+            return;
+        }
         match recompile(w.context, &w.reference_policy) {
             Ok((ms_text, script_hex)) => {
                 if ms_text != w.reference_miniscript {
@@ -314,6 +345,25 @@ impl AuditReport {
             }
             _ => self.fail(format!("{}: reference descriptor unparseable", t.id)),
         }
+        if t.request.is_some() {
+            let verify = || -> Result<()> {
+                let expected = t
+                    .reference_policy
+                    .parse::<Concrete<XOnlyPublicKey>>()?
+                    .lift()?;
+                for text in [&t.reference_descriptor, &t.baseline_descriptor] {
+                    let actual = text.parse::<Descriptor<XOnlyPublicKey>>()?.lift()?;
+                    let verdict =
+                        bench_core::check_semantic(&expected, &actual, Some(&t.unspendable_key));
+                    anyhow::ensure!(verdict.is_equivalent(), "{verdict}");
+                }
+                Ok(())
+            };
+            if let Err(e) = verify() {
+                self.fail(format!("{}: authored policy/reference mismatch: {e}", t.id));
+            }
+            return;
+        }
         // Recompile drift on the answer key, same policy as the others
         // (via the shared reference builder, not compile_tr — see
         // tree_descriptors_for_policy).
@@ -446,6 +496,53 @@ pub fn report_ok(report: &AuditReport) -> bool {
 mod tests {
     use super::*;
     use bench_gen::fixtures::GenParams;
+
+    #[test]
+    fn authored_references_audit_without_optimizer_and_reject_policy_corruption() {
+        let ds = bench_gen::human::generate_suite("human-v2").unwrap();
+        let mut report = AuditReport::default();
+        for fixture in &ds.fixtures {
+            match fixture {
+                Fixture::Write(w) => report.check_write(w),
+                Fixture::Tree(t) => report.check_tree(t),
+                _ => unreachable!(),
+            }
+        }
+        assert!(report_ok(&report), "{:?}", report.failures);
+        assert!(report.warnings.is_empty());
+        let Fixture::Write(mut w) = ds
+            .fixtures
+            .iter()
+            .find(|f| f.id() == "t1-human-three-stage-quorum-single-late")
+            .unwrap()
+            .clone()
+        else {
+            unreachable!()
+        };
+        w.reference_policy = format!("pk({})", w.keys[0].pubkey);
+        let mut broken = AuditReport::default();
+        broken.check_write(&w);
+        assert!(broken
+            .failures
+            .iter()
+            .any(|e| e.contains("authored policy/reference mismatch")));
+        let Fixture::Tree(mut t) = ds
+            .fixtures
+            .iter()
+            .find(|f| matches!(f, Fixture::Tree(_)))
+            .unwrap()
+            .clone()
+        else {
+            unreachable!()
+        };
+        t.reference_policy = format!("pk({})", t.keys[0].pubkey);
+        let mut broken = AuditReport::default();
+        broken.check_tree(&t);
+        assert!(broken
+            .failures
+            .iter()
+            .any(|e| e.contains("authored policy/reference mismatch")));
+    }
 
     fn tmpdir(name: &str) -> std::path::PathBuf {
         let d = std::env::temp_dir().join(format!("btc-bench-audit-{name}-{}", std::process::id()));

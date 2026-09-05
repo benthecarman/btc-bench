@@ -7,11 +7,20 @@ use bench_core::task::{ContextKind, Fixture, KeyVar, Tier, TreeFixture, WriteFix
 use bitcoin::hashes::{hash160, sha256, Hash};
 use bitcoin::{PublicKey, XOnlyPublicKey};
 use miniscript::{policy::Concrete, Descriptor, Legacy, Segwitv0, Tap};
+use miniscript::{policy::Liftable, FromStrKey, Miniscript, MiniscriptKey, ScriptContext};
 use serde::Deserialize;
 use std::collections::{BTreeMap, BTreeSet};
 
 pub const CATALOG: &str = include_str!("../../../evals/human-v1.json");
 pub const SUITE: &str = "human-v1";
+
+pub fn catalog(suite: &str) -> Result<&'static str, String> {
+    match suite {
+        "human-v1" => Ok(CATALOG),
+        "human-v2" => Ok(include_str!("../../../evals/human-v2.json")),
+        _ => Err(format!("unknown human request suite {suite}")),
+    }
+}
 
 #[derive(Deserialize)]
 struct Case {
@@ -30,13 +39,217 @@ struct Case {
 pub struct HumanDataset {
     pub fixtures: Vec<Fixture>,
     pub groups: BTreeMap<String, String>,
+    pub reference_notes: BTreeMap<String, Vec<String>>,
+}
+
+// Deliberately simple encoding for policies the optimizing compiler cannot
+// handle. Signature reuse across branches is allowed. No policy is simplified
+// here: decode the result and prove agreement against the original policy.
+fn plain_miniscript<Pk: MiniscriptKey>(policy: &Concrete<Pk>) -> String {
+    match policy {
+        Concrete::Key(k) => format!("pk({k})"),
+        Concrete::After(t) => format!("after({})", t.to_consensus_u32()),
+        Concrete::Older(t) => format!("older({})", t.to_consensus_u32()),
+        Concrete::Sha256(h) => format!("sha256({h})"),
+        Concrete::Hash160(h) => format!("hash160({h})"),
+        Concrete::Hash256(h) => format!("hash256({h})"),
+        Concrete::Ripemd160(h) => format!("ripemd160({h})"),
+        Concrete::Trivial => "1".into(),
+        Concrete::Unsatisfiable => "0".into(),
+        Concrete::And(children) => children
+            .iter()
+            .rev()
+            .map(|c| plain_miniscript(c))
+            .reduce(|right, left| format!("and_v(v:{left},{right})"))
+            .expect("nonempty AND"),
+        Concrete::Or(children) => children
+            .iter()
+            .rev()
+            .map(|(_, c)| plain_miniscript(c))
+            .reduce(|right, left| format!("or_i({left},{right})"))
+            .expect("nonempty OR"),
+        Concrete::Thresh(t) => {
+            // An explicit false branch gives every child a dissatisfaction.
+            // a: carries the sum past children with multiple witness items.
+            let children = t
+                .data()
+                .iter()
+                .enumerate()
+                .map(|(i, c)| {
+                    let prefix = if i == 0 { "" } else { "a:" };
+                    format!("{prefix}or_i({},0)", plain_miniscript(c))
+                })
+                .collect::<Vec<_>>()
+                .join(",");
+            format!("thresh({},{children})", t.k())
+        }
+    }
+}
+
+fn checked_reference<Pk: FromStrKey + miniscript::ToPublicKey, Ctx: ScriptContext<Key = Pk>>(
+    policy: &Concrete<Pk>,
+    notes: &mut Vec<String>,
+) -> Result<Miniscript<Pk, Ctx>, String> {
+    let expected = policy.lift().map_err(|e| e.to_string())?;
+    let verify = |ms: &Miniscript<Pk, Ctx>| -> Result<(), String> {
+        let decoded =
+            Miniscript::<Pk, Ctx>::decode_consensus(&ms.encode()).map_err(|e| e.to_string())?;
+        let actual = decoded.lift().map_err(|e| e.to_string())?;
+        let verdict = bench_core::check_semantic(&expected, &actual, None);
+        if verdict.is_equivalent() {
+            Ok(())
+        } else {
+            Err(verdict.to_string())
+        }
+    };
+    let optimized = policy
+        .compile::<Ctx>()
+        .map_err(|e| e.to_string())
+        .and_then(|ms| {
+            verify(&ms)?;
+            Ok(ms)
+        });
+    match optimized {
+        Ok(ms) => Ok(ms),
+        Err(reason) => {
+            let ms = Miniscript::<Pk, Ctx>::from_str_insane(&plain_miniscript(policy))
+                .map_err(|e| e.to_string())?;
+            verify(&ms)?;
+            notes.push(format!("Used a plain reference encoding: {reason}. It is not an optimization or witness-malleability target."));
+            Ok(ms)
+        }
+    }
+}
+
+fn checked_tree(policy: &str, notes: &mut Vec<String>) -> Result<(String, String), String> {
+    let concrete: Concrete<XOnlyPublicKey> = policy
+        .parse()
+        .map_err(|e: miniscript::Error| e.to_string())?;
+    let verify = |pair: &(String, String)| -> Result<(), String> {
+        let expected = concrete.lift().map_err(|e| e.to_string())?;
+        for (i, s) in [&pair.0, &pair.1].into_iter().enumerate() {
+            let descriptor: Descriptor<XOnlyPublicKey> =
+                s.parse().map_err(|e: miniscript::Error| e.to_string())?;
+            let actual = descriptor.lift().map_err(|e| e.to_string())?;
+            // Only the target's leaves are used by the execution checker.
+            // Baselines are lifted as descriptors, where key hashes retain
+            // their public keys. Preserve existing baseline weight targets.
+            if i == 0 {
+                let Descriptor::Tr(tr) = &descriptor else {
+                    return Err("tree reference must use tr()".into());
+                };
+                for leaf in tr.leaves() {
+                    Miniscript::<XOnlyPublicKey, Tap>::decode_consensus(
+                        &leaf.miniscript().encode(),
+                    )
+                    .map_err(|e| e.to_string())?
+                    .lift()
+                    .map_err(|e| e.to_string())?;
+                }
+            }
+            let verdict =
+                bench_core::check_semantic(&expected, &actual, Some(fixtures::UNSPENDABLE_KEY));
+            if !verdict.is_equivalent() {
+                return Err(verdict.to_string());
+            }
+        }
+        Ok(())
+    };
+    let optimized = fixtures::tree_descriptors_for_policy(policy, fixtures::UNSPENDABLE_KEY)
+        .and_then(|pair| {
+            verify(&pair)?;
+            Ok(pair)
+        });
+    if let Ok(pair) = optimized {
+        return Ok(pair);
+    }
+    notes.push(format!(
+        "Used a tree with separately checked leaves: {}",
+        optimized.unwrap_err()
+    ));
+    fn routes(p: &Concrete<XOnlyPublicKey>) -> Result<Vec<Concrete<XOnlyPublicKey>>, String> {
+        match p {
+            Concrete::Or(children) => {
+                let mut out = Vec::new();
+                for (_, child) in children {
+                    out.extend(routes(child)?);
+                }
+                if out.len() > 64 {
+                    return Err("too many tree routes".into());
+                }
+                Ok(out)
+            }
+            Concrete::And(children) => {
+                let mut out = routes(&children[0])?;
+                for child in &children[1..] {
+                    let right = routes(child)?;
+                    if out.len() * right.len() > 64 {
+                        return Err("too many tree routes".into());
+                    }
+                    out = out
+                        .into_iter()
+                        .flat_map(|a| {
+                            right.iter().map(move |b| {
+                                Concrete::And(vec![
+                                    std::sync::Arc::new(a.clone()),
+                                    std::sync::Arc::new(b.clone()),
+                                ])
+                            })
+                        })
+                        .collect();
+                }
+                Ok(out)
+            }
+            _ => Ok(vec![p.clone()]),
+        }
+    }
+    fn balanced(leaves: &[String]) -> String {
+        if leaves.len() == 1 {
+            leaves[0].clone()
+        } else {
+            let (a, b) = leaves.split_at(leaves.len() / 2);
+            format!("{{{},{}}}", balanced(a), balanced(b))
+        }
+    }
+    let mut branches = routes(&concrete)?;
+    let at = branches
+        .iter()
+        .position(|p| matches!(p, Concrete::Key(_)))
+        .ok_or("tree needs an immediate key route")?;
+    let Concrete::Key(internal) = branches.remove(at) else {
+        unreachable!()
+    };
+    let leaves = branches
+        .iter()
+        .map(|p| checked_reference::<XOnlyPublicKey, Tap>(p, notes).map(|ms| ms.to_string()))
+        .collect::<Result<Vec<_>, _>>()?;
+    let reference = if leaves.is_empty() {
+        format!("tr({internal})")
+    } else {
+        format!("tr({internal},{})", balanced(&leaves))
+    };
+    // A realistic baseline keeps the owner in a leaf under a NUMS key,
+    // instead of forcing repeated keys into one large Miniscript leaf.
+    let baseline = if leaves.is_empty() {
+        format!("tr({},pk({internal}))", fixtures::UNSPENDABLE_KEY)
+    } else {
+        format!(
+            "tr({},{{pk({internal}),{}}})",
+            fixtures::UNSPENDABLE_KEY,
+            balanced(&leaves)
+        )
+    };
+    notes.push("Tree baseline places the owner in a leaf under a NUMS key; the reference promotes it to the key path. Alternatives inside conjunctions are split into separate leaves.".into());
+    let pair = (reference, baseline);
+    verify(&pair)?;
+    Ok(pair)
 }
 
 fn hex(bytes: &[u8]) -> String {
     bytes.iter().map(|b| format!("{b:02x}")).collect()
 }
 
-fn build(case: &Case) -> Result<Fixture, String> {
+fn build(case: &Case, notes: &mut Vec<String>) -> Result<Fixture, String> {
     if case.choose_context && (case.kind != "write" || case.context != ContextKind::SegwitV0) {
         return Err("context-free requests use a segwit reference with full public keys".into());
     }
@@ -103,7 +316,7 @@ fn build(case: &Case) -> Result<Fixture, String> {
                     let policy: Concrete<$key> = policy
                         .parse()
                         .map_err(|e: miniscript::Error| e.to_string())?;
-                    let ms = policy.compile::<$ctx>().map_err(|e| e.to_string())?;
+                    let ms = checked_reference::<$key, $ctx>(&policy, notes)?;
                     (ms.to_string(), ms.encode())
                 }};
             }
@@ -140,8 +353,7 @@ fn build(case: &Case) -> Result<Fixture, String> {
             if case.context != ContextKind::Tap {
                 return Err("tree requires tap context".into());
             }
-            let (reference, baseline) =
-                fixtures::tree_descriptors_for_policy(&policy, fixtures::UNSPENDABLE_KEY)?;
+            let (reference, baseline) = checked_tree(&policy, notes)?;
             let weight = |s: &str| -> Result<usize, String> {
                 s.parse::<Descriptor<XOnlyPublicKey>>()
                     .map_err(|e| e.to_string())?
@@ -195,10 +407,15 @@ fn build(case: &Case) -> Result<Fixture, String> {
 }
 
 pub fn generate() -> Result<HumanDataset, String> {
-    let cases: Vec<Case> = serde_json::from_str(CATALOG).map_err(|e| e.to_string())?;
+    generate_suite(SUITE)
+}
+
+pub fn generate_suite(suite: &str) -> Result<HumanDataset, String> {
+    let cases: Vec<Case> = serde_json::from_str(catalog(suite)?).map_err(|e| e.to_string())?;
     let mut out = HumanDataset {
         fixtures: Vec::new(),
         groups: BTreeMap::new(),
+        reference_notes: BTreeMap::new(),
     };
     let mut ids = BTreeSet::new();
     let mut errors = Vec::new();
@@ -206,8 +423,12 @@ pub fn generate() -> Result<HumanDataset, String> {
         if !ids.insert(case.id.clone()) {
             return Err(format!("duplicate case ID {}", case.id));
         }
-        match build(&case) {
+        let mut notes = Vec::new();
+        match build(&case, &mut notes) {
             Ok(f) => {
+                if !notes.is_empty() {
+                    out.reference_notes.insert(f.id().into(), notes);
+                }
                 out.groups.insert(f.id().into(), case.group);
                 out.fixtures.push(f);
             }
@@ -227,6 +448,83 @@ mod tests {
     use super::*;
     use bench_core::truth::{eval, TruthContext};
     use miniscript::policy::Liftable;
+
+    #[test]
+    fn expanded_suite_preserves_pilot_and_checks_new_spending_boundaries() {
+        let old = generate().unwrap();
+        let ds = generate_suite("human-v2").unwrap();
+        assert_eq!(ds.fixtures.len(), 160);
+        assert_eq!(
+            ds.fixtures
+                .iter()
+                .filter(|f| matches!(f, Fixture::Write(_)))
+                .count(),
+            120
+        );
+        assert_eq!(
+            serde_json::to_value(&old.fixtures).unwrap(),
+            serde_json::to_value(&ds.fixtures[..32]).unwrap()
+        );
+        assert!(old.reference_notes.is_empty());
+        assert!(!ds.reference_notes.is_empty());
+        for (id, group) in &old.groups {
+            assert_eq!(ds.groups.get(id), Some(group));
+        }
+        let spends = |name: &str, signers: &[usize], age| {
+            let Fixture::Write(w) = ds
+                .fixtures
+                .iter()
+                .find(|f| f.id() == format!("t1-human-{name}"))
+                .unwrap()
+            else {
+                unreachable!()
+            };
+            let ctx = TruthContext {
+                keys: signers
+                    .iter()
+                    .map(|i| (w.keys[*i].pubkey.clone(), true))
+                    .collect(),
+                age,
+                ..Default::default()
+            };
+            let script = bitcoin::ScriptBuf::from_hex(&w.reference_script_hex).unwrap();
+            match w.context {
+                ContextKind::Tap => eval(
+                    &Miniscript::<XOnlyPublicKey, Tap>::decode_consensus(&script)
+                        .unwrap()
+                        .lift()
+                        .unwrap(),
+                    &ctx,
+                ),
+                ContextKind::SegwitV0 => eval(
+                    &Miniscript::<PublicKey, Segwitv0>::decode_consensus(&script)
+                        .unwrap()
+                        .lift()
+                        .unwrap(),
+                    &ctx,
+                ),
+                _ => unreachable!(),
+            }
+        };
+        assert!(!spends("two-committee-quorums-both", &[0, 1, 2], 0));
+        assert!(spends("two-committee-quorums-both", &[0, 1, 3, 4], 0));
+        assert!(spends("two-committee-quorums-either", &[0, 1], 0));
+        assert!(!spends("two-committee-quorums-either", &[0, 3], 0));
+        assert!(spends("three-stage-quorum-single-late", &[0, 1, 2], 0));
+        assert!(!spends("three-stage-quorum-single-late", &[0, 1], 143));
+        assert!(spends("three-stage-quorum-single-late", &[0, 1], 144));
+        assert!(!spends("three-stage-quorum-single-late", &[2], 1007));
+        assert!(spends("three-stage-quorum-single-late", &[2], 1008));
+        assert!(!spends("three-stage-quorum-single-late", &[], 65535));
+        assert!(spends("owner-scope-independent-recovery", &[3], 2016));
+        assert!(!spends("owner-scope-owner-stays", &[3], 2016));
+        assert!(spends("owner-scope-owner-stays", &[0, 3], 2016));
+        assert!(!spends("relative-lock-domain-seconds", &[0], 1024));
+        assert!(!spends("relative-lock-domain-seconds", &[0], 4194305));
+        assert!(spends("relative-lock-domain-seconds", &[0], 4194306));
+        assert!(!spends("relative-lock-domain-blocks", &[0], 4194306));
+        assert!(spends("relative-lock-domain-blocks", &[0], 1024));
+    }
 
     #[test]
     fn generic_requests_accept_context_choices_but_reject_wrong_spends() {
