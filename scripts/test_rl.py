@@ -59,6 +59,7 @@ class RolloutTests(unittest.TestCase):
         parser = argparse.ArgumentParser()
         rl_common.add_sampling_args(parser)
         args = parser.parse_args(["--k", "2"])
+        args.seed = 7
         events = [
             {"choices": [{"index": 1, "text": "second", "finish_reason": None}]},
             {"choices": [{"index": 0, "text": "first", "finish_reason": "stop"}]},
@@ -74,10 +75,13 @@ class RolloutTests(unittest.TestCase):
             self.assertTrue(request.call_args.args[0].full_url.endswith("/chat/completions"))
             self.assertNotIn("timeout", request.call_args.kwargs)
             self.assertEqual(payload["temperature"], rl_common.TEMPERATURE)
+            self.assertEqual(payload["top_k"], rl_common.TOP_K)
+            self.assertEqual(payload["min_p"], rl_common.MIN_P)
+            self.assertEqual(payload["seed"], 7)
             self.assertEqual([c["text"] for c in result], ["first", "second answer"])
 
     def test_chat_stream_reassembles_tool_arguments_and_keeps_reasoning(self):
-        args = argparse.Namespace(k=2, temperature=0.6, top_p=0.95, max_completion_length=None)
+        args = argparse.Namespace(k=2, temperature=0.6, top_p=0.95, top_k=20, min_p=0.0, seed=7, max_completion_length=None)
         events = [
             {"choices": [{"index": 0, "delta": {"reasoning_content": "work"}}]},
             {"choices": [{"index": 0, "delta": {"tool_calls": [{"index": 0, "function":
@@ -96,7 +100,7 @@ class RolloutTests(unittest.TestCase):
         self.assertEqual(rl_probe.answer_from_sample(choices[1], True), "")
 
     def test_incomplete_stream_keeps_partial_output_for_diagnosis(self):
-        args = argparse.Namespace(k=2, temperature=0.6, top_p=0.95, max_completion_length=None)
+        args = argparse.Namespace(k=2, temperature=0.6, top_p=0.95, top_k=20, min_p=0.0, seed=7, max_completion_length=None)
         data = b'data: {"choices":[{"index":0,"delta":{"content":"partial"}}]}\n'
         with patch.object(rl_probe.urllib.request, "urlopen", return_value=io.BytesIO(data)):
             with self.assertRaises(rl_probe.SampleError) as caught:

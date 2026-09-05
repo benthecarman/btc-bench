@@ -62,6 +62,9 @@ def main():
     ap.add_argument("--model", default="runs/sft-qwen3-4b/merged")
     ap.add_argument("--out", default="runs/rl-qwen3-4b")
     ap.add_argument("--steps", type=int, default=300)
+    ap.add_argument("--batch-size", type=int, default=1)
+    ap.add_argument("--gradient-accumulation-steps", type=int, default=8)
+    ap.add_argument("--save-steps", type=int, default=10)
     ap.add_argument("--reward-url", default=REWARD_URL)
     ap.add_argument("--resume-from-checkpoint", nargs="?", const=True, default=None,
                     help="Resume a checkpoint path, or the latest checkpoint in --out.")
@@ -103,20 +106,25 @@ def main():
         learning_rate=1e-5,
         lr_scheduler_type="cosine",
         warmup_steps=10,
-        per_device_train_batch_size=args.k,
-        gradient_accumulation_steps=2,
+        per_device_train_batch_size=args.batch_size,
+        gradient_accumulation_steps=args.gradient_accumulation_steps,
         num_generations=args.k,
         max_completion_length=args.max_completion_length,
         temperature=args.temperature,
         top_p=args.top_p,
+        top_k=args.top_k,
+        min_p=args.min_p,
         beta=0.02,
         logging_steps=1,
-        save_steps=50,
+        save_steps=args.save_steps,
         bf16=True,
         gradient_checkpointing=True,
+        model_init_kwargs={"dtype": "bfloat16", "device_map": None, "attn_implementation": "sdpa"},
         use_vllm=True,
         vllm_mode="colocate",
-        vllm_gpu_memory_utilization=0.25,
+        vllm_gpu_memory_utilization=0.4,
+        vllm_enable_sleep_mode=True,
+        vllm_max_model_length=8192,
         report_to="none",
         seed=7,
     )

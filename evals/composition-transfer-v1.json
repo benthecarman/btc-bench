@@ -1,0 +1,430 @@
+[
+  {
+    "id": "compound-vote-four-approval-channels-2",
+    "group": "compound-vote-four-approval-channels",
+    "kind": "write",
+    "context": "tap",
+    "choose_context": false,
+    "keys": [
+      "A",
+      "B",
+      "C",
+      "D"
+    ],
+    "tier": "hard",
+    "policy": "thresh(2,pk($0),and(pk($1),older(80)),and(pk($2),sha256($sha256)),and(pk($3),after(990100)))",
+    "prompt": "There are four approval channels: A signs at any time; B signs once the output is 80 blocks old; C signs and supplies the 32-byte preimage of SHA-256 $sha256; D signs with transaction block-height locktime at least 990100. A spend needs any 2 of those four complete approvals; fewer must fail. Extra complete approvals are allowed. No additional spending route exists. Please return the tapscript leaf in hex or Bitcoin Core assembly."
+  },
+  {
+    "id": "compound-vote-four-approval-channels-3",
+    "group": "compound-vote-four-approval-channels",
+    "kind": "write",
+    "context": "tap",
+    "choose_context": false,
+    "keys": [
+      "A",
+      "B",
+      "C",
+      "D"
+    ],
+    "tier": "hard",
+    "policy": "thresh(3,pk($0),and(pk($1),older(80)),and(pk($2),sha256($sha256)),and(pk($3),after(990100)))",
+    "prompt": "There are four approval channels: A signs at any time; B signs once the output is 80 blocks old; C signs and supplies the 32-byte preimage of SHA-256 $sha256; D signs with transaction block-height locktime at least 990100. A spend needs any 3 of those four complete approvals; fewer must fail. Extra complete approvals are allowed. No additional spending route exists. Please return the tapscript leaf in hex or Bitcoin Core assembly."
+  },
+  {
+    "id": "compound-vote-four-complete-teams-2",
+    "group": "compound-vote-four-complete-teams",
+    "kind": "write",
+    "context": "segwitv0",
+    "choose_context": true,
+    "keys": [
+      "A1",
+      "A2",
+      "B1",
+      "B2",
+      "C1",
+      "C2",
+      "D1",
+      "D2"
+    ],
+    "tier": "hard",
+    "policy": "thresh(2,and(pk($0),pk($1)),and(pk($2),pk($3)),and(pk($4),pk($5)),and(pk($6),pk($7)))",
+    "prompt": "We have four teams, A, B, C and D. Each team has two keys. A team approves only when BOTH of its members sign. A single member is never a complete team approval. A spend needs any 2 of those four complete approvals; fewer must fail. Extra complete approvals are allowed. No additional spending route exists. Please return a Bitcoin script in hex or Bitcoin Core assembly."
+  },
+  {
+    "id": "compound-vote-four-complete-teams-3",
+    "group": "compound-vote-four-complete-teams",
+    "kind": "write",
+    "context": "segwitv0",
+    "choose_context": true,
+    "keys": [
+      "A1",
+      "A2",
+      "B1",
+      "B2",
+      "C1",
+      "C2",
+      "D1",
+      "D2"
+    ],
+    "tier": "hard",
+    "policy": "thresh(3,and(pk($0),pk($1)),and(pk($2),pk($3)),and(pk($4),pk($5)),and(pk($6),pk($7)))",
+    "prompt": "We have four teams, A, B, C and D. Each team has two keys. A team approves only when BOTH of its members sign. A single member is never a complete team approval. A spend needs any 3 of those four complete approvals; fewer must fail. Extra complete approvals are allowed. No additional spending route exists. Please return a Bitcoin script in hex or Bitcoin Core assembly."
+  },
+  {
+    "id": "compound-vote-mixed-approval-sizes-2",
+    "group": "compound-vote-mixed-approval-sizes",
+    "kind": "write",
+    "context": "segwitv0",
+    "choose_context": true,
+    "keys": [
+      "A",
+      "B",
+      "C",
+      "D",
+      "E",
+      "F",
+      "G",
+      "H"
+    ],
+    "tier": "hard",
+    "policy": "thresh(2,pk($0),and(pk($1),pk($2)),thresh(2,pk($3),pk($4),pk($5)),and(pk($6),pk($7)))",
+    "prompt": "Count approvals from four groups: A alone; B and C together; any two of D/E/F; G and H together. Each group counts as one approval, regardless of extra signatures within it. A spend needs any 2 of those four complete approvals; fewer must fail. Extra complete approvals are allowed. No additional spending route exists. Please return a Bitcoin script in hex or Bitcoin Core assembly."
+  },
+  {
+    "id": "compound-vote-mixed-approval-sizes-3",
+    "group": "compound-vote-mixed-approval-sizes",
+    "kind": "write",
+    "context": "segwitv0",
+    "choose_context": true,
+    "keys": [
+      "A",
+      "B",
+      "C",
+      "D",
+      "E",
+      "F",
+      "G",
+      "H"
+    ],
+    "tier": "hard",
+    "policy": "thresh(3,pk($0),and(pk($1),pk($2)),thresh(2,pk($3),pk($4),pk($5)),and(pk($6),pk($7)))",
+    "prompt": "Count approvals from four groups: A alone; B and C together; any two of D/E/F; G and H together. Each group counts as one approval, regardless of extra signatures within it. A spend needs any 3 of those four complete approvals; fewer must fail. Extra complete approvals are allowed. No additional spending route exists. Please return a Bitcoin script in hex or Bitcoin Core assembly."
+  },
+  {
+    "id": "compound-vote-independent-secrets-2",
+    "group": "compound-vote-independent-secrets",
+    "kind": "write",
+    "context": "tap",
+    "choose_context": false,
+    "keys": [
+      "A",
+      "B",
+      "C",
+      "D"
+    ],
+    "tier": "hard",
+    "policy": "thresh(2,and(pk($0),sha256($sha256)),and(pk($1),hash160($hash160)),and(pk($2),older(320)),pk($3))",
+    "prompt": "Approval A needs its signature and a 32-byte secret matching SHA-256 $sha256. Approval B needs its signature and a separate 32-byte secret matching HASH160 $hash160. Approval C needs its signature and output age 320 blocks. Approval D only needs its signature. A spend needs any 2 of those four complete approvals; fewer must fail. Extra complete approvals are allowed. No additional spending route exists. Please return the tapscript leaf in hex or Bitcoin Core assembly."
+  },
+  {
+    "id": "compound-vote-independent-secrets-3",
+    "group": "compound-vote-independent-secrets",
+    "kind": "write",
+    "context": "tap",
+    "choose_context": false,
+    "keys": [
+      "A",
+      "B",
+      "C",
+      "D"
+    ],
+    "tier": "hard",
+    "policy": "thresh(3,and(pk($0),sha256($sha256)),and(pk($1),hash160($hash160)),and(pk($2),older(320)),pk($3))",
+    "prompt": "Approval A needs its signature and a 32-byte secret matching SHA-256 $sha256. Approval B needs its signature and a separate 32-byte secret matching HASH160 $hash160. Approval C needs its signature and output age 320 blocks. Approval D only needs its signature. A spend needs any 3 of those four complete approvals; fewer must fail. Extra complete approvals are allowed. No additional spending route exists. Please return the tapscript leaf in hex or Bitcoin Core assembly."
+  },
+  {
+    "id": "compound-vote-staggered-authorities-2",
+    "group": "compound-vote-staggered-authorities",
+    "kind": "write",
+    "context": "segwitv0",
+    "choose_context": true,
+    "keys": [
+      "A",
+      "B",
+      "C",
+      "D"
+    ],
+    "tier": "hard",
+    "policy": "thresh(2,and(pk($0),older(64)),and(pk($1),older(192)),and(pk($2),older(448)),and(pk($3),older(896)))",
+    "prompt": "A becomes eligible at output age 64 blocks, B at 192, C at 448 and D at 896, all measured from confirmation. An approval requires that key to sign after its own relative block lock is satisfied. A key that is not yet eligible cannot count. A spend needs any 2 of those four complete approvals; fewer must fail. Extra complete approvals are allowed. No additional spending route exists. Please return a Bitcoin script in hex or Bitcoin Core assembly."
+  },
+  {
+    "id": "compound-vote-staggered-authorities-3",
+    "group": "compound-vote-staggered-authorities",
+    "kind": "write",
+    "context": "segwitv0",
+    "choose_context": true,
+    "keys": [
+      "A",
+      "B",
+      "C",
+      "D"
+    ],
+    "tier": "hard",
+    "policy": "thresh(3,and(pk($0),older(64)),and(pk($1),older(192)),and(pk($2),older(448)),and(pk($3),older(896)))",
+    "prompt": "A becomes eligible at output age 64 blocks, B at 192, C at 448 and D at 896, all measured from confirmation. An approval requires that key to sign after its own relative block lock is satisfied. A key that is not yet eligible cannot count. A spend needs any 3 of those four complete approvals; fewer must fail. Extra complete approvals are allowed. No additional spending route exists. Please return a Bitcoin script in hex or Bitcoin Core assembly."
+  },
+  {
+    "id": "compound-vote-height-and-age-approvals-2",
+    "group": "compound-vote-height-and-age-approvals",
+    "kind": "write",
+    "context": "segwitv0",
+    "choose_context": true,
+    "keys": [
+      "A",
+      "B",
+      "C",
+      "D"
+    ],
+    "tier": "hard",
+    "policy": "thresh(2,and(pk($0),after(990200)),and(pk($1),older(160)),and(pk($2),and(after(990300),older(480))),pk($3))",
+    "prompt": "The four approvals are: A signs with transaction height locktime at least 990200; B signs once output age is 160 blocks; C signs only when transaction height locktime is at least 990300 AND output age is 480 blocks; D signs without a clock condition. A spend needs any 2 of those four complete approvals; fewer must fail. Extra complete approvals are allowed. No additional spending route exists. Please return a Bitcoin script in hex or Bitcoin Core assembly."
+  },
+  {
+    "id": "compound-vote-height-and-age-approvals-3",
+    "group": "compound-vote-height-and-age-approvals",
+    "kind": "write",
+    "context": "segwitv0",
+    "choose_context": true,
+    "keys": [
+      "A",
+      "B",
+      "C",
+      "D"
+    ],
+    "tier": "hard",
+    "policy": "thresh(3,and(pk($0),after(990200)),and(pk($1),older(160)),and(pk($2),and(after(990300),older(480))),pk($3))",
+    "prompt": "The four approvals are: A signs with transaction height locktime at least 990200; B signs once output age is 160 blocks; C signs only when transaction height locktime is at least 990300 AND output age is 480 blocks; D signs without a clock condition. A spend needs any 3 of those four complete approvals; fewer must fail. Extra complete approvals are allowed. No additional spending route exists. Please return a Bitcoin script in hex or Bitcoin Core assembly."
+  },
+  {
+    "id": "compound-vote-seconds-eligible-keys-2",
+    "group": "compound-vote-seconds-eligible-keys",
+    "kind": "write",
+    "context": "tap",
+    "choose_context": false,
+    "keys": [
+      "A",
+      "B",
+      "C",
+      "D"
+    ],
+    "tier": "hard",
+    "policy": "thresh(2,and(pk($0),older(4194305)),and(pk($1),older(4194307)),and(pk($2),older(4194313)),pk($3))",
+    "prompt": "A may approve after a relative time lock of 512 seconds, B after 1536 seconds and C after 4608 seconds. These are 1, 3 and 9 units of 512 seconds on the Bitcoin relative-lock clock. D may approve immediately. Every approval still needs that key signature. A spend needs any 2 of those four complete approvals; fewer must fail. Extra complete approvals are allowed. No additional spending route exists. Please return the tapscript leaf in hex or Bitcoin Core assembly."
+  },
+  {
+    "id": "compound-vote-seconds-eligible-keys-3",
+    "group": "compound-vote-seconds-eligible-keys",
+    "kind": "write",
+    "context": "tap",
+    "choose_context": false,
+    "keys": [
+      "A",
+      "B",
+      "C",
+      "D"
+    ],
+    "tier": "hard",
+    "policy": "thresh(3,and(pk($0),older(4194305)),and(pk($1),older(4194307)),and(pk($2),older(4194313)),pk($3))",
+    "prompt": "A may approve after a relative time lock of 512 seconds, B after 1536 seconds and C after 4608 seconds. These are 1, 3 and 9 units of 512 seconds on the Bitcoin relative-lock clock. D may approve immediately. Every approval still needs that key signature. A spend needs any 3 of those four complete approvals; fewer must fail. Extra complete approvals are allowed. No additional spending route exists. Please return the tapscript leaf in hex or Bitcoin Core assembly."
+  },
+  {
+    "id": "compound-vote-two-committees-two-people-2",
+    "group": "compound-vote-two-committees-two-people",
+    "kind": "write",
+    "context": "segwitv0",
+    "choose_context": true,
+    "keys": [
+      "A1",
+      "A2",
+      "A3",
+      "B1",
+      "B2",
+      "B3",
+      "C",
+      "D"
+    ],
+    "tier": "hard",
+    "policy": "thresh(2,thresh(2,pk($0),pk($1),pk($2)),thresh(2,pk($3),pk($4),pk($5)),and(pk($6),sha256($sha256)),and(pk($7),older(640)))",
+    "prompt": "Committee A approves with two of its three keys, and committee B approves with two of its three keys. C approves with its signature and the 32-byte preimage of SHA-256 $sha256. D approves with its signature once the output is 640 blocks old. These are four separate approvals. A spend needs any 2 of those four complete approvals; fewer must fail. Extra complete approvals are allowed. No additional spending route exists. Please return a Bitcoin script in hex or Bitcoin Core assembly."
+  },
+  {
+    "id": "compound-vote-two-committees-two-people-3",
+    "group": "compound-vote-two-committees-two-people",
+    "kind": "write",
+    "context": "segwitv0",
+    "choose_context": true,
+    "keys": [
+      "A1",
+      "A2",
+      "A3",
+      "B1",
+      "B2",
+      "B3",
+      "C",
+      "D"
+    ],
+    "tier": "hard",
+    "policy": "thresh(3,thresh(2,pk($0),pk($1),pk($2)),thresh(2,pk($3),pk($4),pk($5)),and(pk($6),sha256($sha256)),and(pk($7),older(640)))",
+    "prompt": "Committee A approves with two of its three keys, and committee B approves with two of its three keys. C approves with its signature and the 32-byte preimage of SHA-256 $sha256. D approves with its signature once the output is 640 blocks old. These are four separate approvals. A spend needs any 3 of those four complete approvals; fewer must fail. Extra complete approvals are allowed. No additional spending route exists. Please return a Bitcoin script in hex or Bitcoin Core assembly."
+  },
+  {
+    "id": "compound-vote-either-representative-2",
+    "group": "compound-vote-either-representative",
+    "kind": "write",
+    "context": "segwitv0",
+    "choose_context": true,
+    "keys": [
+      "A1",
+      "A2",
+      "B1",
+      "B2",
+      "C1",
+      "C2",
+      "D1",
+      "D2"
+    ],
+    "tier": "hard",
+    "policy": "thresh(2,or(pk($0),pk($1)),or(pk($2),pk($3)),and(or(pk($4),pk($5)),older(256)),and(or(pk($6),pk($7)),sha256($sha256)))",
+    "prompt": "Each of four departments has two representatives. Either A representative can approve for A; either B representative can approve for B. Either C representative can approve for C only after output age 256 blocks. Either D representative can approve for D only with the 32-byte preimage of SHA-256 $sha256. Two representatives of one department still count as only one department approval. A spend needs any 2 of those four complete approvals; fewer must fail. Extra complete approvals are allowed. No additional spending route exists. Please return a Bitcoin script in hex or Bitcoin Core assembly."
+  },
+  {
+    "id": "compound-vote-either-representative-3",
+    "group": "compound-vote-either-representative",
+    "kind": "write",
+    "context": "segwitv0",
+    "choose_context": true,
+    "keys": [
+      "A1",
+      "A2",
+      "B1",
+      "B2",
+      "C1",
+      "C2",
+      "D1",
+      "D2"
+    ],
+    "tier": "hard",
+    "policy": "thresh(3,or(pk($0),pk($1)),or(pk($2),pk($3)),and(or(pk($4),pk($5)),older(256)),and(or(pk($6),pk($7)),sha256($sha256)))",
+    "prompt": "Each of four departments has two representatives. Either A representative can approve for A; either B representative can approve for B. Either C representative can approve for C only after output age 256 blocks. Either D representative can approve for D only with the 32-byte preimage of SHA-256 $sha256. Two representatives of one department still count as only one department approval. A spend needs any 3 of those four complete approvals; fewer must fail. Extra complete approvals are allowed. No additional spending route exists. Please return a Bitcoin script in hex or Bitcoin Core assembly."
+  },
+  {
+    "id": "compound-vote-paired-secret-approvals-2",
+    "group": "compound-vote-paired-secret-approvals",
+    "kind": "write",
+    "context": "tap",
+    "choose_context": false,
+    "keys": [
+      "A1",
+      "A2",
+      "B1",
+      "B2",
+      "C",
+      "D"
+    ],
+    "tier": "hard",
+    "policy": "thresh(2,and(and(pk($0),pk($1)),sha256($sha256)),and(and(pk($2),pk($3)),hash160($hash160)),and(pk($4),after(990400)),and(pk($5),older(512)))",
+    "prompt": "There are four proofs of approval: A1+A2 signatures with the 32-byte preimage of SHA-256 $sha256; B1+B2 signatures with the separate 32-byte preimage of HASH160 $hash160; C signature with transaction height locktime at least 990400; D signature after output age 512 blocks. A spend needs any 2 of those four complete approvals; fewer must fail. Extra complete approvals are allowed. No additional spending route exists. Please return the tapscript leaf in hex or Bitcoin Core assembly."
+  },
+  {
+    "id": "compound-vote-paired-secret-approvals-3",
+    "group": "compound-vote-paired-secret-approvals",
+    "kind": "write",
+    "context": "tap",
+    "choose_context": false,
+    "keys": [
+      "A1",
+      "A2",
+      "B1",
+      "B2",
+      "C",
+      "D"
+    ],
+    "tier": "hard",
+    "policy": "thresh(3,and(and(pk($0),pk($1)),sha256($sha256)),and(and(pk($2),pk($3)),hash160($hash160)),and(pk($4),after(990400)),and(pk($5),older(512)))",
+    "prompt": "There are four proofs of approval: A1+A2 signatures with the 32-byte preimage of SHA-256 $sha256; B1+B2 signatures with the separate 32-byte preimage of HASH160 $hash160; C signature with transaction height locktime at least 990400; D signature after output age 512 blocks. A spend needs any 3 of those four complete approvals; fewer must fail. Extra complete approvals are allowed. No additional spending route exists. Please return the tapscript leaf in hex or Bitcoin Core assembly."
+  },
+  {
+    "id": "compound-vote-shared-secret-separate-votes-2",
+    "group": "compound-vote-shared-secret-separate-votes",
+    "kind": "write",
+    "context": "segwitv0",
+    "choose_context": true,
+    "keys": [
+      "A",
+      "B",
+      "C",
+      "D"
+    ],
+    "tier": "hard",
+    "policy": "thresh(2,and(pk($0),sha256($sha256)),and(pk($1),sha256($sha256)),and(pk($2),hash160($hash160)),and(pk($3),older(768)))",
+    "prompt": "A and B each approve with their own signature and the SAME 32-byte secret matching SHA-256 $sha256. C approves with its signature and the different 32-byte secret matching HASH160 $hash160. D approves with its signature after output age 768 blocks. Knowing the shared secret does not supply either signature or make A and B one approval. A spend needs any 2 of those four complete approvals; fewer must fail. Extra complete approvals are allowed. No additional spending route exists. Please return a Bitcoin script in hex or Bitcoin Core assembly."
+  },
+  {
+    "id": "compound-vote-shared-secret-separate-votes-3",
+    "group": "compound-vote-shared-secret-separate-votes",
+    "kind": "write",
+    "context": "segwitv0",
+    "choose_context": true,
+    "keys": [
+      "A",
+      "B",
+      "C",
+      "D"
+    ],
+    "tier": "hard",
+    "policy": "thresh(3,and(pk($0),sha256($sha256)),and(pk($1),sha256($sha256)),and(pk($2),hash160($hash160)),and(pk($3),older(768)))",
+    "prompt": "A and B each approve with their own signature and the SAME 32-byte secret matching SHA-256 $sha256. C approves with its signature and the different 32-byte secret matching HASH160 $hash160. D approves with its signature after output age 768 blocks. Knowing the shared secret does not supply either signature or make A and B one approval. A spend needs any 3 of those four complete approvals; fewer must fail. Extra complete approvals are allowed. No additional spending route exists. Please return a Bitcoin script in hex or Bitcoin Core assembly."
+  },
+  {
+    "id": "compound-vote-joint-and-alternative-votes-2",
+    "group": "compound-vote-joint-and-alternative-votes",
+    "kind": "write",
+    "context": "segwitv0",
+    "choose_context": true,
+    "keys": [
+      "A",
+      "B",
+      "C",
+      "D",
+      "E",
+      "F",
+      "G",
+      "H"
+    ],
+    "tier": "hard",
+    "policy": "thresh(2,and(pk($0),or(pk($1),pk($2))),and(pk($3),pk($4)),and(pk($5),older(384)),and(or(pk($6),pk($7)),after(990500)))",
+    "prompt": "Approval one needs A with either B or C. Approval two needs D and E together. Approval three needs F after output age 384 blocks. Approval four needs either G or H with transaction height locktime at least 990500. Each approval counts at most once. A spend needs any 2 of those four complete approvals; fewer must fail. Extra complete approvals are allowed. No additional spending route exists. Please return a Bitcoin script in hex or Bitcoin Core assembly."
+  },
+  {
+    "id": "compound-vote-joint-and-alternative-votes-3",
+    "group": "compound-vote-joint-and-alternative-votes",
+    "kind": "write",
+    "context": "segwitv0",
+    "choose_context": true,
+    "keys": [
+      "A",
+      "B",
+      "C",
+      "D",
+      "E",
+      "F",
+      "G",
+      "H"
+    ],
+    "tier": "hard",
+    "policy": "thresh(3,and(pk($0),or(pk($1),pk($2))),and(pk($3),pk($4)),and(pk($5),older(384)),and(or(pk($6),pk($7)),after(990500)))",
+    "prompt": "Approval one needs A with either B or C. Approval two needs D and E together. Approval three needs F after output age 384 blocks. Approval four needs either G or H with transaction height locktime at least 990500. Each approval counts at most once. A spend needs any 3 of those four complete approvals; fewer must fail. Extra complete approvals are allowed. No additional spending route exists. Please return a Bitcoin script in hex or Bitcoin Core assembly."
+  }
+]

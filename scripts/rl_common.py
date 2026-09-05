@@ -9,6 +9,8 @@ import re
 REWARD_URL = os.environ.get("BTCBENCH_REWARD_URL", "http://127.0.0.1:9900/reward/batch")
 TEMPERATURE = 0.6
 TOP_P = 0.95
+TOP_K = 20
+MIN_P = 0.0
 NUM_GENERATIONS = 8
 TRAIN_COMPLETION_LENGTH = 4096
 TOOL_CALL_RE = re.compile(r"<tool_call>\s*(\{.*?\})\s*</tool_call>", re.DOTALL)
@@ -17,6 +19,8 @@ TOOL_CALL_RE = re.compile(r"<tool_call>\s*(\{.*?\})\s*</tool_call>", re.DOTALL)
 def add_sampling_args(parser, *, training=False):
     parser.add_argument("--temperature", type=float, default=TEMPERATURE)
     parser.add_argument("--top-p", type=float, default=TOP_P)
+    parser.add_argument("--top-k", type=int, default=TOP_K)
+    parser.add_argument("--min-p", type=float, default=MIN_P)
     parser.add_argument("--k", type=int, default=NUM_GENERATIONS)
     parser.add_argument(
         "--max-completion-length", type=int,
@@ -30,6 +34,8 @@ def validate_sampling(args):
         raise ValueError("--k must be at least 2 to measure group reward variation")
     if not math.isfinite(args.temperature) or not args.temperature > 0 or not 0 < args.top_p <= 1:
         raise ValueError("temperature must be positive and top-p must be in (0, 1]")
+    if args.top_k < 0 or not 0 <= args.min_p <= 1:
+        raise ValueError("top-k must be nonnegative and min-p must be in [0, 1]")
     if args.max_completion_length is not None and args.max_completion_length < 1:
         raise ValueError("--max-completion-length must be positive")
 

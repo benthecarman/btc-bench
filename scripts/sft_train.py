@@ -30,6 +30,10 @@ def main():
     ap.add_argument("--model", default="Qwen/Qwen3-4B")
     ap.add_argument("--out", default="runs/sft-qwen3-4b")
     ap.add_argument("--epochs", type=float, default=2.0)
+    ap.add_argument("--learning-rate", type=float, default=1e-4)
+    ap.add_argument("--warmup-steps", type=int, default=60)
+    ap.add_argument("--save-steps", type=int, default=200)
+    ap.add_argument("--gradient-accumulation-steps", type=int, default=16)
     ap.add_argument("--resume-from-checkpoint", nargs="?", const=True, default=None,
                     help="Resume a checkpoint path, or the latest checkpoint in --out.")
     args = ap.parse_args()
@@ -62,23 +66,24 @@ def main():
         num_train_epochs=args.epochs,
         # bs 4 x 4096 tokens OOMs a 32GB card; same effective batch.
         per_device_train_batch_size=1,
-        gradient_accumulation_steps=16,
-        learning_rate=1e-4,
+        gradient_accumulation_steps=args.gradient_accumulation_steps,
+        learning_rate=args.learning_rate,
         lr_scheduler_type="cosine",
         # trl 1.12 SFTConfig dropped warmup_ratio; ~3% of the ~1860
         # optimizer steps.
-        warmup_steps=60,
+        warmup_steps=args.warmup_steps,
         logging_steps=10,
         # Checkpoint often: two runs have already been lost whole (a
         # session exit, then a GPU-contention crash at half an epoch).
         save_strategy="steps",
-        save_steps=200,
+        save_steps=args.save_steps,
         save_total_limit=3,
         bf16=True,
         max_length=4096,
         gradient_checkpointing=True,
         model_init_kwargs={
-            "torch_dtype": "bfloat16",
+            "dtype": "bfloat16",
+            "device_map": None,
             "attn_implementation": "sdpa",
         },
         report_to="none",

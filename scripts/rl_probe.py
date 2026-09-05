@@ -27,7 +27,8 @@ class SampleError(RuntimeError):
 
 def sample(url, model, row, args):
     body = {"model": model, "n": args.k, "stream": True,
-            "temperature": args.temperature, "top_p": args.top_p}
+            "temperature": args.temperature, "top_p": args.top_p,
+            "top_k": args.top_k, "min_p": args.min_p, "seed": args.seed}
     if args.max_completion_length is not None:
         # Explicit trainer-budget probe: use the exact rendered training prompt.
         endpoint = "/completions"
@@ -142,7 +143,7 @@ def main():
                 task = json.loads(row["task_json"])
                 record = {"row": row, "model": args.model, "url": args.url,
                           "sampling": {k: getattr(args, k) for k in
-                                       ("temperature", "top_p", "k", "max_completion_length", "thinking")},
+                                       ("temperature", "top_p", "top_k", "min_p", "seed", "k", "max_completion_length", "thinking")},
                           "completions": []}
                 try:
                     record["completions"] = sample(args.url, args.model, row, args)

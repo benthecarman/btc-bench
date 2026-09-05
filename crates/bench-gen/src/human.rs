@@ -18,6 +18,9 @@ pub fn catalog(suite: &str) -> Result<&'static str, String> {
     match suite {
         "human-v1" => Ok(CATALOG),
         "human-v2" => Ok(include_str!("../../../evals/human-v2.json")),
+        "composition-transfer-v1" => {
+            Ok(include_str!("../../../evals/composition-transfer-v1.json"))
+        }
         _ => Err(format!("unknown human request suite {suite}")),
     }
 }
@@ -46,6 +49,14 @@ pub struct HumanDataset {
 // handle. Signature reuse across branches is allowed. No policy is simplified
 // here: decode the result and prove agreement against the original policy.
 fn plain_miniscript<Pk: MiniscriptKey>(policy: &Concrete<Pk>) -> String {
+    fn unit<Pk: MiniscriptKey>(p: &Concrete<Pk>) -> bool {
+        match p {
+            Concrete::After(_) | Concrete::Older(_) => false,
+            Concrete::And(children) => unit(children.last().expect("nonempty AND")),
+            Concrete::Or(children) => children.iter().all(|(_, p)| unit(p)),
+            _ => true,
+        }
+    }
     match policy {
         Concrete::Key(k) => format!("pk({k})"),
         Concrete::After(t) => format!("after({})", t.to_consensus_u32()),
@@ -77,7 +88,10 @@ fn plain_miniscript<Pk: MiniscriptKey>(policy: &Concrete<Pk>) -> String {
                 .enumerate()
                 .map(|(i, c)| {
                     let prefix = if i == 0 { "" } else { "a:" };
-                    format!("{prefix}or_i({},0)", plain_miniscript(c))
+                    // Timelocks leave their numeric operand on the stack.
+                    // A threshold must count each satisfied child as one.
+                    let normalize = if unit(c) { "" } else { "n:" };
+                    format!("{prefix}or_i({normalize}{},0)", plain_miniscript(c))
                 })
                 .collect::<Vec<_>>()
                 .join(",");
@@ -411,7 +425,14 @@ pub fn generate() -> Result<HumanDataset, String> {
 }
 
 pub fn generate_suite(suite: &str) -> Result<HumanDataset, String> {
-    let cases: Vec<Case> = serde_json::from_str(catalog(suite)?).map_err(|e| e.to_string())?;
+    compile_catalog(catalog(suite)?)
+}
+
+/// Compile external synthetic requests with the same reference checks.
+/// This function does not assign a split; the caller must preserve source
+/// provenance and prevent evaluation catalogs from entering training.
+pub fn compile_catalog(input: &str) -> Result<HumanDataset, String> {
+    let cases: Vec<Case> = serde_json::from_str(input).map_err(|e| e.to_string())?;
     let mut out = HumanDataset {
         fixtures: Vec::new(),
         groups: BTreeMap::new(),
@@ -448,6 +469,42 @@ mod tests {
     use super::*;
     use bench_core::truth::{eval, TruthContext};
     use miniscript::policy::Liftable;
+
+    #[test]
+    fn compound_votes_count_approvals_and_preserve_lock_boundaries() {
+        let ds = generate_suite("composition-transfer-v1").unwrap();
+        assert_eq!(ds.fixtures.len(), 24);
+        let spends = |threshold, signers: &[usize], age| {
+            let id = format!("t1-human-compound-vote-either-representative-{threshold}");
+            let Fixture::Write(w) = ds.fixtures.iter().find(|f| f.id() == id).unwrap() else {
+                unreachable!()
+            };
+            let script = bitcoin::ScriptBuf::from_hex(&w.reference_script_hex).unwrap();
+            let policy = Miniscript::<PublicKey, Segwitv0>::decode_consensus(&script)
+                .unwrap()
+                .lift()
+                .unwrap();
+            eval(
+                &policy,
+                &TruthContext {
+                    keys: signers
+                        .iter()
+                        .map(|i| (w.keys[*i].pubkey.clone(), true))
+                        .collect(),
+                    age,
+                    ..Default::default()
+                },
+            )
+        };
+        assert!(!spends(2, &[0, 1], 0)); // Two people in one department count once.
+        assert!(spends(2, &[0, 2], 0));
+        assert!(!spends(2, &[0, 4], 255));
+        assert!(spends(2, &[0, 4], 256));
+        assert!(!spends(2, &[0, 6], 256)); // The fourth approval still needs its secret.
+        assert!(!spends(3, &[0, 2], 256));
+        assert!(!spends(3, &[0, 2, 4], 255));
+        assert!(spends(3, &[0, 2, 4], 256));
+    }
 
     #[test]
     fn expanded_suite_preserves_pilot_and_checks_new_spending_boundaries() {

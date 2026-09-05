@@ -26,7 +26,7 @@ struct Cli {
 enum Command {
     /// Build a fixed, authored human request evaluation suite.
     GenHuman {
-        #[arg(long, default_value = "human-v1", value_parser = ["human-v1", "human-v2"])]
+        #[arg(long, default_value = "human-v1", value_parser = ["human-v1", "human-v2", "composition-transfer-v1"])]
         suite: String,
         /// Defaults to datasets/<suite>.
         #[arg(long)]

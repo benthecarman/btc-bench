@@ -1,5 +1,8 @@
 # Human request transfer eval
 
+The [composed-training pilot](composed-training.md) records the interface
+comparison, separate training grammar, reward probes and fresh transfer draft.
+
 `human-v2.json` expands the pilot to **160 requests: 120 write and 40 tree**.
 It retains the original 32 entries and generated fixtures without changes.
 The 128 additions form 64 pairs that change approval rules, recovery paths,
