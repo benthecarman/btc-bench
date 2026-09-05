@@ -154,13 +154,16 @@ tasks in each denominator. It reports semantic correctness separately from
 tree weight, and saves the question IDs gained and lost against a baseline.
 Raw responses, failures, server logs and run configurations remain in `runs/`.
 
-## Fresh transfer draft
+## Frozen composition transfer evaluation
 
 `composition-transfer-v1.json` contains 24 synthetic requests in 12 pairs.
 Each asks for two or three of four compound approvals. The training grammar
 places only keys inside thresholds; these requests therefore exercise a new
-composition family. The references are verified, but the wording still
-needs independent review before this is called a final holdout.
+composition family. The user authorized evaluation after the age wording
+was clarified. The questions and model weights were pinned before generation
+in `composition-transfer-v1-freeze.json`. These remain synthetic requests,
+not independently authored human questions. See the
+[completed comparison](composition-transfer-v1-results.md).
 
 None of its 24 operator shapes occurs in the 14,700 recognized policy traces
 of `datasets/sft-train-think.jsonl` (488 shapes), or in the 384 new assembly

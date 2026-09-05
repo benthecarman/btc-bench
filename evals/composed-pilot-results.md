@@ -91,6 +91,7 @@ Samples within each group are related, and the probe has only 12 tree tasks.
   `runs/human-v2-composed-control`.
 - RL runs: `runs/human-v2-composed-rl` and its `-submit` counterpart.
 
-Raw outputs and checkpoints are retained. The fresh 24-question composition
-transfer draft has not been run on a model. Its wording still needs the
-user's independent review before it serves as the next holdout.
+Raw outputs and checkpoints are retained. At the end of this pilot, the
+24-question composition transfer draft was still untested. The user later
+authorized evaluation after the age wording was clarified; see the
+[subsequent frozen comparison](composition-transfer-v1-results.md).

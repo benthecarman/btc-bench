@@ -1,7 +1,9 @@
 # Human request transfer eval
 
 The [composed-training pilot](composed-training.md) records the interface
-comparison, separate training grammar, reward probes and fresh transfer draft.
+comparison, separate training grammar and reward probes. See the
+[human-v2 pilot results](composed-pilot-results.md) and the subsequent
+[frozen composition transfer results](composition-transfer-v1-results.md).
 
 `human-v2.json` expands the pilot to **160 requests: 120 write and 40 tree**.
 It retains the original 32 entries and generated fixtures without changes.
@@ -22,7 +24,8 @@ python scripts/audit_human_catalog.py
 
 The default suite remains `human-v1`; the default output is `datasets/<suite>`.
 Use `datasets/human-v2` in the run, grade and report commands below to measure
-the expanded set. It has no model results yet. The SFT file comparison covers
+the expanded set. The linked pilot report contains its model results.
+The SFT file comparison covers
 stored policy traces, not all historical training inputs. Do not describe
 this development set as a blind holdout or count its paired requests as
 independent samples.
