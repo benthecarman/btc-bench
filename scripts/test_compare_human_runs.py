@@ -1,9 +1,26 @@
+import json
+from pathlib import Path
+import tempfile
 import unittest
 
-from compare_human_runs import summarize
+from compare_human_runs import check_completions, summarize
 
 
 class ComparisonTests(unittest.TestCase):
+    def test_transport_failure_is_not_a_model_failure(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            directory = Path(tmp)
+            (directory / "responses.jsonl").write_text("")
+            failures = directory / "failures.jsonl"
+            failures.write_text(json.dumps({"task_id": "a", "error": "connection refused"}) + "\n")
+            with self.assertRaisesRegex(ValueError, "transport failure"):
+                check_completions(directory, {"tools": "none"}, {"a"})
+            failures.write_text(json.dumps({"task_id": "a", "error": "no answer",
+                                           "finish_reason": "stop"}) + "\n")
+            check_completions(directory, {"tools": "none"}, {"a"})
+            with self.assertRaisesRegex(ValueError, "Incomplete"):
+                check_completions(directory, {"tools": "none"}, {"a", "b"})
+
     def test_missing_answer_stays_in_denominator(self):
         fixtures = [{"id": "a", "task": "write"}, {"id": "b", "task": "write"}]
         result = summarize(fixtures, {"a": {"score": 1.0}})["write"]

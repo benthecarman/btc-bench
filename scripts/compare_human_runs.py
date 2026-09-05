@@ -32,6 +32,20 @@ def summarize(fixtures, results):
     return summary
 
 
+def check_completions(directory, metadata, ids):
+    if metadata["tools"] == "chat":
+        records = read_rows(directory / "chat-text.jsonl")
+    else:
+        records = read_rows(directory / "responses.jsonl")
+        failures = directory / "failures.jsonl"
+        if failures.exists():
+            records += read_rows(failures)
+    if {row["task_id"] for row in records} != ids:
+        raise ValueError(f"Incomplete or unexpected completion coverage in {directory}")
+    if any(not row.get("finish_reason") for row in records):
+        raise ValueError(f"Unfinished generation or transport failure in {directory}")
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--dataset", type=Path, required=True)
@@ -53,6 +67,7 @@ def main():
         metadata = json.loads((directory / "run.json").read_text())
         if metadata["dataset_manifest"]["fixtures_sha256"] != digest:
             raise ValueError(f"Different fixtures in {directory}")
+        check_completions(directory, metadata, ids)
         results = json.loads((directory / "graded/results.json").read_text())
         by_id = {row["task_id"]: row for row in results}
         if len(by_id) != len(results) or set(by_id) - ids:
@@ -68,10 +83,12 @@ def main():
              "|---|---:|---:|---:|"]
     for label, run in runs.items():
         parts = [f'{run["summary"][kind]["correct"]}/{run["summary"][kind]["total"]}'
+                 if kind in run["summary"] else "—"
                  for kind in ("write", "tree")]
-        lines.append(f'| {label} | {parts[0]} | {parts[1]} | {run["summary"]["tree"]["mean_score"]:.3f} |')
+        tree_score = f'{run["summary"]["tree"]["mean_score"]:.3f}' if "tree" in run["summary"] else "—"
+        lines.append(f'| {label} | {parts[0]} | {parts[1]} | {tree_score} |')
         run["paired"] = {}
-        for kind in ("write", "tree"):
+        for kind in run["summary"]:
             groups = {key: [] for key in ("both", "gained", "lost", "neither")}
             for task in fixtures:
                 if task["task"] != kind:

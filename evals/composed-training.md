@@ -1,5 +1,8 @@
 # Composed training pilot
 
+See [the completed pilot results](composed-pilot-results.md) for the frozen
+human-v2 comparisons and their limits.
+
 The human-v2 interface check used the same SFT checkpoint, sampling seed and
 four concurrent requests. Chat solved 32/120 write and 1/40 tree tasks. Submit
 mode solved 34/120 write and 4/40 tree tasks. The submit interface also changes
@@ -50,7 +53,7 @@ were extracted and scored through the reward service at full credit.
 ## Probe before spending more on RL
 
 The initial uncapped probe sampled eight answers on 40 training tasks. Only
-4/40 groups had nonzero binary reward variation. A separate probe using exact
+4/40 groups had nonzero reward variation. A separate probe using exact
 rendered prompts and the trainer's 4096-token rollout budget found 2/40.
 Raw samples are retained in `runs/composed-training-v1-probe*.jsonl`.
 These are training diagnostics, not held-out capability scores.
@@ -58,8 +61,10 @@ These are training diagnostics, not held-out capability scores.
 Probe and trainer explicitly set temperature 0.6, top-p 0.95, top-k 20 and
 min-p 0. The budgeted probe records its seed. Its fixed seed controls both
 task selection and generation requests; training has its own seeded stream.
-Reward defaults are binary, with no syntax or agreement shaping. The pilot
-uses a separate reward service on port 9901.
+The pilot uses the benchmark score with no syntax or agreement shaping:
+binary correctness for write tasks, and continuous weight score for trees.
+It uses a separate reward service on port 9901. Zero shaping does not make
+tree rewards binary.
 
 ```bash
 python scripts/rl_probe.py --data datasets/rl-composed-training-v1.jsonl \
@@ -120,6 +125,35 @@ The shell otherwise finds nvcc 12.4, which cannot build FlashInfer kernels
 for the RTX 5090. A one-step GRPO smoke test completed, including checkpoint
 saving; its all-zero reward group produced no learning update.
 
+## Completed RL pilot
+
+`runs/rl-composed-asm` completed 24 GRPO updates from the assembly checkpoint.
+It sampled 192 completions from 24 question groups. Seven groups had mixed
+rewards; four completions reached the training limit and received zero reward.
+The trainer counted 475,439 prompt and completion tokens and ran for about
+738 seconds on the RTX 5090. Mean sampled reward was 0.208; this is training
+data, not an evaluation result. Checkpoints and derived metrics are retained.
+
+`runs/sft-composed-asm-control` completed 24 further-SFT updates from the same
+parent, using 192 examples from the same pool. It ran for about 476 seconds
+on the RTX 5060 Ti. Equal update counts do not mean equal question exposure,
+token counts, or compute. This is a small practical pilot, not a controlled
+comparison of the two algorithms at scale.
+
+Both branches are evaluated in chat and submit modes on unchanged human-v2.
+The first control chat run used the RTX 5060 Ti with no speculative decoding.
+A separate control chat repeat uses the RTX 5090 and the existing ngram
+decoding settings, matching the original, assembly and RL runs. The first
+run remains saved; the repeat does not replace its responses. Control submit
+also uses the RTX 5090. All use a 32768-token server context, concurrency four,
+and the same sampling settings. There is no separate generation limit or
+time cap. A fixed seed does not remove every source of sampling variation.
+
+`scripts/compare_human_runs.py` checks fixture hashes and includes unanswered
+tasks in each denominator. It reports semantic correctness separately from
+tree weight, and saves the question IDs gained and lost against a baseline.
+Raw responses, failures, server logs and run configurations remain in `runs/`.
+
 ## Fresh transfer draft
 
 `composition-transfer-v1.json` contains 24 synthetic requests in 12 pairs.
@@ -127,6 +161,13 @@ Each asks for two or three of four compound approvals. The training grammar
 places only keys inside thresholds; these requests therefore exercise a new
 composition family. The references are verified, but the wording still
 needs independent review before this is called a final holdout.
+
+None of its 24 operator shapes occurs in the 14,700 recognized policy traces
+of `datasets/sft-train-think.jsonl` (488 shapes), or in the 384 new assembly
+examples. The original file's other 1,996 rows are identification tasks.
+This checks stored inputs, not every historical training source, and the
+normalization does not prove semantic novelty. The audit with file hashes is
+saved in `evals/composition-transfer-v1-coverage.json`.
 
 ```bash
 ./target/release/btc-bench gen-human --suite composition-transfer-v1

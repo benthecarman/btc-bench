@@ -1,0 +1,18 @@
+[
+  {
+    "path": "datasets/sft-train-think.jsonl",
+    "sha256": "22dd01f38fbc37705efc512542e61e5b30de4381f37709b422811d3bc7768e7f",
+    "rows": 16696,
+    "matched_policy_rows": 14700,
+    "training_shapes": 488,
+    "fresh_questions_with_seen_shape": []
+  },
+  {
+    "path": "datasets/sft-composed-training-v1-asm.jsonl",
+    "sha256": "513c29722549e1c49c3fa602bc4a3b93f80de4e64cfe7b7b8682a361e15a97ba",
+    "rows": 384,
+    "matched_policy_rows": 384,
+    "training_shapes": 384,
+    "fresh_questions_with_seen_shape": []
+  }
+]
