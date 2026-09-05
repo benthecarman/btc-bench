@@ -1,0 +1,82 @@
+{
+  "suite": "composition-transfer-v1",
+  "catalog_commit": "df05f986c4871b9d2e6d2a7af3a5616d5c0bf69d",
+  "catalog_sha256": "1e5683ffe9a56542ab5106276f7901affc600e0092b7a4db5eb27ae3f53c4ca1",
+  "fixtures_sha256": "9482f7fa1d09900917cdc63729f125380961d720143a4ac110bc60f18b66d025",
+  "questions": 24,
+  "paired_groups": 12,
+  "evaluation_only": true,
+  "review": "User authorized evaluation of the age-clarified draft. Requests are synthetic and assistant-authored.",
+  "protocol": {
+    "attempts": 1,
+    "interfaces": [
+      "chat",
+      "submit"
+    ],
+    "diagnostic_tools": false,
+    "grader_feedback": false,
+    "concurrency": 4,
+    "temperature": 0.6,
+    "top_p": 0.95,
+    "top_k": 20,
+    "min_p": 0.0,
+    "seed": 20260904,
+    "thinking": true,
+    "max_model_len": 32768,
+    "generation_cap": null,
+    "time_cap": null,
+    "device": "GPU 0, RTX 5090",
+    "speculative_config": {
+      "method": "ngram",
+      "num_speculative_tokens": 8,
+      "prompt_lookup_max": 8,
+      "prompt_lookup_min": 2
+    }
+  },
+  "models": {
+    "original": {
+      "alias": "qwen3-4b-think",
+      "path": "runs/sft-qwen3-4b-think/merged",
+      "weight_sha256": {
+        "model.safetensors": "db2ae430e5b6ecdfd91c413908e8d1de1810b2fe3a7351c827d1d94e91be4724"
+      },
+      "runs": {
+        "chat": "runs/transfer-v1-original-chat",
+        "submit": "runs/transfer-v1-original-submit"
+      }
+    },
+    "assembly": {
+      "alias": "qwen3-4b-composed-asm",
+      "path": "runs/sft-composed-v1-asm/merged",
+      "weight_sha256": {
+        "model.safetensors": "3ea6d5a65715d59afcc7d0ba61f91fde0739685a1285d5de8d695e57b9d000c0"
+      },
+      "runs": {
+        "chat": "runs/transfer-v1-assembly-chat",
+        "submit": "runs/transfer-v1-assembly-submit"
+      }
+    },
+    "control": {
+      "alias": "qwen3-4b-composed-control",
+      "path": "runs/sft-composed-asm-control/merged",
+      "weight_sha256": {
+        "model.safetensors": "b0e1c6a5e1bb5bccc1edea17acb2e13b744ddb766cd42d374230ff3a1ad0144b"
+      },
+      "runs": {
+        "chat": "runs/transfer-v1-control-chat",
+        "submit": "runs/transfer-v1-control-submit"
+      }
+    },
+    "rl": {
+      "alias": "qwen3-4b-composed-rl",
+      "path": "runs/rl-composed-asm/merged",
+      "weight_sha256": {
+        "model.safetensors": "b2332e4a4a7ef3ac73d2ae44e6f79a3821221a09b73edd18c0e0aeac61ddcbf4"
+      },
+      "runs": {
+        "chat": "runs/transfer-v1-rl-chat",
+        "submit": "runs/transfer-v1-rl-submit"
+      }
+    }
+  }
+}
