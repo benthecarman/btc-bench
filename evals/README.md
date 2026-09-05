@@ -68,6 +68,24 @@ a response can be useful to a person while the automatic extraction cannot
 identify one final answer. Reasoning blocks are excluded from final-answer
 extraction. Raw responses are retained for review.
 
+Chat runs also save `chat-text.jsonl`. This file preserves the final answer
+text separately from reasoning and joins streamed fragments without adding
+characters. If answer extraction changes, use this file to extract answers
+again without another model call:
+
+```bash
+cargo run -p bench-cli --example reextract_chat -- datasets/human-v1 \
+  runs/human-v1-sft/chat-text.jsonl runs/human-v1-sft-reextracted
+./target/release/btc-bench grade --dataset datasets/human-v1 \
+  --responses runs/human-v1-sft-reextracted/responses.jsonl \
+  --out runs/human-v1-sft-reextracted/graded
+```
+
+Use a new output directory. Keep the original run and record which
+extraction change produced the new results. Report manual removal of
+surrounding prose separately from the automatic score; do not change script
+tokens or select candidates by their grades.
+
 Script writing uses full semantic equivalence, not sparse judgment rows.
 For requests marked `choose_context`, raw legacy, SegWit v0 and tapscript
 answers are checked against the same spending policy. Tapscript uses the

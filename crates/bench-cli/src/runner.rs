@@ -710,6 +710,7 @@ struct TaskOutcome {
     attempts: Vec<TurnOutcome>,
     final_answer: Option<TaskAnswer>,
     final_raw: String,
+    final_chat_text: Option<String>,
     final_finish: FinishInfo,
     transport_error: Option<String>,
     /// Diagnostic calls used (Some only in tool-assisted runs).
@@ -958,6 +959,23 @@ fn extract_answer_with_id(messages: &[Message]) -> (Option<TaskAnswer>, String, 
     }
 }
 
+/// Stream text chunks are fragments, not separate lines or paragraphs.
+fn chat_text(messages: &[Message]) -> String {
+    messages
+        .iter()
+        .flat_map(|m| &m.content)
+        .filter_map(|block| match block {
+            MessageContentBlock::Text(t) => Some(t.text.as_str()),
+            _ => None,
+        })
+        .collect()
+}
+
+/// Re-extract a saved final assistant text without another model request.
+pub fn reextract_chat_answer(fixture: &Fixture, text: &str) -> Option<TaskAnswer> {
+    extract_chat_answer(fixture, &[Message::assistant().with_text(text)]).0
+}
+
 /// Extract one final answer without consulting the fixture's answer key.
 /// Fenced blocks permit surrounding explanation. Multiple distinct script
 /// candidates are ambiguous: never select an answer using the correctness oracle.
@@ -966,15 +984,7 @@ fn extract_chat_answer(
     messages: &[Message],
 ) -> (Option<TaskAnswer>, String, Option<String>) {
     let (_, raw, _) = extract_answer_with_id(messages);
-    let text = messages
-        .iter()
-        .flat_map(|m| &m.content)
-        .filter_map(|b| match b {
-            MessageContentBlock::Text(t) => Some(t.text.as_str()),
-            _ => None,
-        })
-        .collect::<Vec<_>>()
-        .join("\n");
+    let text = chat_text(messages);
     let final_text = text
         .rsplit_once("</think>")
         .map_or(text.as_str(), |(_, s)| s);
@@ -1421,6 +1431,7 @@ pub async fn run_resume(
                 let mut turn_outcomes: Vec<TurnOutcome> = Vec::new();
                 let mut final_answer: Option<TaskAnswer> = None;
                 let mut final_raw = String::new();
+                let mut final_chat_text = None;
                 let mut final_finish = FinishInfo::default();
                 let mut transport_error: Option<String> = None;
                 let mut checks_used: u32 = 0;
@@ -1478,6 +1489,7 @@ pub async fn run_resume(
                             cum_in = Some(cum_in.unwrap_or(0) + t);
                         }
                         let (answer, raw, call_id) = if tool_mode == ToolMode::Chat {
+                            final_chat_text = Some(chat_text(&messages));
                             extract_chat_answer(&f, &messages)
                         } else {
                             extract_answer_with_id(&messages)
@@ -1599,6 +1611,7 @@ pub async fn run_resume(
                     attempts: turn_outcomes,
                     final_answer,
                     final_raw,
+                    final_chat_text,
                     final_finish,
                     transport_error,
                     tool_calls: (tool_mode == ToolMode::Basic).then_some(checks_used),
@@ -1634,6 +1647,18 @@ pub async fn run_resume(
         } else {
             std::fs::File::create(&attempts_path)?
         };
+        let mut chat_text_file = if tools == ToolMode::Chat {
+            Some(
+                std::fs::OpenOptions::new()
+                    .create(true)
+                    .write(true)
+                    .append(resume)
+                    .truncate(!resume)
+                    .open(out_dir.join("chat-text.jsonl"))?,
+            )
+        } else {
+            None
+        };
         let mut stats = RunStats {
             answered: 0,
             failed: 0,
@@ -1645,10 +1670,22 @@ pub async fn run_resume(
                 attempts,
                 final_answer,
                 final_raw,
+                final_chat_text,
                 final_finish,
                 transport_error,
                 tool_calls,
             } = out;
+            if let (Some(file), Some(text)) = (&mut chat_text_file, &final_chat_text) {
+                writeln!(
+                    file,
+                    "{}",
+                    serde_json::json!({
+                        "task_id": f.id(), "text": text, "raw": final_raw,
+                        "finish_reason": final_finish.finish_reason,
+                        "output_tokens": final_finish.output_tokens,
+                    })
+                )?;
+            }
             for t in &attempts {
                 writeln!(
                     attempts_file,
@@ -2406,11 +2443,66 @@ mod tests {
             .any(|m| m["content"] == "Can you write the script for our shared wallet?"));
         let responses = crate::load_responses(&out.join("responses.jsonl")).unwrap();
         assert_eq!(responses[0].raw.as_deref(), Some(raw.as_str()));
+        let saved = std::fs::read_to_string(out.join("chat-text.jsonl")).unwrap();
+        let rows: Vec<serde_json::Value> = saved
+            .lines()
+            .map(|line| serde_json::from_str(line).unwrap())
+            .collect();
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0]["task_id"], fixtures[0].id());
+        assert_eq!(rows[0]["text"], raw);
+        assert_eq!(rows[0]["finish_reason"], "stop");
+        assert_eq!(
+            serde_json::to_value(reextract_chat_answer(
+                &fixtures[0],
+                rows[0]["text"].as_str().unwrap(),
+            ))
+            .unwrap(),
+            serde_json::to_value(&responses[0].answer).unwrap(),
+        );
         let TaskAnswer::Script(a) = &responses[0].answer else {
             panic!("script answer")
         };
         assert_eq!(a.script, hex);
         let _ = std::fs::remove_dir_all(out);
+    }
+
+    #[test]
+    fn chat_stream_chunks_preserve_keys_opcodes_and_fences() {
+        let fixtures = generate(&GenParams {
+            seed: 5,
+            write: 1,
+            optimize: 0,
+            identify: 0,
+            ..Default::default()
+        });
+        let Fixture::Write(w) = &fixtures[0] else {
+            unreachable!()
+        };
+        let text = format!(
+            "Here is the script.\n```hex\n{}\n```",
+            w.reference_script_hex
+        );
+        let messages: Vec<_> = text
+            .chars()
+            .map(|c| Message::assistant().with_text(c.to_string()))
+            .collect();
+        let (answer, raw, _) = extract_chat_answer(&fixtures[0], &messages);
+        let TaskAnswer::Script(answer) = answer.unwrap() else {
+            unreachable!()
+        };
+        assert_eq!(raw, text);
+        assert_eq!(answer.script, w.reference_script_hex);
+        let chunks = ["OP_", "CHECKSIG", "VERIFY\n", "OP_", "1"];
+        let messages: Vec<_> = chunks
+            .iter()
+            .map(|s| Message::assistant().with_text(*s))
+            .collect();
+        let TaskAnswer::Script(answer) = extract_chat_answer(&fixtures[0], &messages).0.unwrap()
+        else {
+            unreachable!()
+        };
+        assert_eq!(answer.script, "OP_CHECKSIGVERIFY\nOP_1");
     }
 
     #[test]
