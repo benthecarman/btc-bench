@@ -60,7 +60,15 @@ generation cap. Authored requests are used verbatim, including with
 `--casual`; the formal Rules block is not added.
 
 The runner accepts a raw answer or a fenced script/descriptor with
-surrounding explanation. With multiple fenced blocks, syntax can separate
+surrounding explanation. It also accepts unfenced blocks introduced by a
+colon-ended label containing `script` or `descriptor`, or ending in
+`encodes to`. A blank line ends the block; blank lines directly after the
+label are allowed. Separate trailing explanations with a blank line.
+The whole answer block is retained, including malformed tokens. Distinct
+labelled alternatives are ambiguous; a malformed alternative is not dropped
+to rescue another answer. Identical hex/asm displays count as one script.
+
+With multiple fenced blocks, syntax can separate
 a script from unrelated example code; identical hex/asm representations
 count as one script. Multiple distinct script candidates are recorded as
 ambiguous rather than selected using their grades. Inspect these failures:

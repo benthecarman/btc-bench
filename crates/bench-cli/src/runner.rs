@@ -976,8 +976,45 @@ pub fn reextract_chat_answer(fixture: &Fixture, text: &str) -> Option<TaskAnswer
     extract_chat_answer(fixture, &[Message::assistant().with_text(text)]).0
 }
 
+/// A label introduces an answer block; a blank line ends it. Keep the
+/// whole block, including malformed tokens, rather than mining valid lines.
+fn labelled_chat_blocks(text: &str) -> Vec<&str> {
+    let mut blocks = Vec::new();
+    let mut start = None;
+    let mut offset = 0;
+    for line in text.split_inclusive('\n') {
+        let label = line.trim().strip_suffix(':').is_some_and(|label| {
+            let label = label.to_ascii_lowercase();
+            label.ends_with("encodes to")
+                || label
+                    .split(|c: char| !c.is_ascii_alphabetic())
+                    .any(|word| matches!(word, "script" | "descriptor"))
+        });
+        if let Some(from) = start {
+            if line.trim().is_empty() || label {
+                let block = text[from..offset].trim();
+                if !block.is_empty() {
+                    blocks.push(block.trim_matches('`'));
+                    start = None;
+                }
+            }
+        }
+        offset += line.len();
+        if label {
+            start = Some(offset);
+        }
+    }
+    if let Some(from) = start {
+        let block = text[from..].trim();
+        if !block.is_empty() {
+            blocks.push(block.trim_matches('`'));
+        }
+    }
+    blocks
+}
+
 /// Extract one final answer without consulting the fixture's answer key.
-/// Fenced blocks permit surrounding explanation. Multiple distinct script
+/// Fenced or labelled blocks permit surrounding explanation. Distinct script
 /// candidates are ambiguous: never select an answer using the correctness oracle.
 fn extract_chat_answer(
     fixture: &Fixture,
@@ -996,13 +1033,18 @@ fn extract_chat_answer(
     if parts.len() % 2 == 0 {
         return (None, raw, None);
     }
-    let blocks: Vec<&str> = parts
-        .iter()
-        .skip(1)
-        .step_by(2)
-        .filter_map(|code| code.split_once('\n').map(|(_, body)| body.trim()))
-        .collect();
-    let answer = if parts.len() == 1 {
+    let unfenced = parts.len() == 1;
+    let blocks: Vec<&str> = if unfenced && !matches!(fixture, Fixture::Identify(_)) {
+        labelled_chat_blocks(final_text)
+    } else {
+        parts
+            .iter()
+            .skip(1)
+            .step_by(2)
+            .filter_map(|code| code.split_once('\n').map(|(_, body)| body.trim()))
+            .collect()
+    };
+    let answer = if unfenced && blocks.is_empty() {
         final_text.trim().trim_matches('`')
     } else if blocks.len() == 1 {
         blocks[0]
@@ -1022,6 +1064,10 @@ fn extract_chat_answer(
             };
             if let Some(key) = canonical {
                 candidates.entry(key).or_insert(*code);
+            } else if unfenced {
+                // A labelled but malformed alternative is still an answer
+                // candidate. Do not discard it to rescue another answer.
+                return (None, raw, None);
             }
         }
         if candidates.len() != 1 {
@@ -2503,6 +2549,88 @@ mod tests {
             unreachable!()
         };
         assert_eq!(answer.script, "OP_CHECKSIGVERIFY\nOP_1");
+    }
+
+    #[test]
+    fn chat_extracts_labelled_answers_without_editing_script_tokens() {
+        let fixtures = generate(&GenParams {
+            seed: 5,
+            write: 1,
+            optimize: 0,
+            identify: 0,
+            ..Default::default()
+        });
+        let f = &fixtures[0];
+        for (text, expected) in [
+            ("Both keys must sign.\nThat gives the script:\nOP_1", "OP_1"),
+            (
+                "Which encodes to:\r\n\r\nOP_1\r\n\r\nExplanation follows.",
+                "OP_1",
+            ),
+            (
+                "Final Bitcoin script (ASM):\nOP_0\nOP_NOT\n\nNo other routes.",
+                "OP_0\nOP_NOT",
+            ),
+            ("Bitcoin script:\n`OP_1`", "OP_1"),
+            // A malformed line must not disappear during extraction.
+            (
+                "Script:\nNOT_AN_OPCODE\nOP_1\n\nExplanation follows.",
+                "NOT_AN_OPCODE\nOP_1",
+            ),
+            ("Script:\nOP_1\nOP_BROKEN", "OP_1\nOP_BROKEN"),
+        ] {
+            let (answer, raw, _) = extract_chat_answer(f, &[Message::assistant().with_text(text)]);
+            let TaskAnswer::Script(answer) = answer.unwrap() else {
+                unreachable!()
+            };
+            assert_eq!(answer.script, expected);
+            assert_eq!(raw, text);
+        }
+    }
+
+    #[test]
+    fn chat_rejects_distinct_labelled_answers() {
+        let fixtures = generate(&GenParams {
+            seed: 5,
+            write: 1,
+            optimize: 0,
+            identify: 0,
+            ..Default::default()
+        });
+        let f = &fixtures[0];
+        let Fixture::Write(w) = f else { unreachable!() };
+        let text = format!(
+            "Script:\nOP_0\n\nAlternative script:\n{}",
+            w.reference_script_hex
+        );
+        assert!(reextract_chat_answer(f, &text).is_none());
+        assert!(reextract_chat_answer(f, "Script:\nOP_1\n\nOther script:\nOP_BROKEN").is_none());
+        // Hex and ASM for the same script do not create an ambiguity.
+        let answer = reextract_chat_answer(f, "Script (hex):\n51\n\nScript (ASM):\nOP_1");
+        let Some(TaskAnswer::Script(answer)) = answer else {
+            unreachable!()
+        };
+        assert_eq!(answer.script, "51");
+    }
+
+    #[test]
+    fn chat_extracts_a_labelled_descriptor() {
+        let fixtures = generate(&GenParams {
+            seed: 5,
+            write: 0,
+            optimize: 0,
+            identify: 0,
+            tree: 1,
+            ..Default::default()
+        });
+        let descriptor = "tr(70750574e7c4f8c5e93e177340cbd71d1c1bd87464c28ca987e80c966caffee2)";
+        let text =
+            format!("The owner can sign.\nFinal descriptor:\n{descriptor}\n\nExplanation follows.");
+        let answer = reextract_chat_answer(&fixtures[0], &text);
+        let Some(TaskAnswer::Descriptor(answer)) = answer else {
+            unreachable!()
+        };
+        assert_eq!(answer.descriptor, descriptor);
     }
 
     #[test]
