@@ -42,8 +42,10 @@ python scripts/prepare_composed_sft.py
 
 The SFT builder uses exactly those training tasks and their verified targets.
 It checks the tokenizer's thinking prefix and refuses to truncate a target.
-The initial 384 examples have a maximum length of 3153 tokens. All completion
-targets were extracted and scored through the reward service at full credit.
+Its assembly targets and trace format match the established SFT curriculum;
+the current output is `datasets/sft-composed-training-v1-asm.jsonl`.
+The 384 examples have a maximum length of 3927 tokens. All completion targets
+were extracted and scored through the reward service at full credit.
 
 ## Probe before spending more on RL
 
@@ -74,7 +76,19 @@ batch size 1, gradient accumulation 8, and checkpoints every 10 steps.
 Its output is `runs/sft-composed-v1`. Training loss is not the outcome:
 repeat the training probe and run the unchanged human-v2 evaluation.
 
-If the warmed checkpoint has enough reward variation, compare an RL branch
+The initial pilot used hex script targets and a shorter trace format. It
+regressed to 8/120 write and 0/40 tree tasks on human-v2 chat, versus the
+original 32/120 and 1/40. Its budgeted training probe had 12/40 varying groups,
+but mean write reward fell from 0.281 to 0.129. Reward variation alone did not
+show improved capability. The further-SFT control from that parent was stopped.
+
+That target-format change was an avoidable confound. The assembly repeat in
+`runs/sft-composed-v1-asm` starts from the original checkpoint, with the same
+384 tasks, learning rate and one-epoch schedule. It uses the larger GPU.
+The failed hex run, its raw generations and the interrupted control remain
+available. Neither is silently replaced by the corrected run.
+
+If a warmed checkpoint has enough reward variation, compare an RL branch
 with further SFT from that same checkpoint. Record steps, sampled tokens and
 data exposure; a small pilot is not a compute-matched algorithm comparison.
 For GRPO background and API details, see the
@@ -87,6 +101,12 @@ GRPO uses microbatches of one, accumulates eight batches and checkpoints every
 ten steps. Its colocated vLLM engine uses sleep mode and an 8192-token training
 context; the completion budget is 4096. These training budgets do not change
 the uncapped benchmark configuration.
+
+Local vLLM and RL launches must select the installed modern toolkit:
+`CUDA_HOME=/usr/local/cuda-13.1 PATH=/usr/local/cuda-13.1/bin:$PATH`.
+The shell otherwise finds nvcc 12.4, which cannot build FlashInfer kernels
+for the RTX 5090. A one-step GRPO smoke test completed, including checkpoint
+saving; its all-zero reward group produced no learning update.
 
 ## Fresh transfer draft
 
