@@ -12,6 +12,7 @@ path = "src/main.rs"
 
 [dependencies]
 bench-core = { workspace = true }
+bench-wallet = { path = "../bench-wallet" }
 bench-gen = { workspace = true }
 bitcoin = { workspace = true }
 miniscript = { workspace = true }

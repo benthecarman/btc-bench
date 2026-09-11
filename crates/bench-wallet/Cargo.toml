@@ -1,0 +1,21 @@
+[package]
+name = "bench-wallet"
+description = "BIP-388 wallet-policy diagnostic pilot for btc-bench"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license = "MIT"
+
+[[bin]]
+name = "btc-wallet-bench"
+path = "src/main.rs"
+
+[dependencies]
+bench-core = { workspace = true }
+bip388 = { workspace = true }
+bitcoin = { workspace = true }
+miniscript = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+clap = { workspace = true }
+anyhow = { workspace = true }

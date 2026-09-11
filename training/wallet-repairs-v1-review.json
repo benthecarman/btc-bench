@@ -1,0 +1,438 @@
+[
+  {
+    "id": "wrp1-one-derivation-template-write",
+    "group": "wrp1-one-derivation",
+    "request": "I am setting up a native SegWit account for Nina. She alone can spend, with no delay or recovery route.\n\nReturn a BIP-388 descriptor template. Use the standard receive/change branches <0;1>/* for every key (/** is the shorthand). The key list is managed separately; use these placeholders:\nNina: @0\n",
+    "task_kind": "write",
+    "output_kind": "template",
+    "draft": null,
+    "policy": "pk(@0)",
+    "miniscript": [],
+    "solution": "wpkh(@0/**)",
+    "explanation": "A template key needs one receive/change derivation suffix. The shorthand /** already means /<0;1>/*. Do not append a second suffix."
+  },
+  {
+    "id": "wrp1-one-derivation-template-repair",
+    "group": "wrp1-one-derivation",
+    "request": "I am setting up a native SegWit account for Nina. She alone can spend, with no delay or recovery route.\n\nReturn a BIP-388 descriptor template. Use the standard receive/change branches <0;1>/* for every key (/** is the shorthand). The key list is managed separately; use these placeholders:\nNina: @0\n\nI tried this, but it may be wrong. Please fix it to match the requirements above:\n\n```text\nwpkh(@0/**/**)\n```",
+    "task_kind": "repair",
+    "output_kind": "template",
+    "draft": "wpkh(@0/**/**)",
+    "policy": "pk(@0)",
+    "miniscript": [],
+    "solution": "wpkh(@0/**)",
+    "explanation": "A template key needs one receive/change derivation suffix. The shorthand /** already means /<0;1>/*. Do not append a second suffix."
+  },
+  {
+    "id": "wrp1-one-derivation-concrete-write",
+    "group": "wrp1-one-derivation",
+    "request": "I am setting up a native SegWit account for Nina. She alone can spend, with no delay or recovery route.\n\nReturn a concrete descriptor using the public keys below. These are already derived for this address; no extended keys, placeholders, or wildcards are needed.\nNina: 023e7ff0425414181759b5c613bd389894bd7df7ce2f9e7ff19d1152d8d9873928\n",
+    "task_kind": "write",
+    "output_kind": "concrete",
+    "draft": null,
+    "policy": "pk(023e7ff0425414181759b5c613bd389894bd7df7ce2f9e7ff19d1152d8d9873928)",
+    "miniscript": [],
+    "solution": "wpkh(023e7ff0425414181759b5c613bd389894bd7df7ce2f9e7ff19d1152d8d9873928)",
+    "explanation": "These public keys are already derived. Use the supplied key directly, without a wildcard suffix."
+  },
+  {
+    "id": "wrp1-one-derivation-concrete-repair",
+    "group": "wrp1-one-derivation",
+    "request": "I am setting up a native SegWit account for Nina. She alone can spend, with no delay or recovery route.\n\nReturn a concrete descriptor using the public keys below. These are already derived for this address; no extended keys, placeholders, or wildcards are needed.\nNina: 023e7ff0425414181759b5c613bd389894bd7df7ce2f9e7ff19d1152d8d9873928\n\nI tried this, but it may be wrong. Please fix it to match the requirements above:\n\n```text\nwpkh(023e7ff0425414181759b5c613bd389894bd7df7ce2f9e7ff19d1152d8d9873928/**)\n```",
+    "task_kind": "repair",
+    "output_kind": "concrete",
+    "draft": "wpkh(023e7ff0425414181759b5c613bd389894bd7df7ce2f9e7ff19d1152d8d9873928/**)",
+    "policy": "pk(023e7ff0425414181759b5c613bd389894bd7df7ce2f9e7ff19d1152d8d9873928)",
+    "miniscript": [],
+    "solution": "wpkh(023e7ff0425414181759b5c613bd389894bd7df7ce2f9e7ff19d1152d8d9873928)",
+    "explanation": "These public keys are already derived. Use the supplied key directly, without a wildcard suffix."
+  },
+  {
+    "id": "wrp1-no-comment-suffix-template-write",
+    "group": "wrp1-no-comment-suffix",
+    "request": "Make a Taproot account for Omar. His key is the only spending route, and he can spend at any time.\n\nReturn a BIP-388 descriptor template. Use the standard receive/change branches <0;1>/* for every key (/** is the shorthand). The key list is managed separately; use these placeholders:\nOmar: @0\n",
+    "task_kind": "write",
+    "output_kind": "template",
+    "draft": null,
+    "policy": "pk(@0)",
+    "miniscript": [],
+    "solution": "tr(@0/**)",
+    "explanation": "A # suffix is not a free-form label. Return the descriptor without the invented #Taproot suffix; no script tree is needed."
+  },
+  {
+    "id": "wrp1-no-comment-suffix-template-repair",
+    "group": "wrp1-no-comment-suffix",
+    "request": "Make a Taproot account for Omar. His key is the only spending route, and he can spend at any time.\n\nReturn a BIP-388 descriptor template. Use the standard receive/change branches <0;1>/* for every key (/** is the shorthand). The key list is managed separately; use these placeholders:\nOmar: @0\n\nI tried this, but it may be wrong. Please fix it to match the requirements above:\n\n```text\ntr(@0/**)#Taproot\n```",
+    "task_kind": "repair",
+    "output_kind": "template",
+    "draft": "tr(@0/**)#Taproot",
+    "policy": "pk(@0)",
+    "miniscript": [],
+    "solution": "tr(@0/**)",
+    "explanation": "A # suffix is not a free-form label. Return the descriptor without the invented #Taproot suffix; no script tree is needed."
+  },
+  {
+    "id": "wrp1-no-comment-suffix-concrete-write",
+    "group": "wrp1-no-comment-suffix",
+    "request": "Make a Taproot account for Omar. His key is the only spending route, and he can spend at any time.\n\nReturn a concrete descriptor using the public keys below. These are already derived for this address; no extended keys, placeholders, or wildcards are needed.\nOmar: 235ec13c928b1beb10d78e4f155057ff83499dd47870a5c0e4b04a67942675ce\n",
+    "task_kind": "write",
+    "output_kind": "concrete",
+    "draft": null,
+    "policy": "pk(235ec13c928b1beb10d78e4f155057ff83499dd47870a5c0e4b04a67942675ce)",
+    "miniscript": [],
+    "solution": "tr(235ec13c928b1beb10d78e4f155057ff83499dd47870a5c0e4b04a67942675ce)",
+    "explanation": "A # suffix is not a free-form label. Return the descriptor without the invented #Taproot suffix; no script tree is needed."
+  },
+  {
+    "id": "wrp1-no-comment-suffix-concrete-repair",
+    "group": "wrp1-no-comment-suffix",
+    "request": "Make a Taproot account for Omar. His key is the only spending route, and he can spend at any time.\n\nReturn a concrete descriptor using the public keys below. These are already derived for this address; no extended keys, placeholders, or wildcards are needed.\nOmar: 235ec13c928b1beb10d78e4f155057ff83499dd47870a5c0e4b04a67942675ce\n\nI tried this, but it may be wrong. Please fix it to match the requirements above:\n\n```text\ntr(235ec13c928b1beb10d78e4f155057ff83499dd47870a5c0e4b04a67942675ce)#Taproot\n```",
+    "task_kind": "repair",
+    "output_kind": "concrete",
+    "draft": "tr(235ec13c928b1beb10d78e4f155057ff83499dd47870a5c0e4b04a67942675ce)#Taproot",
+    "policy": "pk(235ec13c928b1beb10d78e4f155057ff83499dd47870a5c0e4b04a67942675ce)",
+    "miniscript": [],
+    "solution": "tr(235ec13c928b1beb10d78e4f155057ff83499dd47870a5c0e4b04a67942675ce)",
+    "explanation": "A # suffix is not a free-form label. Return the descriptor without the invented #Taproot suffix; no script tree is needed."
+  },
+  {
+    "id": "wrp1-single-leaf-template-write",
+    "group": "wrp1-single-leaf",
+    "request": "I need a Taproot reserve. Ravi can spend alone whenever needed. Alternatively, any two of Pia, Quinn, and Suri can spend together without Ravi. Those are the only routes.\n\nReturn a BIP-388 descriptor template. Use the standard receive/change branches <0;1>/* for every key (/** is the shorthand). The key list is managed separately; use these placeholders:\nPia: @0\nQuinn: @1\nRavi: @2\nSuri: @3\n",
+    "task_kind": "write",
+    "output_kind": "template",
+    "draft": null,
+    "policy": "or(pk(@2),thresh(2,pk(@0),pk(@1),pk(@3)))",
+    "miniscript": [
+      "multi_a(2,@0/**,@1/**,@3/**)"
+    ],
+    "solution": "tr(@2/**,multi_a(2,@0/**,@1/**,@3/**))",
+    "explanation": "The team is one script leaf. Place it directly after the internal key. Braces join two tree branches; they do not wrap a single leaf."
+  },
+  {
+    "id": "wrp1-single-leaf-template-repair",
+    "group": "wrp1-single-leaf",
+    "request": "I need a Taproot reserve. Ravi can spend alone whenever needed. Alternatively, any two of Pia, Quinn, and Suri can spend together without Ravi. Those are the only routes.\n\nReturn a BIP-388 descriptor template. Use the standard receive/change branches <0;1>/* for every key (/** is the shorthand). The key list is managed separately; use these placeholders:\nPia: @0\nQuinn: @1\nRavi: @2\nSuri: @3\n\nI tried this, but it may be wrong. Please fix it to match the requirements above:\n\n```text\ntr(@2/**,{multi_a(2,@0/**,@1/**,@3/**)})\n```",
+    "task_kind": "repair",
+    "output_kind": "template",
+    "draft": "tr(@2/**,{multi_a(2,@0/**,@1/**,@3/**)})",
+    "policy": "or(pk(@2),thresh(2,pk(@0),pk(@1),pk(@3)))",
+    "miniscript": [
+      "multi_a(2,@0/**,@1/**,@3/**)"
+    ],
+    "solution": "tr(@2/**,multi_a(2,@0/**,@1/**,@3/**))",
+    "explanation": "The team is one script leaf. Place it directly after the internal key. Braces join two tree branches; they do not wrap a single leaf."
+  },
+  {
+    "id": "wrp1-single-leaf-concrete-write",
+    "group": "wrp1-single-leaf",
+    "request": "I need a Taproot reserve. Ravi can spend alone whenever needed. Alternatively, any two of Pia, Quinn, and Suri can spend together without Ravi. Those are the only routes.\n\nReturn a concrete descriptor using the public keys below. These are already derived for this address; no extended keys, placeholders, or wildcards are needed.\nPia: ec7df7a783b34d55fd0423e1bfa97c24441182a7d3f0b0c832956b0e4831cf5a\nQuinn: bbdc2d989a8af85af49dd2a2823c75a369a085ffff6427a7ea91e0af93ee97af\nRavi: eea13cedd8ad74accf043ce95eb5c1057f26742ef7c75c57f43c9920b268d338\nSuri: a7aff3eea5d5654604f820f0df8167eb7260c268983e58722724568c39f71888\n",
+    "task_kind": "write",
+    "output_kind": "concrete",
+    "draft": null,
+    "policy": "or(pk(eea13cedd8ad74accf043ce95eb5c1057f26742ef7c75c57f43c9920b268d338),thresh(2,pk(ec7df7a783b34d55fd0423e1bfa97c24441182a7d3f0b0c832956b0e4831cf5a),pk(bbdc2d989a8af85af49dd2a2823c75a369a085ffff6427a7ea91e0af93ee97af),pk(a7aff3eea5d5654604f820f0df8167eb7260c268983e58722724568c39f71888)))",
+    "miniscript": [
+      "multi_a(2,ec7df7a783b34d55fd0423e1bfa97c24441182a7d3f0b0c832956b0e4831cf5a,bbdc2d989a8af85af49dd2a2823c75a369a085ffff6427a7ea91e0af93ee97af,a7aff3eea5d5654604f820f0df8167eb7260c268983e58722724568c39f71888)"
+    ],
+    "solution": "tr(eea13cedd8ad74accf043ce95eb5c1057f26742ef7c75c57f43c9920b268d338,multi_a(2,ec7df7a783b34d55fd0423e1bfa97c24441182a7d3f0b0c832956b0e4831cf5a,bbdc2d989a8af85af49dd2a2823c75a369a085ffff6427a7ea91e0af93ee97af,a7aff3eea5d5654604f820f0df8167eb7260c268983e58722724568c39f71888))",
+    "explanation": "The team is one script leaf. Place it directly after the internal key. Braces join two tree branches; they do not wrap a single leaf."
+  },
+  {
+    "id": "wrp1-single-leaf-concrete-repair",
+    "group": "wrp1-single-leaf",
+    "request": "I need a Taproot reserve. Ravi can spend alone whenever needed. Alternatively, any two of Pia, Quinn, and Suri can spend together without Ravi. Those are the only routes.\n\nReturn a concrete descriptor using the public keys below. These are already derived for this address; no extended keys, placeholders, or wildcards are needed.\nPia: ec7df7a783b34d55fd0423e1bfa97c24441182a7d3f0b0c832956b0e4831cf5a\nQuinn: bbdc2d989a8af85af49dd2a2823c75a369a085ffff6427a7ea91e0af93ee97af\nRavi: eea13cedd8ad74accf043ce95eb5c1057f26742ef7c75c57f43c9920b268d338\nSuri: a7aff3eea5d5654604f820f0df8167eb7260c268983e58722724568c39f71888\n\nI tried this, but it may be wrong. Please fix it to match the requirements above:\n\n```text\ntr(eea13cedd8ad74accf043ce95eb5c1057f26742ef7c75c57f43c9920b268d338,{multi_a(2,ec7df7a783b34d55fd0423e1bfa97c24441182a7d3f0b0c832956b0e4831cf5a,bbdc2d989a8af85af49dd2a2823c75a369a085ffff6427a7ea91e0af93ee97af,a7aff3eea5d5654604f820f0df8167eb7260c268983e58722724568c39f71888)})\n```",
+    "task_kind": "repair",
+    "output_kind": "concrete",
+    "draft": "tr(eea13cedd8ad74accf043ce95eb5c1057f26742ef7c75c57f43c9920b268d338,{multi_a(2,ec7df7a783b34d55fd0423e1bfa97c24441182a7d3f0b0c832956b0e4831cf5a,bbdc2d989a8af85af49dd2a2823c75a369a085ffff6427a7ea91e0af93ee97af,a7aff3eea5d5654604f820f0df8167eb7260c268983e58722724568c39f71888)})",
+    "policy": "or(pk(eea13cedd8ad74accf043ce95eb5c1057f26742ef7c75c57f43c9920b268d338),thresh(2,pk(ec7df7a783b34d55fd0423e1bfa97c24441182a7d3f0b0c832956b0e4831cf5a),pk(bbdc2d989a8af85af49dd2a2823c75a369a085ffff6427a7ea91e0af93ee97af),pk(a7aff3eea5d5654604f820f0df8167eb7260c268983e58722724568c39f71888)))",
+    "miniscript": [
+      "multi_a(2,ec7df7a783b34d55fd0423e1bfa97c24441182a7d3f0b0c832956b0e4831cf5a,bbdc2d989a8af85af49dd2a2823c75a369a085ffff6427a7ea91e0af93ee97af,a7aff3eea5d5654604f820f0df8167eb7260c268983e58722724568c39f71888)"
+    ],
+    "solution": "tr(eea13cedd8ad74accf043ce95eb5c1057f26742ef7c75c57f43c9920b268d338,multi_a(2,ec7df7a783b34d55fd0423e1bfa97c24441182a7d3f0b0c832956b0e4831cf5a,bbdc2d989a8af85af49dd2a2823c75a369a085ffff6427a7ea91e0af93ee97af,a7aff3eea5d5654604f820f0df8167eb7260c268983e58722724568c39f71888))",
+    "explanation": "The team is one script leaf. Place it directly after the internal key. Braces join two tree branches; they do not wrap a single leaf."
+  },
+  {
+    "id": "wrp1-every-template-key-template-write",
+    "group": "wrp1-every-template-key",
+    "request": "For my Taproot savings account, Uma can spend at any time. Tess can recover the money once the output has aged at least 720 blocks since confirmation, without Uma. Keep both routes available after that.\n\nReturn a BIP-388 descriptor template. Use the standard receive/change branches <0;1>/* for every key (/** is the shorthand). The key list is managed separately; use these placeholders:\nTess: @0\nUma: @1\n",
+    "task_kind": "write",
+    "output_kind": "template",
+    "draft": null,
+    "policy": "or(pk(@1),and(pk(@0),older(720)))",
+    "miniscript": [
+      "and_v(v:pk(@0/**),older(720))"
+    ],
+    "solution": "tr(@1/**,and_v(v:pk(@0/**),older(720)))",
+    "explanation": "The recovery key needs its receive/change derivation suffix too. The internal key and the leaf key are both template keys. The 720-block delay applies only to Tess."
+  },
+  {
+    "id": "wrp1-every-template-key-template-repair",
+    "group": "wrp1-every-template-key",
+    "request": "For my Taproot savings account, Uma can spend at any time. Tess can recover the money once the output has aged at least 720 blocks since confirmation, without Uma. Keep both routes available after that.\n\nReturn a BIP-388 descriptor template. Use the standard receive/change branches <0;1>/* for every key (/** is the shorthand). The key list is managed separately; use these placeholders:\nTess: @0\nUma: @1\n\nI tried this, but it may be wrong. Please fix it to match the requirements above:\n\n```text\ntr(@1/**,and_v(v:pk(@0),older(720)))\n```",
+    "task_kind": "repair",
+    "output_kind": "template",
+    "draft": "tr(@1/**,and_v(v:pk(@0),older(720)))",
+    "policy": "or(pk(@1),and(pk(@0),older(720)))",
+    "miniscript": [
+      "and_v(v:pk(@0/**),older(720))"
+    ],
+    "solution": "tr(@1/**,and_v(v:pk(@0/**),older(720)))",
+    "explanation": "The recovery key needs its receive/change derivation suffix too. The internal key and the leaf key are both template keys. The 720-block delay applies only to Tess."
+  },
+  {
+    "id": "wrp1-every-template-key-concrete-write",
+    "group": "wrp1-every-template-key",
+    "request": "For my Taproot savings account, Uma can spend at any time. Tess can recover the money once the output has aged at least 720 blocks since confirmation, without Uma. Keep both routes available after that.\n\nReturn a concrete descriptor using the public keys below. These are already derived for this address; no extended keys, placeholders, or wildcards are needed.\nTess: 4ef7d8895265de152a8a6b5c88239dc44ff79468b275d71f6ea0e5409f2c6850\nUma: d75789f23b126ec6d3cc045a4c310b6390afba678f14847a30ca51e22a78e8d5\n",
+    "task_kind": "write",
+    "output_kind": "concrete",
+    "draft": null,
+    "policy": "or(pk(d75789f23b126ec6d3cc045a4c310b6390afba678f14847a30ca51e22a78e8d5),and(pk(4ef7d8895265de152a8a6b5c88239dc44ff79468b275d71f6ea0e5409f2c6850),older(720)))",
+    "miniscript": [
+      "and_v(v:pk(4ef7d8895265de152a8a6b5c88239dc44ff79468b275d71f6ea0e5409f2c6850),older(720))"
+    ],
+    "solution": "tr(d75789f23b126ec6d3cc045a4c310b6390afba678f14847a30ca51e22a78e8d5,and_v(v:pk(4ef7d8895265de152a8a6b5c88239dc44ff79468b275d71f6ea0e5409f2c6850),older(720)))",
+    "explanation": "Use the supplied public keys throughout the concrete descriptor. A template placeholder cannot stand in for the recovery public key."
+  },
+  {
+    "id": "wrp1-every-template-key-concrete-repair",
+    "group": "wrp1-every-template-key",
+    "request": "For my Taproot savings account, Uma can spend at any time. Tess can recover the money once the output has aged at least 720 blocks since confirmation, without Uma. Keep both routes available after that.\n\nReturn a concrete descriptor using the public keys below. These are already derived for this address; no extended keys, placeholders, or wildcards are needed.\nTess: 4ef7d8895265de152a8a6b5c88239dc44ff79468b275d71f6ea0e5409f2c6850\nUma: d75789f23b126ec6d3cc045a4c310b6390afba678f14847a30ca51e22a78e8d5\n\nI tried this, but it may be wrong. Please fix it to match the requirements above:\n\n```text\ntr(d75789f23b126ec6d3cc045a4c310b6390afba678f14847a30ca51e22a78e8d5,and_v(v:pk(@0/**),older(720)))\n```",
+    "task_kind": "repair",
+    "output_kind": "concrete",
+    "draft": "tr(d75789f23b126ec6d3cc045a4c310b6390afba678f14847a30ca51e22a78e8d5,and_v(v:pk(@0/**),older(720)))",
+    "policy": "or(pk(d75789f23b126ec6d3cc045a4c310b6390afba678f14847a30ca51e22a78e8d5),and(pk(4ef7d8895265de152a8a6b5c88239dc44ff79468b275d71f6ea0e5409f2c6850),older(720)))",
+    "miniscript": [
+      "and_v(v:pk(4ef7d8895265de152a8a6b5c88239dc44ff79468b275d71f6ea0e5409f2c6850),older(720))"
+    ],
+    "solution": "tr(d75789f23b126ec6d3cc045a4c310b6390afba678f14847a30ca51e22a78e8d5,and_v(v:pk(4ef7d8895265de152a8a6b5c88239dc44ff79468b275d71f6ea0e5409f2c6850),older(720)))",
+    "explanation": "Use the supplied public keys throughout the concrete descriptor. A template placeholder cannot stand in for the recovery public key."
+  },
+  {
+    "id": "wrp1-and-v-type-template-write",
+    "group": "wrp1-and-v-type",
+    "request": "Create a native SegWit script account that requires both Vera and Will to sign. Neither can spend alone. There is no time restriction or alternate route.\n\nReturn a BIP-388 descriptor template. Use the standard receive/change branches <0;1>/* for every key (/** is the shorthand). The key list is managed separately; use these placeholders:\nVera: @0\nWill: @1\n",
+    "task_kind": "write",
+    "output_kind": "template",
+    "draft": null,
+    "policy": "and(pk(@0),pk(@1))",
+    "miniscript": [
+      "and_v(v:pk(@0/**),pk(@1/**))"
+    ],
+    "solution": "wsh(and_v(v:pk(@0/**),pk(@1/**)))",
+    "explanation": "and_v requires a V-type first argument. The v: wrapper verifies the first signature result; the second pk remains the final Boolean result."
+  },
+  {
+    "id": "wrp1-and-v-type-template-repair",
+    "group": "wrp1-and-v-type",
+    "request": "Create a native SegWit script account that requires both Vera and Will to sign. Neither can spend alone. There is no time restriction or alternate route.\n\nReturn a BIP-388 descriptor template. Use the standard receive/change branches <0;1>/* for every key (/** is the shorthand). The key list is managed separately; use these placeholders:\nVera: @0\nWill: @1\n\nI tried this, but it may be wrong. Please fix it to match the requirements above:\n\n```text\nwsh(and_v(pk(@0/**),pk(@1/**)))\n```",
+    "task_kind": "repair",
+    "output_kind": "template",
+    "draft": "wsh(and_v(pk(@0/**),pk(@1/**)))",
+    "policy": "and(pk(@0),pk(@1))",
+    "miniscript": [
+      "and_v(v:pk(@0/**),pk(@1/**))"
+    ],
+    "solution": "wsh(and_v(v:pk(@0/**),pk(@1/**)))",
+    "explanation": "and_v requires a V-type first argument. The v: wrapper verifies the first signature result; the second pk remains the final Boolean result."
+  },
+  {
+    "id": "wrp1-and-v-type-concrete-write",
+    "group": "wrp1-and-v-type",
+    "request": "Create a native SegWit script account that requires both Vera and Will to sign. Neither can spend alone. There is no time restriction or alternate route.\n\nReturn a concrete descriptor using the public keys below. These are already derived for this address; no extended keys, placeholders, or wildcards are needed.\nVera: 02504376694bd9f8c9efff7afc81ed6f74a2b09bc0ed0282d678bec051e12aaef9\nWill: 02a8b2cf1d0e892359523fbe22b3fa2f67f00480133306b9376d572f9c3f11b3c1\n",
+    "task_kind": "write",
+    "output_kind": "concrete",
+    "draft": null,
+    "policy": "and(pk(02504376694bd9f8c9efff7afc81ed6f74a2b09bc0ed0282d678bec051e12aaef9),pk(02a8b2cf1d0e892359523fbe22b3fa2f67f00480133306b9376d572f9c3f11b3c1))",
+    "miniscript": [
+      "and_v(v:pk(02504376694bd9f8c9efff7afc81ed6f74a2b09bc0ed0282d678bec051e12aaef9),pk(02a8b2cf1d0e892359523fbe22b3fa2f67f00480133306b9376d572f9c3f11b3c1))"
+    ],
+    "solution": "wsh(and_v(v:pk(02504376694bd9f8c9efff7afc81ed6f74a2b09bc0ed0282d678bec051e12aaef9),pk(02a8b2cf1d0e892359523fbe22b3fa2f67f00480133306b9376d572f9c3f11b3c1)))",
+    "explanation": "and_v requires a V-type first argument. The v: wrapper verifies the first signature result; the second pk remains the final Boolean result."
+  },
+  {
+    "id": "wrp1-and-v-type-concrete-repair",
+    "group": "wrp1-and-v-type",
+    "request": "Create a native SegWit script account that requires both Vera and Will to sign. Neither can spend alone. There is no time restriction or alternate route.\n\nReturn a concrete descriptor using the public keys below. These are already derived for this address; no extended keys, placeholders, or wildcards are needed.\nVera: 02504376694bd9f8c9efff7afc81ed6f74a2b09bc0ed0282d678bec051e12aaef9\nWill: 02a8b2cf1d0e892359523fbe22b3fa2f67f00480133306b9376d572f9c3f11b3c1\n\nI tried this, but it may be wrong. Please fix it to match the requirements above:\n\n```text\nwsh(and_v(pk(02504376694bd9f8c9efff7afc81ed6f74a2b09bc0ed0282d678bec051e12aaef9),pk(02a8b2cf1d0e892359523fbe22b3fa2f67f00480133306b9376d572f9c3f11b3c1)))\n```",
+    "task_kind": "repair",
+    "output_kind": "concrete",
+    "draft": "wsh(and_v(pk(02504376694bd9f8c9efff7afc81ed6f74a2b09bc0ed0282d678bec051e12aaef9),pk(02a8b2cf1d0e892359523fbe22b3fa2f67f00480133306b9376d572f9c3f11b3c1)))",
+    "policy": "and(pk(02504376694bd9f8c9efff7afc81ed6f74a2b09bc0ed0282d678bec051e12aaef9),pk(02a8b2cf1d0e892359523fbe22b3fa2f67f00480133306b9376d572f9c3f11b3c1))",
+    "miniscript": [
+      "and_v(v:pk(02504376694bd9f8c9efff7afc81ed6f74a2b09bc0ed0282d678bec051e12aaef9),pk(02a8b2cf1d0e892359523fbe22b3fa2f67f00480133306b9376d572f9c3f11b3c1))"
+    ],
+    "solution": "wsh(and_v(v:pk(02504376694bd9f8c9efff7afc81ed6f74a2b09bc0ed0282d678bec051e12aaef9),pk(02a8b2cf1d0e892359523fbe22b3fa2f67f00480133306b9376d572f9c3f11b3c1)))",
+    "explanation": "and_v requires a V-type first argument. The v: wrapper verifies the first signature result; the second pk remains the final Boolean result."
+  },
+  {
+    "id": "wrp1-or-b-type-template-write",
+    "group": "wrp1-or-b-type",
+    "request": "I want a native SegWit script account where either Xena or Yuri can spend alone. There is no waiting period and neither needs the other signature.\n\nReturn a BIP-388 descriptor template. Use the standard receive/change branches <0;1>/* for every key (/** is the shorthand). The key list is managed separately; use these placeholders:\nXena: @0\nYuri: @1\n",
+    "task_kind": "write",
+    "output_kind": "template",
+    "draft": null,
+    "policy": "or(pk(@0),pk(@1))",
+    "miniscript": [
+      "or_b(pk(@0/**),s:pk(@1/**))"
+    ],
+    "solution": "wsh(or_b(pk(@0/**),s:pk(@1/**)))",
+    "explanation": "or_b requires B and W arguments. The s: wrapper turns the second pk into the required W form. Either signature is still sufficient."
+  },
+  {
+    "id": "wrp1-or-b-type-template-repair",
+    "group": "wrp1-or-b-type",
+    "request": "I want a native SegWit script account where either Xena or Yuri can spend alone. There is no waiting period and neither needs the other signature.\n\nReturn a BIP-388 descriptor template. Use the standard receive/change branches <0;1>/* for every key (/** is the shorthand). The key list is managed separately; use these placeholders:\nXena: @0\nYuri: @1\n\nI tried this, but it may be wrong. Please fix it to match the requirements above:\n\n```text\nwsh(or_b(pk(@0/**),pk(@1/**)))\n```",
+    "task_kind": "repair",
+    "output_kind": "template",
+    "draft": "wsh(or_b(pk(@0/**),pk(@1/**)))",
+    "policy": "or(pk(@0),pk(@1))",
+    "miniscript": [
+      "or_b(pk(@0/**),s:pk(@1/**))"
+    ],
+    "solution": "wsh(or_b(pk(@0/**),s:pk(@1/**)))",
+    "explanation": "or_b requires B and W arguments. The s: wrapper turns the second pk into the required W form. Either signature is still sufficient."
+  },
+  {
+    "id": "wrp1-or-b-type-concrete-write",
+    "group": "wrp1-or-b-type",
+    "request": "I want a native SegWit script account where either Xena or Yuri can spend alone. There is no waiting period and neither needs the other signature.\n\nReturn a concrete descriptor using the public keys below. These are already derived for this address; no extended keys, placeholders, or wildcards are needed.\nXena: 0270114a5468cde3912da273a10548dd32d23e1e0a1ceaae50445216b54134fe4d\nYuri: 0391301f35dda0415af9505677b030a002efcce8daacaada002b9d8c254a8739de\n",
+    "task_kind": "write",
+    "output_kind": "concrete",
+    "draft": null,
+    "policy": "or(pk(0270114a5468cde3912da273a10548dd32d23e1e0a1ceaae50445216b54134fe4d),pk(0391301f35dda0415af9505677b030a002efcce8daacaada002b9d8c254a8739de))",
+    "miniscript": [
+      "or_b(pk(0270114a5468cde3912da273a10548dd32d23e1e0a1ceaae50445216b54134fe4d),s:pk(0391301f35dda0415af9505677b030a002efcce8daacaada002b9d8c254a8739de))"
+    ],
+    "solution": "wsh(or_b(pk(0270114a5468cde3912da273a10548dd32d23e1e0a1ceaae50445216b54134fe4d),s:pk(0391301f35dda0415af9505677b030a002efcce8daacaada002b9d8c254a8739de)))",
+    "explanation": "or_b requires B and W arguments. The s: wrapper turns the second pk into the required W form. Either signature is still sufficient."
+  },
+  {
+    "id": "wrp1-or-b-type-concrete-repair",
+    "group": "wrp1-or-b-type",
+    "request": "I want a native SegWit script account where either Xena or Yuri can spend alone. There is no waiting period and neither needs the other signature.\n\nReturn a concrete descriptor using the public keys below. These are already derived for this address; no extended keys, placeholders, or wildcards are needed.\nXena: 0270114a5468cde3912da273a10548dd32d23e1e0a1ceaae50445216b54134fe4d\nYuri: 0391301f35dda0415af9505677b030a002efcce8daacaada002b9d8c254a8739de\n\nI tried this, but it may be wrong. Please fix it to match the requirements above:\n\n```text\nwsh(or_b(pk(0270114a5468cde3912da273a10548dd32d23e1e0a1ceaae50445216b54134fe4d),pk(0391301f35dda0415af9505677b030a002efcce8daacaada002b9d8c254a8739de)))\n```",
+    "task_kind": "repair",
+    "output_kind": "concrete",
+    "draft": "wsh(or_b(pk(0270114a5468cde3912da273a10548dd32d23e1e0a1ceaae50445216b54134fe4d),pk(0391301f35dda0415af9505677b030a002efcce8daacaada002b9d8c254a8739de)))",
+    "policy": "or(pk(0270114a5468cde3912da273a10548dd32d23e1e0a1ceaae50445216b54134fe4d),pk(0391301f35dda0415af9505677b030a002efcce8daacaada002b9d8c254a8739de))",
+    "miniscript": [
+      "or_b(pk(0270114a5468cde3912da273a10548dd32d23e1e0a1ceaae50445216b54134fe4d),s:pk(0391301f35dda0415af9505677b030a002efcce8daacaada002b9d8c254a8739de))"
+    ],
+    "solution": "wsh(or_b(pk(0270114a5468cde3912da273a10548dd32d23e1e0a1ceaae50445216b54134fe4d),s:pk(0391301f35dda0415af9505677b030a002efcce8daacaada002b9d8c254a8739de)))",
+    "explanation": "or_b requires B and W arguments. The s: wrapper turns the second pk into the required W form. Either signature is still sufficient."
+  },
+  {
+    "id": "wrp1-separate-councils-template-write",
+    "group": "wrp1-separate-councils",
+    "request": "Set up a Taproot reserve with Faye as the owner. Faye can spend alone at any time. Without Faye, a withdrawal needs at least one of Asha, Bea, and Chen AND both Dale and Enid. Extra signatures from the first group cannot replace Dale or Enid. Allow exactly these routes.\n\nReturn a BIP-388 descriptor template. Use the standard receive/change branches <0;1>/* for every key (/** is the shorthand). The key list is managed separately; use these placeholders:\nAsha: @0\nBea: @1\nChen: @2\nDale: @3\nEnid: @4\nFaye: @5\n",
+    "task_kind": "write",
+    "output_kind": "template",
+    "draft": null,
+    "policy": "or(pk(@5),and(thresh(1,pk(@0),pk(@1),pk(@2)),and(pk(@3),pk(@4))))",
+    "miniscript": [
+      "and_v(v:multi_a(1,@0/**,@1/**,@2/**),multi_a(2,@3/**,@4/**))"
+    ],
+    "solution": "tr(@5/**,and_v(v:multi_a(1,@0/**,@1/**,@2/**),multi_a(2,@3/**,@4/**)))",
+    "explanation": "Keep the two group requirements separate. A single three-of-five threshold would let Asha, Bea, and Chen spend without Dale or Enid."
+  },
+  {
+    "id": "wrp1-separate-councils-template-repair",
+    "group": "wrp1-separate-councils",
+    "request": "Set up a Taproot reserve with Faye as the owner. Faye can spend alone at any time. Without Faye, a withdrawal needs at least one of Asha, Bea, and Chen AND both Dale and Enid. Extra signatures from the first group cannot replace Dale or Enid. Allow exactly these routes.\n\nReturn a BIP-388 descriptor template. Use the standard receive/change branches <0;1>/* for every key (/** is the shorthand). The key list is managed separately; use these placeholders:\nAsha: @0\nBea: @1\nChen: @2\nDale: @3\nEnid: @4\nFaye: @5\n\nI tried this, but it may be wrong. Please fix it to match the requirements above:\n\n```text\ntr(@5/**,multi_a(3,@0/**,@1/**,@2/**,@3/**,@4/**))\n```",
+    "task_kind": "repair",
+    "output_kind": "template",
+    "draft": "tr(@5/**,multi_a(3,@0/**,@1/**,@2/**,@3/**,@4/**))",
+    "policy": "or(pk(@5),and(thresh(1,pk(@0),pk(@1),pk(@2)),and(pk(@3),pk(@4))))",
+    "miniscript": [
+      "and_v(v:multi_a(1,@0/**,@1/**,@2/**),multi_a(2,@3/**,@4/**))"
+    ],
+    "solution": "tr(@5/**,and_v(v:multi_a(1,@0/**,@1/**,@2/**),multi_a(2,@3/**,@4/**)))",
+    "explanation": "Keep the two group requirements separate. A single three-of-five threshold would let Asha, Bea, and Chen spend without Dale or Enid."
+  },
+  {
+    "id": "wrp1-separate-councils-concrete-write",
+    "group": "wrp1-separate-councils",
+    "request": "Set up a Taproot reserve with Faye as the owner. Faye can spend alone at any time. Without Faye, a withdrawal needs at least one of Asha, Bea, and Chen AND both Dale and Enid. Extra signatures from the first group cannot replace Dale or Enid. Allow exactly these routes.\n\nReturn a concrete descriptor using the public keys below. These are already derived for this address; no extended keys, placeholders, or wildcards are needed.\nAsha: 0ab1d0740632e13948c0812b723144b86ae292113f7fbd45c0f7b1939196e4e5\nBea: e9f2ea09eaeb6b7c77922981191a9a886898e264f4a223f8c76e9c54cc03f719\nChen: 954a00e409915700321f5432ebb85c26dc73ff0cdfb7005db5164cdb827b402a\nDale: 0f812ed702f1d2054a1c1c130813df1bc53db847ca312a9c68c649dd46aef39a\nEnid: 4736188c425f986b74df1c26b59518217160bc7d53be60541c5fb8d0c5e5a4de\nFaye: b38207ac1f877f4da08ffeb917eb4b95f486c58336d2c8a6947f83de52e4decd\n",
+    "task_kind": "write",
+    "output_kind": "concrete",
+    "draft": null,
+    "policy": "or(pk(b38207ac1f877f4da08ffeb917eb4b95f486c58336d2c8a6947f83de52e4decd),and(thresh(1,pk(0ab1d0740632e13948c0812b723144b86ae292113f7fbd45c0f7b1939196e4e5),pk(e9f2ea09eaeb6b7c77922981191a9a886898e264f4a223f8c76e9c54cc03f719),pk(954a00e409915700321f5432ebb85c26dc73ff0cdfb7005db5164cdb827b402a)),and(pk(0f812ed702f1d2054a1c1c130813df1bc53db847ca312a9c68c649dd46aef39a),pk(4736188c425f986b74df1c26b59518217160bc7d53be60541c5fb8d0c5e5a4de))))",
+    "miniscript": [
+      "and_v(v:multi_a(1,0ab1d0740632e13948c0812b723144b86ae292113f7fbd45c0f7b1939196e4e5,e9f2ea09eaeb6b7c77922981191a9a886898e264f4a223f8c76e9c54cc03f719,954a00e409915700321f5432ebb85c26dc73ff0cdfb7005db5164cdb827b402a),multi_a(2,0f812ed702f1d2054a1c1c130813df1bc53db847ca312a9c68c649dd46aef39a,4736188c425f986b74df1c26b59518217160bc7d53be60541c5fb8d0c5e5a4de))"
+    ],
+    "solution": "tr(b38207ac1f877f4da08ffeb917eb4b95f486c58336d2c8a6947f83de52e4decd,and_v(v:multi_a(1,0ab1d0740632e13948c0812b723144b86ae292113f7fbd45c0f7b1939196e4e5,e9f2ea09eaeb6b7c77922981191a9a886898e264f4a223f8c76e9c54cc03f719,954a00e409915700321f5432ebb85c26dc73ff0cdfb7005db5164cdb827b402a),multi_a(2,0f812ed702f1d2054a1c1c130813df1bc53db847ca312a9c68c649dd46aef39a,4736188c425f986b74df1c26b59518217160bc7d53be60541c5fb8d0c5e5a4de)))",
+    "explanation": "Keep the two group requirements separate. A single three-of-five threshold would let Asha, Bea, and Chen spend without Dale or Enid."
+  },
+  {
+    "id": "wrp1-separate-councils-concrete-repair",
+    "group": "wrp1-separate-councils",
+    "request": "Set up a Taproot reserve with Faye as the owner. Faye can spend alone at any time. Without Faye, a withdrawal needs at least one of Asha, Bea, and Chen AND both Dale and Enid. Extra signatures from the first group cannot replace Dale or Enid. Allow exactly these routes.\n\nReturn a concrete descriptor using the public keys below. These are already derived for this address; no extended keys, placeholders, or wildcards are needed.\nAsha: 0ab1d0740632e13948c0812b723144b86ae292113f7fbd45c0f7b1939196e4e5\nBea: e9f2ea09eaeb6b7c77922981191a9a886898e264f4a223f8c76e9c54cc03f719\nChen: 954a00e409915700321f5432ebb85c26dc73ff0cdfb7005db5164cdb827b402a\nDale: 0f812ed702f1d2054a1c1c130813df1bc53db847ca312a9c68c649dd46aef39a\nEnid: 4736188c425f986b74df1c26b59518217160bc7d53be60541c5fb8d0c5e5a4de\nFaye: b38207ac1f877f4da08ffeb917eb4b95f486c58336d2c8a6947f83de52e4decd\n\nI tried this, but it may be wrong. Please fix it to match the requirements above:\n\n```text\ntr(b38207ac1f877f4da08ffeb917eb4b95f486c58336d2c8a6947f83de52e4decd,multi_a(3,0ab1d0740632e13948c0812b723144b86ae292113f7fbd45c0f7b1939196e4e5,e9f2ea09eaeb6b7c77922981191a9a886898e264f4a223f8c76e9c54cc03f719,954a00e409915700321f5432ebb85c26dc73ff0cdfb7005db5164cdb827b402a,0f812ed702f1d2054a1c1c130813df1bc53db847ca312a9c68c649dd46aef39a,4736188c425f986b74df1c26b59518217160bc7d53be60541c5fb8d0c5e5a4de))\n```",
+    "task_kind": "repair",
+    "output_kind": "concrete",
+    "draft": "tr(b38207ac1f877f4da08ffeb917eb4b95f486c58336d2c8a6947f83de52e4decd,multi_a(3,0ab1d0740632e13948c0812b723144b86ae292113f7fbd45c0f7b1939196e4e5,e9f2ea09eaeb6b7c77922981191a9a886898e264f4a223f8c76e9c54cc03f719,954a00e409915700321f5432ebb85c26dc73ff0cdfb7005db5164cdb827b402a,0f812ed702f1d2054a1c1c130813df1bc53db847ca312a9c68c649dd46aef39a,4736188c425f986b74df1c26b59518217160bc7d53be60541c5fb8d0c5e5a4de))",
+    "policy": "or(pk(b38207ac1f877f4da08ffeb917eb4b95f486c58336d2c8a6947f83de52e4decd),and(thresh(1,pk(0ab1d0740632e13948c0812b723144b86ae292113f7fbd45c0f7b1939196e4e5),pk(e9f2ea09eaeb6b7c77922981191a9a886898e264f4a223f8c76e9c54cc03f719),pk(954a00e409915700321f5432ebb85c26dc73ff0cdfb7005db5164cdb827b402a)),and(pk(0f812ed702f1d2054a1c1c130813df1bc53db847ca312a9c68c649dd46aef39a),pk(4736188c425f986b74df1c26b59518217160bc7d53be60541c5fb8d0c5e5a4de))))",
+    "miniscript": [
+      "and_v(v:multi_a(1,0ab1d0740632e13948c0812b723144b86ae292113f7fbd45c0f7b1939196e4e5,e9f2ea09eaeb6b7c77922981191a9a886898e264f4a223f8c76e9c54cc03f719,954a00e409915700321f5432ebb85c26dc73ff0cdfb7005db5164cdb827b402a),multi_a(2,0f812ed702f1d2054a1c1c130813df1bc53db847ca312a9c68c649dd46aef39a,4736188c425f986b74df1c26b59518217160bc7d53be60541c5fb8d0c5e5a4de))"
+    ],
+    "solution": "tr(b38207ac1f877f4da08ffeb917eb4b95f486c58336d2c8a6947f83de52e4decd,and_v(v:multi_a(1,0ab1d0740632e13948c0812b723144b86ae292113f7fbd45c0f7b1939196e4e5,e9f2ea09eaeb6b7c77922981191a9a886898e264f4a223f8c76e9c54cc03f719,954a00e409915700321f5432ebb85c26dc73ff0cdfb7005db5164cdb827b402a),multi_a(2,0f812ed702f1d2054a1c1c130813df1bc53db847ca312a9c68c649dd46aef39a,4736188c425f986b74df1c26b59518217160bc7d53be60541c5fb8d0c5e5a4de)))",
+    "explanation": "Keep the two group requirements separate. A single three-of-five threshold would let Asha, Bea, and Chen spend without Dale or Enid."
+  },
+  {
+    "id": "wrp1-independent-routes-template-write",
+    "group": "wrp1-independent-routes",
+    "request": "Build a Taproot wallet with three ways to spend. Gita can spend alone immediately. Any two of Hale, Imani, and Jules can also spend immediately without Gita. Separately, Kian can recover the money once the output is at least 576 blocks old from confirmation, without anyone else. Each route is independent; permit no others.\n\nReturn a BIP-388 descriptor template. Use the standard receive/change branches <0;1>/* for every key (/** is the shorthand). The key list is managed separately; use these placeholders:\nGita: @0\nHale: @1\nImani: @2\nJules: @3\nKian: @4\n",
+    "task_kind": "write",
+    "output_kind": "template",
+    "draft": null,
+    "policy": "or(pk(@0),or(thresh(2,pk(@1),pk(@2),pk(@3)),and(pk(@4),older(576))))",
+    "miniscript": [
+      "multi_a(2,@1/**,@2/**,@3/**)",
+      "and_v(v:pk(@4/**),older(576))"
+    ],
+    "solution": "tr(@0/**,{multi_a(2,@1/**,@2/**,@3/**),and_v(v:pk(@4/**),older(576))})",
+    "explanation": "Use two alternative script leaves. Joining the team and recovery conditions with and_v would require both, so neither promised independent route would work."
+  },
+  {
+    "id": "wrp1-independent-routes-template-repair",
+    "group": "wrp1-independent-routes",
+    "request": "Build a Taproot wallet with three ways to spend. Gita can spend alone immediately. Any two of Hale, Imani, and Jules can also spend immediately without Gita. Separately, Kian can recover the money once the output is at least 576 blocks old from confirmation, without anyone else. Each route is independent; permit no others.\n\nReturn a BIP-388 descriptor template. Use the standard receive/change branches <0;1>/* for every key (/** is the shorthand). The key list is managed separately; use these placeholders:\nGita: @0\nHale: @1\nImani: @2\nJules: @3\nKian: @4\n\nI tried this, but it may be wrong. Please fix it to match the requirements above:\n\n```text\ntr(@0/**,and_v(v:multi_a(2,@1/**,@2/**,@3/**),and_v(v:pk(@4/**),older(576))))\n```",
+    "task_kind": "repair",
+    "output_kind": "template",
+    "draft": "tr(@0/**,and_v(v:multi_a(2,@1/**,@2/**,@3/**),and_v(v:pk(@4/**),older(576))))",
+    "policy": "or(pk(@0),or(thresh(2,pk(@1),pk(@2),pk(@3)),and(pk(@4),older(576))))",
+    "miniscript": [
+      "multi_a(2,@1/**,@2/**,@3/**)",
+      "and_v(v:pk(@4/**),older(576))"
+    ],
+    "solution": "tr(@0/**,{multi_a(2,@1/**,@2/**,@3/**),and_v(v:pk(@4/**),older(576))})",
+    "explanation": "Use two alternative script leaves. Joining the team and recovery conditions with and_v would require both, so neither promised independent route would work."
+  },
+  {
+    "id": "wrp1-independent-routes-concrete-write",
+    "group": "wrp1-independent-routes",
+    "request": "Build a Taproot wallet with three ways to spend. Gita can spend alone immediately. Any two of Hale, Imani, and Jules can also spend immediately without Gita. Separately, Kian can recover the money once the output is at least 576 blocks old from confirmation, without anyone else. Each route is independent; permit no others.\n\nReturn a concrete descriptor using the public keys below. These are already derived for this address; no extended keys, placeholders, or wildcards are needed.\nGita: 47a8357f4f3cd32ce6d0b4ecc4550a380f55b24af8f8311d50561cdc8c176f4e\nHale: 3294c2716eda1ab1ab060167cb263312e1e60c00a511108e502e9dde1d3a864f\nImani: 10f164f89c9b5267fdc0faefe8191cd4bb1209c7dface6e6e07f2eece24f7e47\nJules: b869445c9eec16d4e64c55ecb2bcec2ab89eea880e6d014937f33c73c2d22c24\nKian: dd90811a8de12fd2b30d98c53cae3e6eff29d884be6c599038333da4d026f644\n",
+    "task_kind": "write",
+    "output_kind": "concrete",
+    "draft": null,
+    "policy": "or(pk(47a8357f4f3cd32ce6d0b4ecc4550a380f55b24af8f8311d50561cdc8c176f4e),or(thresh(2,pk(3294c2716eda1ab1ab060167cb263312e1e60c00a511108e502e9dde1d3a864f),pk(10f164f89c9b5267fdc0faefe8191cd4bb1209c7dface6e6e07f2eece24f7e47),pk(b869445c9eec16d4e64c55ecb2bcec2ab89eea880e6d014937f33c73c2d22c24)),and(pk(dd90811a8de12fd2b30d98c53cae3e6eff29d884be6c599038333da4d026f644),older(576))))",
+    "miniscript": [
+      "multi_a(2,3294c2716eda1ab1ab060167cb263312e1e60c00a511108e502e9dde1d3a864f,10f164f89c9b5267fdc0faefe8191cd4bb1209c7dface6e6e07f2eece24f7e47,b869445c9eec16d4e64c55ecb2bcec2ab89eea880e6d014937f33c73c2d22c24)",
+      "and_v(v:pk(dd90811a8de12fd2b30d98c53cae3e6eff29d884be6c599038333da4d026f644),older(576))"
+    ],
+    "solution": "tr(47a8357f4f3cd32ce6d0b4ecc4550a380f55b24af8f8311d50561cdc8c176f4e,{multi_a(2,3294c2716eda1ab1ab060167cb263312e1e60c00a511108e502e9dde1d3a864f,10f164f89c9b5267fdc0faefe8191cd4bb1209c7dface6e6e07f2eece24f7e47,b869445c9eec16d4e64c55ecb2bcec2ab89eea880e6d014937f33c73c2d22c24),and_v(v:pk(dd90811a8de12fd2b30d98c53cae3e6eff29d884be6c599038333da4d026f644),older(576))})",
+    "explanation": "Use two alternative script leaves. Joining the team and recovery conditions with and_v would require both, so neither promised independent route would work."
+  },
+  {
+    "id": "wrp1-independent-routes-concrete-repair",
+    "group": "wrp1-independent-routes",
+    "request": "Build a Taproot wallet with three ways to spend. Gita can spend alone immediately. Any two of Hale, Imani, and Jules can also spend immediately without Gita. Separately, Kian can recover the money once the output is at least 576 blocks old from confirmation, without anyone else. Each route is independent; permit no others.\n\nReturn a concrete descriptor using the public keys below. These are already derived for this address; no extended keys, placeholders, or wildcards are needed.\nGita: 47a8357f4f3cd32ce6d0b4ecc4550a380f55b24af8f8311d50561cdc8c176f4e\nHale: 3294c2716eda1ab1ab060167cb263312e1e60c00a511108e502e9dde1d3a864f\nImani: 10f164f89c9b5267fdc0faefe8191cd4bb1209c7dface6e6e07f2eece24f7e47\nJules: b869445c9eec16d4e64c55ecb2bcec2ab89eea880e6d014937f33c73c2d22c24\nKian: dd90811a8de12fd2b30d98c53cae3e6eff29d884be6c599038333da4d026f644\n\nI tried this, but it may be wrong. Please fix it to match the requirements above:\n\n```text\ntr(47a8357f4f3cd32ce6d0b4ecc4550a380f55b24af8f8311d50561cdc8c176f4e,and_v(v:multi_a(2,3294c2716eda1ab1ab060167cb263312e1e60c00a511108e502e9dde1d3a864f,10f164f89c9b5267fdc0faefe8191cd4bb1209c7dface6e6e07f2eece24f7e47,b869445c9eec16d4e64c55ecb2bcec2ab89eea880e6d014937f33c73c2d22c24),and_v(v:pk(dd90811a8de12fd2b30d98c53cae3e6eff29d884be6c599038333da4d026f644),older(576))))\n```",
+    "task_kind": "repair",
+    "output_kind": "concrete",
+    "draft": "tr(47a8357f4f3cd32ce6d0b4ecc4550a380f55b24af8f8311d50561cdc8c176f4e,and_v(v:multi_a(2,3294c2716eda1ab1ab060167cb263312e1e60c00a511108e502e9dde1d3a864f,10f164f89c9b5267fdc0faefe8191cd4bb1209c7dface6e6e07f2eece24f7e47,b869445c9eec16d4e64c55ecb2bcec2ab89eea880e6d014937f33c73c2d22c24),and_v(v:pk(dd90811a8de12fd2b30d98c53cae3e6eff29d884be6c599038333da4d026f644),older(576))))",
+    "policy": "or(pk(47a8357f4f3cd32ce6d0b4ecc4550a380f55b24af8f8311d50561cdc8c176f4e),or(thresh(2,pk(3294c2716eda1ab1ab060167cb263312e1e60c00a511108e502e9dde1d3a864f),pk(10f164f89c9b5267fdc0faefe8191cd4bb1209c7dface6e6e07f2eece24f7e47),pk(b869445c9eec16d4e64c55ecb2bcec2ab89eea880e6d014937f33c73c2d22c24)),and(pk(dd90811a8de12fd2b30d98c53cae3e6eff29d884be6c599038333da4d026f644),older(576))))",
+    "miniscript": [
+      "multi_a(2,3294c2716eda1ab1ab060167cb263312e1e60c00a511108e502e9dde1d3a864f,10f164f89c9b5267fdc0faefe8191cd4bb1209c7dface6e6e07f2eece24f7e47,b869445c9eec16d4e64c55ecb2bcec2ab89eea880e6d014937f33c73c2d22c24)",
+      "and_v(v:pk(dd90811a8de12fd2b30d98c53cae3e6eff29d884be6c599038333da4d026f644),older(576))"
+    ],
+    "solution": "tr(47a8357f4f3cd32ce6d0b4ecc4550a380f55b24af8f8311d50561cdc8c176f4e,{multi_a(2,3294c2716eda1ab1ab060167cb263312e1e60c00a511108e502e9dde1d3a864f,10f164f89c9b5267fdc0faefe8191cd4bb1209c7dface6e6e07f2eece24f7e47,b869445c9eec16d4e64c55ecb2bcec2ab89eea880e6d014937f33c73c2d22c24),and_v(v:pk(dd90811a8de12fd2b30d98c53cae3e6eff29d884be6c599038333da4d026f644),older(576))})",
+    "explanation": "Use two alternative script leaves. Joining the team and recovery conditions with and_v would require both, so neither promised independent route would work."
+  }
+]

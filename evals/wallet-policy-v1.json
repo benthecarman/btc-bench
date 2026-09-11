@@ -1,0 +1,264 @@
+{
+  "suite": "wallet-policy-v1",
+  "evaluation_only": true,
+  "cases": [
+    {
+      "id": "wp-native-single-0",
+      "family": "native-single",
+      "group": "wp-native-single",
+      "request": "I need a native SegWit P2WPKH wallet controlled by Alice alone. Allow exactly these spending routes.",
+      "keys": [
+        "Alice"
+      ],
+      "template": "wpkh(@0/**)",
+      "policy": "pk(@0)"
+    },
+    {
+      "id": "wp-native-single-1",
+      "family": "native-single",
+      "group": "wp-native-single",
+      "request": "Please set up a P2WPKH account for Bea. Her signature should be enough to spend, with no waiting period. Allow exactly these spending routes.",
+      "keys": [
+        "Bea"
+      ],
+      "template": "wpkh(@0/**)",
+      "policy": "pk(@0)"
+    },
+    {
+      "id": "wp-native-quorum-0",
+      "family": "native-quorum",
+      "group": "wp-native-quorum",
+      "request": "Our club wants a native SegWit P2WSH wallet. Any two of Alice, Bob, and Cleo should be able to approve a withdrawal. Allow exactly these spending routes.",
+      "keys": [
+        "Alice",
+        "Bob",
+        "Cleo"
+      ],
+      "template": "wsh(multi(2,@0/**,@1/**,@2/**))",
+      "policy": "thresh(2,pk(@0),pk(@1),pk(@2))"
+    },
+    {
+      "id": "wp-native-quorum-1",
+      "family": "native-quorum",
+      "group": "wp-native-quorum",
+      "request": "Make a P2WSH wallet for Dara, Eli, and Finn. All three must sign each withdrawal; two signatures must never suffice. Allow exactly these spending routes.",
+      "keys": [
+        "Dara",
+        "Eli",
+        "Finn"
+      ],
+      "template": "wsh(sortedmulti(3,@0/**,@1/**,@2/**))",
+      "policy": "thresh(3,pk(@0),pk(@1),pk(@2))"
+    },
+    {
+      "id": "wp-taproot-single-0",
+      "family": "taproot-single",
+      "group": "wp-taproot-single",
+      "request": "Give me a Taproot wallet that Gabe alone controls. I do not need a recovery path or any delay. Allow exactly these spending routes.",
+      "keys": [
+        "Gabe"
+      ],
+      "template": "tr(@0/**)",
+      "policy": "pk(@0)"
+    },
+    {
+      "id": "wp-taproot-single-1",
+      "family": "taproot-single",
+      "group": "wp-taproot-single",
+      "request": "I want Hana to be the sole signer for a Taproot account. She can spend at any time. Allow exactly these spending routes.",
+      "keys": [
+        "Hana"
+      ],
+      "template": "tr(@0/**)",
+      "policy": "pk(@0)"
+    },
+    {
+      "id": "wp-recovery-delay-0",
+      "family": "recovery-delay",
+      "group": "wp-recovery-delay",
+      "request": "Set up a Taproot wallet. Alice can spend immediately. Bob can recover the funds once the output is at least 144 blocks old, measured from confirmation. Alice can still spend after that. Allow exactly these spending routes.",
+      "keys": [
+        "Alice",
+        "Bob"
+      ],
+      "template": "tr(@0/**,and_v(v:pk(@1/**),older(144)))",
+      "policy": "or(pk(@0),and(pk(@1),older(144)))"
+    },
+    {
+      "id": "wp-recovery-delay-1",
+      "family": "recovery-delay",
+      "group": "wp-recovery-delay",
+      "request": "For this Taproot wallet, Cleo is the owner and can spend without waiting. Dara is the backup: her signature works only when these coins have aged at least 1008 blocks since confirmation. Allow exactly these spending routes.",
+      "keys": [
+        "Cleo",
+        "Dara"
+      ],
+      "template": "tr(@0/**,and_v(v:pk(@1/**),older(1008)))",
+      "policy": "or(pk(@0),and(pk(@1),older(1008)))"
+    },
+    {
+      "id": "wp-recovery-height-0",
+      "family": "recovery-height",
+      "group": "wp-recovery-height",
+      "request": "I need a Taproot wallet with Eli as the unrestricted owner. Finn may also spend, but only with a block-height transaction locktime of at least 950000. Finn does not need Eli to sign. Allow exactly these spending routes.",
+      "keys": [
+        "Eli",
+        "Finn"
+      ],
+      "template": "tr(@0/**,and_v(v:pk(@1/**),after(950000)))",
+      "policy": "or(pk(@0),and(pk(@1),after(950000)))"
+    },
+    {
+      "id": "wp-recovery-height-1",
+      "family": "recovery-height",
+      "group": "wp-recovery-height",
+      "request": "Build a Taproot account where Hana can recover independently once the spending transaction has a block-height locktime of at least 960000. Gabe keeps an immediate owner path before and after that height. Allow exactly these spending routes.",
+      "keys": [
+        "Gabe",
+        "Hana"
+      ],
+      "template": "tr(@0/**,and_v(v:pk(@1/**),after(960000)))",
+      "policy": "or(pk(@0),and(pk(@1),after(960000)))"
+    },
+    {
+      "id": "wp-recovery-time-0",
+      "family": "recovery-time",
+      "group": "wp-recovery-time",
+      "request": "For a Taproot wallet, Inez should always be able to spend alone. Jules gets an independent recovery path requiring a time-based transaction locktime of at least 1893456000 Unix seconds. This is an absolute time, not the age of the coins. Allow exactly these spending routes.",
+      "keys": [
+        "Inez",
+        "Jules"
+      ],
+      "template": "tr(@0/**,and_v(v:pk(@1/**),after(1893456000)))",
+      "policy": "or(pk(@0),and(pk(@1),after(1893456000)))"
+    },
+    {
+      "id": "wp-recovery-time-1",
+      "family": "recovery-time",
+      "group": "wp-recovery-time",
+      "request": "Set up Taproot recovery for Luz with a time-based transaction locktime of at least 1924992000 Unix seconds. Kai is the owner and needs no delay or other signer. The recovery time is fixed; it does not start when the output confirms. Allow exactly these spending routes.",
+      "keys": [
+        "Kai",
+        "Luz"
+      ],
+      "template": "tr(@0/**,and_v(v:pk(@1/**),after(1924992000)))",
+      "policy": "or(pk(@0),and(pk(@1),after(1924992000)))"
+    },
+    {
+      "id": "wp-delayed-team-0",
+      "family": "delayed-team",
+      "group": "wp-delayed-team",
+      "request": "Our Taproot reserve has an immediate owner path for Mina. Alternatively, any two of Nora, Omar, and Paz may spend when the output is at least 72 blocks old from confirmation. Mina is not needed on that team path. Allow exactly these spending routes.",
+      "keys": [
+        "Mina",
+        "Nora",
+        "Omar",
+        "Paz"
+      ],
+      "template": "tr(@0/**,and_v(v:multi_a(2,@1/**,@2/**,@3/**),older(72)))",
+      "policy": "or(pk(@0),and(thresh(2,pk(@1),pk(@2),pk(@3)),older(72)))"
+    },
+    {
+      "id": "wp-delayed-team-1",
+      "family": "delayed-team",
+      "group": "wp-delayed-team",
+      "request": "Make a Taproot wallet with Quinn as the unrestricted owner. Its backup path needs Rae, Sami, and Tess all to sign, plus an output age of at least 144 blocks since confirmation. No backup signer can spend with only one of the others. Allow exactly these spending routes.",
+      "keys": [
+        "Quinn",
+        "Rae",
+        "Sami",
+        "Tess"
+      ],
+      "template": "tr(@0/**,and_v(v:multi_a(3,@1/**,@2/**,@3/**),older(144)))",
+      "policy": "or(pk(@0),and(thresh(3,pk(@1),pk(@2),pk(@3)),older(144)))"
+    },
+    {
+      "id": "wp-joint-approval-0",
+      "family": "joint-approval",
+      "group": "wp-joint-approval",
+      "request": "I want a Taproot wallet with two choices: Uma alone can spend, or Vik and Wren can spend together. Neither Vik nor Wren may use the joint path alone. No clocks are needed. Allow exactly these spending routes.",
+      "keys": [
+        "Uma",
+        "Vik",
+        "Wren"
+      ],
+      "template": "tr(@0/**,and_v(v:pk(@1/**),pk(@2/**)))",
+      "policy": "or(pk(@0),and(pk(@1),pk(@2)))"
+    },
+    {
+      "id": "wp-joint-approval-1",
+      "family": "joint-approval",
+      "group": "wp-joint-approval",
+      "request": "Please make a Taproot account for Xena with a second route controlled jointly by Yuri and Zoe. Xena can act alone; the second route requires both other signatures and does not require hers. Allow exactly these spending routes.",
+      "keys": [
+        "Xena",
+        "Yuri",
+        "Zoe"
+      ],
+      "template": "tr(@0/**,and_v(v:pk(@1/**),pk(@2/**)))",
+      "policy": "or(pk(@0),and(pk(@1),pk(@2)))"
+    },
+    {
+      "id": "wp-joint-councils-0",
+      "family": "joint-councils",
+      "group": "wp-joint-councils",
+      "request": "Set up a Taproot reserve. Alice has an immediate owner route. The alternative route needs both council approvals: at least two of Bob, Cleo, and Dara, and at least one of Eli and Finn. Extra signatures in one council cannot replace the other council approval. The councils do not need Alice to sign. Allow exactly these spending routes.",
+      "keys": [
+        "Alice",
+        "Bob",
+        "Cleo",
+        "Dara",
+        "Eli",
+        "Finn"
+      ],
+      "template": "tr(@0/**,and_v(v:multi_a(2,@1/**,@2/**,@3/**),multi_a(1,@4/**,@5/**)))",
+      "policy": "or(pk(@0),and(thresh(2,pk(@1),pk(@2),pk(@3)),thresh(1,pk(@4),pk(@5))))"
+    },
+    {
+      "id": "wp-joint-councils-1",
+      "family": "joint-councils",
+      "group": "wp-joint-councils",
+      "request": "Our Taproot wallet lets Gabe spend alone. Without Gabe, a withdrawal needs at least one signature from Hana, Inez, or Jules, together with signatures from both Kai and Luz. More signatures from the first group do not remove the need for both people in the second group. Allow exactly these spending routes.",
+      "keys": [
+        "Gabe",
+        "Hana",
+        "Inez",
+        "Jules",
+        "Kai",
+        "Luz"
+      ],
+      "template": "tr(@0/**,and_v(v:multi_a(1,@1/**,@2/**,@3/**),multi_a(2,@4/**,@5/**)))",
+      "policy": "or(pk(@0),and(thresh(1,pk(@1),pk(@2),pk(@3)),thresh(2,pk(@4),pk(@5))))"
+    },
+    {
+      "id": "wp-alternative-recovery-0",
+      "family": "alternative-recovery",
+      "group": "wp-alternative-recovery",
+      "request": "Make a Taproot wallet with three alternatives. Mina alone can spend immediately. Nora alone can also spend immediately. Otherwise, any two of Omar, Paz, and Quinn can spend after the output has aged at least 288 blocks from confirmation. The delayed team needs neither Mina nor Nora. Allow exactly these spending routes.",
+      "keys": [
+        "Mina",
+        "Nora",
+        "Omar",
+        "Paz",
+        "Quinn"
+      ],
+      "template": "tr(@0/**,{pk(@1/**),and_v(v:multi_a(2,@2/**,@3/**,@4/**),older(288))})",
+      "policy": "or(pk(@0),or(pk(@1),and(thresh(2,pk(@2),pk(@3),pk(@4)),older(288))))"
+    },
+    {
+      "id": "wp-alternative-recovery-1",
+      "family": "alternative-recovery",
+      "group": "wp-alternative-recovery",
+      "request": "I need a Taproot account where Rae or Sami can each spend alone without waiting. There is also a separate recovery team: Tess, Uma, and Vik must all sign, and the coins must be at least 24 blocks old from confirmation. The two immediate signers are not required for team recovery. Allow exactly these spending routes.",
+      "keys": [
+        "Rae",
+        "Sami",
+        "Tess",
+        "Uma",
+        "Vik"
+      ],
+      "template": "tr(@0/**,{pk(@1/**),and_v(v:multi_a(3,@2/**,@3/**,@4/**),older(24))})",
+      "policy": "or(pk(@0),or(pk(@1),and(thresh(3,pk(@2),pk(@3),pk(@4)),older(24))))"
+    }
+  ]
+}

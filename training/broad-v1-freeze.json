@@ -1,0 +1,44 @@
+{
+  "created_utc": "2026-09-07T18:09:22.261262+00:00",
+  "status": "data ready; no model training or reserved-set inference in this preparation",
+  "intended_parent": "runs/sft-compound-v3/merged-step144",
+  "parent_weight_sha256": "b77ef92444aa63e0f8a4eca7d5d1088aec6350bb5fa04cceabc259ae8b05f579",
+  "hashes": {
+    "training/broad-v1-training.json": "53b167fb95d39251f6e8c3f71d314756f095ee8603f86f56c40faeac234fed24",
+    "training/broad-v1-reserved.json": "6b0e11eaaf18a824941ee5ffebd8b0efdcc156e8e670ba98bc3d344f6d187194",
+    "training/broad-v1-mix.json": "c4e876f155c43519bdb256f13756cb73a6d1053cb0da7fe69bc61301e13159e1",
+    "datasets/broad-v1-training/fixtures.jsonl": "1eb8842d8b11b34d8c63fcfb4639011ba271284a0f364ae487d47c6ec7cb5c91",
+    "datasets/broad-v1-reserved/fixtures.jsonl": "df3a800da9acca5ec041f552267df6c946b087a7d8cb18dc0a5c060ce06e7274",
+    "datasets/sft-broad-v1-mixed.jsonl": "39cb0c7217a8878245d2fbff09b6f39f0836129df74791bcd7a894b56b03ba9c",
+    "training/build_broad_v1.py": "c23a003045bba355c5184773fbbd91e5e2cf41e2929c142dc21761ed8e61e453",
+    "training/prepare_broad_v1.py": "05a6fc5ae023b4fb9761c0d615e6654b30024c6b41859a63a2e2faa7ffddfdb1",
+    "training/verify_broad_v1.py": "2a06377c9c833014850f7fc2d4e5e7a3aa9369437598ad4f55fe909f81a94e9a",
+    "crates/bench-gen/src/human.rs": "34ea507f4a93d03488a9057f13336ba3718b933700c19210b4e9b12cdb3e7afb",
+    "crates/bench-cli/examples/compile_training_catalog.rs": "2438642a1c4d4f9344835c3e8c8a47175c4d578f65ac475174d91a0b4ab0c679",
+    "Cargo.lock": "882c00d246dfd2102c5ff9cc3796e78488b7795bb3bd6e93c72866e3b5a1c805"
+  },
+  "rows": 2112,
+  "max_tokens": 3805,
+  "reference_checks": {
+    "training": {
+      "questions": 512,
+      "groups": 256,
+      "distinct_shapes": 512,
+      "strict_reference_passes": 512,
+      "fallback_references": 64,
+      "fixture_sha256": "1eb8842d8b11b34d8c63fcfb4639011ba271284a0f364ae487d47c6ec7cb5c91"
+    },
+    "reserved": {
+      "questions": 64,
+      "groups": 32,
+      "distinct_shapes": 64,
+      "strict_reference_passes": 64,
+      "fallback_references": 0,
+      "fixture_sha256": "df3a800da9acca5ec041f552267df6c946b087a7d8cb18dc0a5c060ce06e7274"
+    },
+    "evaluation_export_guards": "SFT and RL both reject the reserved pool"
+  },
+  "chat_reference_passes": 512,
+  "reserved_use": "Only reference verification so far. Keep out of training and checkpoint selection; evaluate after the model and settings are fixed.",
+  "supervision": "All target token boundaries and complete-target round trips checked; the actual trainer loss-mask audit must run before the next training starts."
+}

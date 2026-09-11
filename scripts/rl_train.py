@@ -27,12 +27,13 @@ import argparse
 import json
 import urllib.request
 
-from rl_common import (REWARD_URL, extract_answer, add_sampling_args,
+from rl_common import (REWARD_URL, extract_task_answer, add_sampling_args,
                        add_thinking_arg, validate_rows, validate_sampling)
 
 
 reward_url = REWARD_URL
 completion_end_ids = None
+rollout_log = None
 
 def oracle_reward(completions, task_json, thinking=None, completion_ids=None, **kwargs):
     if len(completions) != len(task_json):
@@ -48,7 +49,7 @@ def oracle_reward(completions, task_json, thinking=None, completion_ids=None, **
             raise ValueError("Completion token IDs or tokenizer end tokens are missing")
         truncated = [not ids or ids[-1] not in completion_end_ids for ids in completion_ids]
     items = [
-        {"task": json.loads(tj), "answer": extract_answer(c, thinking=mode,
+        {"task": json.loads(tj), "answer": extract_task_answer(c, json.loads(tj), thinking=mode,
          finish_reason="length" if clipped else None)}
         for c, tj, mode, clipped in zip(completions, task_json, thinking, truncated)
     ]
@@ -61,6 +62,15 @@ def oracle_reward(completions, task_json, thinking=None, completion_ids=None, **
         results = json.loads(resp.read())
     if len(results) != len(items):
         raise ValueError("Reward server returned the wrong number of results")
+    if rollout_log:
+        from pathlib import Path
+        state = kwargs.get("trainer_state")
+        record = dict(step=getattr(state, "global_step", None),
+                      task_ids=kwargs.get("task_id"), completions=completions,
+                      completion_lengths=[len(ids) for ids in completion_ids] if completion_ids is not None else None,
+                      truncated=truncated, answers=[item["answer"] for item in items], rewards=results)
+        with Path(rollout_log).open("a") as log:
+            log.write(json.dumps(record) + "\n")
     return [r["shaped"] for r in results]
 
 
@@ -75,14 +85,26 @@ def main():
     ap.add_argument("--save-steps", type=int, default=10)
     ap.add_argument("--warmup-steps", type=int, default=10)
     ap.add_argument("--reward-url", default=REWARD_URL)
+    ap.add_argument("--rollout-log", help="Save each sampled group and its reward results to a new JSONL file.")
+    ap.add_argument("--sft-replay", help="Training JSONL with verified prompt/completion pairs and provenance.")
+    ap.add_argument("--sft-replay-weight", type=float, default=0.1)
     ap.add_argument("--resume-from-checkpoint", nargs="?", const=True, default=None,
                     help="Resume a checkpoint path, or the latest checkpoint in --out.")
     add_sampling_args(ap, training=True)
     add_thinking_arg(ap)
     args = ap.parse_args()
     validate_sampling(args)
+    if args.sft_replay and not 0 < args.sft_replay_weight < float("inf"):
+        ap.error("--sft-replay-weight must be finite and positive")
     global reward_url
     reward_url = args.reward_url
+    global rollout_log
+    rollout_log = args.rollout_log
+    if rollout_log:
+        from pathlib import Path
+        Path(rollout_log).parent.mkdir(parents=True, exist_ok=True)
+        # A resumed run must use a new log path, preserving previous samples.
+        Path(rollout_log).open("x").close()
 
     from datasets import load_dataset
     from peft import LoraConfig
@@ -124,6 +146,8 @@ def main():
         top_k=args.top_k,
         min_p=args.min_p,
         beta=0.02,
+        loss_type="dapo",
+        scale_rewards="group",
         logging_steps=1,
         save_steps=args.save_steps,
         bf16=True,
@@ -139,13 +163,23 @@ def main():
         seed=7,
     )
 
-    trainer = GRPOTrainer(
+    trainer_class = GRPOTrainer
+    if args.sft_replay:
+        from rl_replay import replay_trainer_class
+        trainer_class = replay_trainer_class(GRPOTrainer)
+    trainer = trainer_class(
         model=args.model,
         reward_funcs=oracle_reward,
         train_dataset=dataset,
         peft_config=peft_config,
         args=config,
     )
+    if args.sft_replay:
+        from pathlib import Path
+        replay = [json.loads(line) for line in Path(args.sft_replay).read_text().splitlines()]
+        trainer.configure_replay(replay, args.sft_replay_weight,
+                                 Path(args.out) / "sft-replay.jsonl",
+                                 Path(args.out) / "sft-mask-audit.json")
     global completion_end_ids
     completion_end_ids = {trainer.processing_class.eos_token_id,
                           trainer.processing_class.pad_token_id} - {None}

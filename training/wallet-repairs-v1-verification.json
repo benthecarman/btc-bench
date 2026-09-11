@@ -1,0 +1,19 @@
+{
+  "scenarios": 8,
+  "questions": 32,
+  "sft_rows": 64,
+  "reference_passes": 32,
+  "chat_passes": 32,
+  "bad_drafts_rejected": 32,
+  "trace_checks": 80,
+  "max_tokens": 2162,
+  "data": "datasets/sft-wallet-repairs-v1.jsonl",
+  "data_sha256": "4ecc6bc11c0a543062d03407713bbf5488b5017c9ad4e01934c7749b04efbda3",
+  "fixture_sha256": "52919745931892e6b1dcfe8733b9e51d27698eaa35abaa862959481869717dd6",
+  "status": "Prepared for human spot check; no training run started",
+  "scope": "Training material based on observed failure categories. New exact requests and keys; familiar policy structures intentionally recur. Keep all four questions per scenario in one split.",
+  "sources": [
+    "https://github.com/bitcoin/bips/blob/master/bip-0388.mediawiki",
+    "https://bitcoin.sipa.be/miniscript/"
+  ]
+}

@@ -1,0 +1,43 @@
+{
+  "training_cases": 512,
+  "reserved_cases": 64,
+  "training_groups": 256,
+  "reserved_groups": 32,
+  "training_families": [
+    "guarded-choice",
+    "team-recovery",
+    "secret-delivery",
+    "joint-departments",
+    "three-routes",
+    "staged-quorums",
+    "two-clock-gate",
+    "global-secret"
+  ],
+  "reserved_families": [
+    "three-conditioned-departments",
+    "two-locked-departments",
+    "alternative-evidence-bundles",
+    "two-secrets-and-clock-vote"
+  ],
+  "rejected": {
+    "training shape exclusion": 147,
+    "key budget": 100,
+    "reserved shape exclusion": 2
+  },
+  "historical_policy_rows": 14700,
+  "exclusions": {
+    "evals/human-v2.json": "1ebf73d5b9f6ae21b33a9ab3b7d72ecfb764c0fc06e0958a1d2586d789868772",
+    "evals/human-v1.json": "72e1f03e64fbf01484f7ecb8e3763aeefa6c0da1c226d45a106cd05925618d32",
+    "evals/composition-transfer-v1.json": "1e5683ffe9a56542ab5106276f7901affc600e0092b7a4db5eb27ae3f53c4ca1",
+    "training/compound-approvals-v1-samples.json": "2278c3e211c9e557c3d8d146ed4eff423b13c5145e18a422e9d600458ff582cb",
+    "training/compound-v2-validation.json": "8c13f9a05ce5d6b0f30e13efef689917e67a8490f4b7560f39f24152b096ec4a",
+    "training/compound-v3-fit-sample.json": "99c4f44d36da7ad7b1f44eacd05e1cf5e9010ecfd177754bdc7e09cb19e91994",
+    "training/compound-v3-train.json": "a8fccad73939e8ff1b03af60722b48d223a8c46bd31d2ac616e53c0f294b9c48",
+    "training/compound-v2-fit-sample.json": "0ed02c5322efe87b858e24d94fe19a97750ddcaf7e564544fd2991026c10fb20",
+    "training/compound-v3-fresh.json": "fc2be1578eab1f458c02424f5d9c6468bdc5003a28f0a5c22df5f1dfb08f07f6",
+    "training/compound-v2-train.json": "dd434efbee475d150f8739cce2aded6e5ded15e123aedb734253fedb03c272e1",
+    "datasets/composed-training-v1-source.json": "8e3b54dcccdaec6dcebb3bae71bac877c7313e3b548b842e753d3f496bc2c811",
+    "datasets/sft-train-think.jsonl": "22dd01f38fbc37705efc512542e61e5b30de4381f37709b422811d3bc7768e7f"
+  },
+  "limits": "Synthetic authored templates; operator separation is not proof of semantic novelty. Script/tree derivatives share a group. Tree compiler requires an immediate owner route."
+}

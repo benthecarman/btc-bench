@@ -1,0 +1,19 @@
+{
+  "model": "runs/sft-compound-v3/merged-step144",
+  "data": "datasets/rl-compound-v3-probe-v1.jsonl",
+  "data_sha256": "fad31bc7b789b15e06257d5b540c4e5d157ef4cf5c6b8cc6b9885b16b6574d57",
+  "source_sha256": "e272957c4d2da4f6c93c3da7c3858f7509b990120eb3a58142bb1493e395b9aa",
+  "tasks": 48,
+  "k": 8,
+  "temperature": 0.6,
+  "top_p": 0.95,
+  "top_k": 20,
+  "min_p": 0,
+  "max_completion_length": 4096,
+  "seed": 7,
+  "thinking": true,
+  "reward": "unshaped benchmark correctness",
+  "original_server_pid": 1545902,
+  "original_model": "runs/sft-qwen3-4b-think/merged",
+  "probe_only": true
+}

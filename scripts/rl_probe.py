@@ -15,7 +15,7 @@ import random
 import statistics
 import urllib.request
 
-from rl_common import (REWARD_URL, extract_answer, add_sampling_args,
+from rl_common import (REWARD_URL, extract_answer, extract_task_answer, add_sampling_args,
                        add_thinking_arg, validate_rows, validate_sampling)
 
 
@@ -83,15 +83,15 @@ def sample(url, model, row, args):
     return list(choices.values())
 
 
-def answer_from_sample(choice, thinking):
+def answer_from_sample(choice, thinking, task=None):
     if choice.get("finish_reason") == "length":
         return ""
     if choice.get("tool_calls"):
         text = "".join("<tool_call>" + json.dumps(tool) + "</tool_call>"
                        for tool in choice["tool_calls"])
-        return extract_answer(text)
+        return extract_task_answer(text, task or {})
     # A server reasoning parser has already separated reasoning from final content.
-    return extract_answer(choice["text"], thinking=thinking and "reasoning" not in choice)
+    return extract_task_answer(choice["text"], task or {}, thinking=thinking and "reasoning" not in choice)
 
 
 def score(items, reward_url):
@@ -158,7 +158,7 @@ def main():
             if record.get("transport_error"):
                 print(f"{record['row']['task_id']}: skipped incomplete transport record", flush=True)
                 continue
-            results = score([{"task": task, "answer": answer_from_sample(c, record["row"].get("thinking", False))}
+            results = score([{"task": task, "answer": answer_from_sample(c, record["row"].get("thinking", False), task)}
                              for c in record["completions"]], args.reward_url)
             rewards = [r["shaped"] for r in results]
             if len(rewards) < 2:

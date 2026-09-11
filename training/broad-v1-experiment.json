@@ -1,0 +1,88 @@
+{
+  "created_utc": "2026-09-07T18:55:30.255931+00:00",
+  "parent": "runs/sft-compound-v3/merged-step144",
+  "data": "datasets/sft-broad-v1-mixed.jsonl",
+  "out": "runs/sft-broad-v1",
+  "epochs": 2,
+  "rows": 2112,
+  "optimizer_steps": 528,
+  "checkpoints": [
+    264,
+    528
+  ],
+  "learning_rate": 2e-05,
+  "warmup_steps": 26,
+  "gradient_accumulation_steps": 8,
+  "lora_dropout": 0.05,
+  "lora_rank": 64,
+  "lora_alpha": 128,
+  "trainer_seed": 7,
+  "original_pid": 1670088,
+  "original_model": "runs/sft-qwen3-4b-think/merged",
+  "original_weight_sha256": "db2ae430e5b6ecdfd91c413908e8d1de1810b2fe3a7351c827d1d94e91be4724",
+  "sft_python": "/home/ben/.local/share/venvs/sft/bin/python",
+  "vllm_python": "/home/ben/.local/share/venvs/vllm/bin/python",
+  "inference_protocol": {
+    "attempts": 1,
+    "interfaces": [
+      "chat",
+      "submit"
+    ],
+    "diagnostic_tools": false,
+    "grader_feedback": false,
+    "concurrency": 4,
+    "temperature": 0.6,
+    "top_p": 0.95,
+    "top_k": 20,
+    "min_p": 0.0,
+    "seed": 20260904,
+    "thinking": true,
+    "max_model_len": 32768,
+    "generation_cap": null,
+    "time_cap": null,
+    "device": "GPU 0, RTX 5090",
+    "speculative_config": {
+      "method": "ngram",
+      "num_speculative_tokens": 8,
+      "prompt_lookup_max": 8,
+      "prompt_lookup_min": 2
+    }
+  },
+  "development_suites": [
+    "compound-v2-validation",
+    "compound-v3-fresh",
+    "human-v2"
+  ],
+  "fixture_hashes": {
+    "compound-v2-validation": "115ae7b681ce00b13b9b9925d940c42900d0d0e43feb9c62c0c06ff9c9525c2c",
+    "compound-v3-fresh": "2c8b3b68fb2304aff7ff989e0cc17521a7e74c678c44fb37b739c799054fb981",
+    "human-v2": "d4c166f41f5488565b140fd519f7264f9281abd1a5bc05cd27a6fb7e214909a9",
+    "broad-v1-reserved": "df3a800da9acca5ec041f552267df6c946b087a7d8cb18dc0a5c060ce06e7274"
+  },
+  "config_template": "runs/compound-v3-step144-development-submit/inference-config.toml",
+  "parent_runs": {
+    "compound-v2-validation": {
+      "chat": "runs/compound-v3-step144-development-chat",
+      "submit": "runs/compound-v3-step144-development-submit"
+    },
+    "compound-v3-fresh": {
+      "chat": "runs/compound-v3-selected-fresh-chat",
+      "submit": "runs/compound-v3-selected-fresh-submit"
+    },
+    "human-v2": {
+      "chat": "runs/compound-v3-selected-human-chat",
+      "submit": "runs/compound-v3-selected-human-submit"
+    }
+  },
+  "selection": "Maximize the unweighted mean of eight development accuracy cells: compound-v2 write, compound-v3 write, human-v2 write, human-v2 tree, each in chat and submit. Include unchanged parent. Exact ties prefer parent, then fewer updates. All three suites are observed development sets. Do not use reserved results to select.",
+  "reserved_use": "Evaluate parent and selected model only after immutable selection.json exists. No training, tuning, or checkpoint selection from reserved results.",
+  "code_hashes": {
+    "scripts/sft_train.py": "a98934d4e28ab4a92c86db0af32f547f3fa56d346eb588802ff493c1ed555313",
+    "scripts/merge_adapter.py": "e57b38c81fae3b2ffc89b0edd1376c4da2c82a754124a5cd43bd2a653980ffbd",
+    "training/run_broad_v1.py": "85e02a2a451107cfc02afaa4d80d39f6509706a22c89ed1ae6e42fb2e3bd3b9c",
+    "scripts/compare_human_runs.py": "24b7ac9cd1f1bfb727c59827b9a7e017229b7bdf321ec4bf3a29264e8c2db63d",
+    "target/release/btc-bench": "a14fe4a0feb13feff23337ea76f9e15f526c694b89052ae88fc6324ea69b4f62",
+    "runs/compound-v3-step144-development-submit/inference-config.toml": "672925fb3331c87cf5783cae719905da0eebca8b130dd2549f2ac87c0f4bc1c3"
+  },
+  "completion_policy": "Retain every fixture in denominator; no answer scores zero. Report stop, tool_calls, and length separately. No extra output or time cap; model context remains 32768. Parent human-v2 submit has one length-limited missing answer."
+}

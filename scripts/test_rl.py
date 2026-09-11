@@ -33,6 +33,24 @@ class RolloutTests(unittest.TestCase):
             items = json.loads(request.call_args.args[0].data)['items']
             self.assertEqual(items[0]['answer'], '')
             self.assertEqual(items[1]['answer'], {'task':'script', 'script':'51'})
+    def test_wallet_extraction_and_split_gates_match_evaluation(self):
+        task = {"task":"wallet", "fixture":{"split":"training"}}
+        good = call("submit_descriptor", {"descriptor":"tr(@0/**)"})
+        text = '<think>work</think>' + good
+        self.assertEqual(rl_common.extract_task_answer(text, task, thinking=True),
+                         {"task":"descriptor", "descriptor":"tr(@0/**)"})
+        for bad in [good, '<think>'+good, '<think>x</think>tr(@0/**)', text+good,
+                    text+'<tool_call>{broken}</tool_call>', text+'<tool_call>']:
+            self.assertEqual(rl_common.extract_task_answer(bad, task, thinking=True), '')
+        self.assertEqual(rl_common.extract_task_answer(text, task, thinking=True, finish_reason='length'), '')
+        for choice in [{'text':text,'finish_reason':'stop'},
+                       {'text':'','reasoning':'work','tool_calls':[{'name':'submit_descriptor','arguments':'{"descriptor":"tr(@0/**)"}'}]}]:
+            self.assertEqual(rl_probe.answer_from_sample(choice, True, task)['descriptor'], 'tr(@0/**)')
+        rl_common.validate_rows([{'thinking':True,'task_json':json.dumps(task)}], True)
+        task['fixture']['split']='evaluation'
+        with self.assertRaisesRegex(ValueError, 'evaluation'):
+            rl_common.validate_rows([{'thinking':True,'task_json':json.dumps(task)}], True)
+
     def test_all_task_kinds_select_the_correct_tool(self):
         for prefix, kind in rl_prepare.KINDS.items():
             self.assertEqual(rl_prepare.kind_of({"id": prefix + "-0"}), kind)

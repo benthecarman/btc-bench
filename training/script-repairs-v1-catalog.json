@@ -1,0 +1,93 @@
+{
+  "generator": "composed-training-v1",
+  "purpose": "training",
+  "suite": "script-repairs-v1",
+  "seed": 20260909,
+  "exclusions": {},
+  "cases": [
+    {
+      "id": "composed-train-script-repairs-v1-both-signatures",
+      "group": "composed-train-script-repairs-v1-both-signatures",
+      "kind": "write",
+      "context": "segwitv0",
+      "choose_context": true,
+      "keys": [
+        "Alice",
+        "Bob"
+      ],
+      "tier": "medium",
+      "policy": "and(pk($0),pk($1))",
+      "prompt": "Can you write the Bitcoin script for our shared savings? Alice and Bob must both sign a withdrawal. Neither can spend alone, and there is no recovery route or waiting period."
+    },
+    {
+      "id": "composed-train-script-repairs-v1-either-signature",
+      "group": "composed-train-script-repairs-v1-either-signature",
+      "kind": "write",
+      "context": "segwitv0",
+      "choose_context": true,
+      "keys": [
+        "Alice",
+        "Bob"
+      ],
+      "tier": "medium",
+      "policy": "or(pk($0),pk($1))",
+      "prompt": "I want a Bitcoin script that lets either Alice or Bob spend the money on their own. They should not have to contact each other or wait. Nobody else can spend."
+    },
+    {
+      "id": "composed-train-script-repairs-v1-delay-only-recovery",
+      "group": "composed-train-script-repairs-v1-delay-only-recovery",
+      "kind": "write",
+      "context": "segwitv0",
+      "choose_context": true,
+      "keys": [
+        "Alice",
+        "Bob"
+      ],
+      "tier": "medium",
+      "policy": "or(pk($0),and(pk($1),older(288)))",
+      "prompt": "Please write a Bitcoin script for my savings. Alice can spend at any time. If needed, Bob can recover the money once the output is at least 288 blocks old from confirmation, without Alice. Alice must still be able to spend after that. Those are the only options."
+    },
+    {
+      "id": "composed-train-script-repairs-v1-relative-not-absolute",
+      "group": "composed-train-script-repairs-v1-relative-not-absolute",
+      "kind": "write",
+      "context": "segwitv0",
+      "choose_context": true,
+      "keys": [
+        "Alice"
+      ],
+      "tier": "medium",
+      "policy": "and(pk($0),older(144))",
+      "prompt": "Write a Bitcoin script that lets Alice spend only after these coins have been confirmed for at least 144 blocks. The delay starts when this output confirms, not at a fixed block height. There are no other spending routes."
+    },
+    {
+      "id": "composed-train-script-repairs-v1-signature-stack",
+      "group": "composed-train-script-repairs-v1-signature-stack",
+      "kind": "write",
+      "context": "segwitv0",
+      "choose_context": true,
+      "keys": [
+        "Alice",
+        "Bob"
+      ],
+      "tier": "medium",
+      "policy": "and(pk($0),pk($1))",
+      "prompt": "Could you write the Bitcoin script for a payment that needs both Alice and Bob to sign? Neither signature alone should work. There are no other conditions or spending paths."
+    },
+    {
+      "id": "composed-train-script-repairs-v1-unlisted-key",
+      "group": "composed-train-script-repairs-v1-unlisted-key",
+      "kind": "write",
+      "context": "segwitv0",
+      "choose_context": true,
+      "keys": [
+        "Alice",
+        "Bob",
+        "Carol"
+      ],
+      "tier": "medium",
+      "policy": "thresh(2,pk($0),pk($1),pk($2))",
+      "prompt": "Write the Bitcoin script for a club reserve. Any two of Alice, Bob, and Carol can authorize a withdrawal. One signature is never enough, and there must be no spending path for any other key."
+    }
+  ]
+}

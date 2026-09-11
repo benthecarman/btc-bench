@@ -1,0 +1,19 @@
+{
+  "new_gated_training": 96,
+  "retained_v2_training": 192,
+  "total_training": 288,
+  "fresh_questions": 48,
+  "training_shapes": 288,
+  "fresh_shapes": 48,
+  "overlap": 0,
+  "new_gated_types": {
+    "secret_pair": 34,
+    "delayed_pair": 45,
+    "delayed_committee": 17
+  },
+  "fresh_buckets": {
+    "new single gated-team arrangement": 24,
+    "two gated-team approvals": 24
+  },
+  "note": "Old v2 validation remains development data. Fresh questions are not used for checkpoint selection. Requests are synthetic; shape exclusion is not proof of semantic novelty."
+}

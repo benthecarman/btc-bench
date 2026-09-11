@@ -80,6 +80,25 @@ fn plain_miniscript<Pk: MiniscriptKey>(policy: &Concrete<Pk>) -> String {
             .reduce(|right, left| format!("or_i({left},{right})"))
             .expect("nonempty OR"),
         Concrete::Thresh(t) => {
+            // Signatures already have a canonical dissatisfaction. Adding an
+            // optional branch creates a second one and makes the threshold
+            // malleable even when all its keys are independent.
+            if t.data()
+                .iter()
+                .all(|c| matches!(c.as_ref(), Concrete::Key(_)))
+            {
+                let children = t
+                    .data()
+                    .iter()
+                    .enumerate()
+                    .map(|(i, c)| {
+                        let prefix = if i == 0 { "" } else { "a:" };
+                        format!("{prefix}{}", plain_miniscript(c))
+                    })
+                    .collect::<Vec<_>>()
+                    .join(",");
+                return format!("thresh({},{children})", t.k());
+            }
             // An explicit false branch gives every child a dissatisfaction.
             // a: carries the sum past children with multiple witness items.
             let children = t
@@ -466,6 +485,42 @@ pub fn compile_catalog(input: &str) -> Result<HumanDataset, String> {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn fallback_signature_quorum_is_equivalent_and_non_malleable() {
+        use super::*;
+        let material = keys::generate(&mut SeededRng::new(20260907), 4);
+        macro_rules! check {
+            ($keys:expr, $pk:ty, $ctx:ty, $kind:expr) => {{
+                let keys = $keys;
+                let policy: Concrete<$pk> = format!(
+                    "or(thresh(2,pk({}),pk({}),pk({})),and(pk({}),older(144)))",
+                    keys[0], keys[1], keys[2], keys[3]
+                )
+                .parse()
+                .unwrap();
+                let ms =
+                    Miniscript::<$pk, $ctx>::from_str_insane(&plain_miniscript(&policy)).unwrap();
+                let script = ms.encode();
+                let decoded = Miniscript::<$pk, $ctx>::decode_consensus(&script).unwrap();
+                assert!(decoded.is_non_malleable());
+                assert!(bench_core::lint_report($kind, &script).is_empty());
+                assert!(bench_core::check_semantic(
+                    &policy.lift().unwrap(),
+                    &decoded.lift().unwrap(),
+                    None
+                )
+                .is_equivalent());
+            }};
+        }
+        check!(
+            &material.compressed,
+            PublicKey,
+            Segwitv0,
+            ContextKind::SegwitV0
+        );
+        check!(&material.xonly, XOnlyPublicKey, Tap, ContextKind::Tap);
+    }
+
     use super::*;
     use bench_core::truth::{eval, TruthContext};
     use miniscript::policy::Liftable;

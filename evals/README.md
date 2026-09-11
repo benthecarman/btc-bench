@@ -1,5 +1,8 @@
 # Human request transfer eval
 
+The [BIP-388 wallet-policy pilot](wallet-policy-v1.md) compares placeholder
+templates with concrete descriptors on 20 authored wallet scenarios.
+
 The [composed-training pilot](composed-training.md) records the interface
 comparison, separate training grammar and reward probes. See the
 [human-v2 pilot results](composed-pilot-results.md) and the subsequent
@@ -178,3 +181,7 @@ are not two independent observations. With only 32 tasks this is a pilot
 and a source of concrete failure examples, not a precise capability estimate.
 Keep the main benchmark as a regression check. Select RL training tasks
 using a separate training pool, never by their rewards on this set.
+
+The first wallet SFT experiment is documented in [wallet-sft-v1](../training/wallet-sft-v1.md), with [results](../training/wallet-sft-v1-results.md) and [spot checks](../training/wallet-sft-v1-spot-check.md).
+
+The first wallet RL pilot and matched SFT control are documented in [wallet-rl-v1](../training/wallet-rl-v1.md), with [results and analysis](../training/wallet-rl-v1-analysis.md).

@@ -1,0 +1,628 @@
+{
+  "generator": "composed-training-v1",
+  "purpose": "training",
+  "seed": 20260911,
+  "exclusions": {
+    "evals/human-v2.json": "1ebf73d5b9f6ae21b33a9ab3b7d72ecfb764c0fc06e0958a1d2586d789868772",
+    "evals/composition-transfer-v1.json": "1e5683ffe9a56542ab5106276f7901affc600e0092b7a4db5eb27ae3f53c4ca1",
+    "training/compound-approvals-v1-samples.json": "2278c3e211c9e557c3d8d146ed4eff423b13c5145e18a422e9d600458ff582cb",
+    "datasets/composed-training-v1-source.json": "8e3b54dcccdaec6dcebb3bae71bac877c7313e3b548b842e753d3f496bc2c811",
+    "datasets/sft-train-think.jsonl": "22dd01f38fbc37705efc512542e61e5b30de4381f37709b422811d3bc7768e7f"
+  },
+  "coverage": {
+    "recognized_original_policy_traces": 14700
+  },
+  "cases": [
+    {
+      "kind": "write",
+      "context": "segwitv0",
+      "choose_context": true,
+      "keys": [
+        "Tess",
+        "Cleo",
+        "Ada",
+        "Blair",
+        "Alex",
+        "Wren"
+      ],
+      "tier": "hard",
+      "policy": "thresh(3,and(pk($0),pk($1)),pk($2),pk($3),and(pk($4),pk($5)))",
+      "prompt": "For our business reserve, the spending rule is at least 3 approvals out of these 4.\n\n1. Tess and Cleo share one approval and must both sign for it.\n2. Ada can give one approval with a signature.\n3. Blair can give one approval with a signature.\n4. Alex and Wren share one approval and must both sign for it.\n\nCount each listed approval once, even if it has several signatures or a secret. Extra approvals are fine. Do not add another way to spend. Write the Bitcoin script.",
+      "approval_types": [
+        "pair",
+        "person",
+        "person",
+        "pair"
+      ],
+      "relative_seconds": true,
+      "outer_threshold": 3,
+      "group": "composed-train-compound-v2-015",
+      "id": "composed-train-compound-v2-015",
+      "validation_bucket": null
+    },
+    {
+      "kind": "write",
+      "context": "segwitv0",
+      "choose_context": true,
+      "keys": [
+        "Nora",
+        "Ada",
+        "Ben",
+        "Eli",
+        "Cleo"
+      ],
+      "tier": "hard",
+      "policy": "thresh(2,pk($0),and(pk($1),hash160($hash160)),and(pk($2),hash160($hash160)),and(pk($3),pk($4)))",
+      "prompt": "Our charity fund needs at least 2 of the following 4 approvals for a withdrawal.\n\n1. Nora can give one approval with a signature.\n2. Ada gives one approval with a signature and the 32-byte secret matching HASH160 $hash160; neither item alone is enough.\n3. Ben gives one approval with a signature and the 32-byte secret matching HASH160 $hash160; neither item alone is enough.\n4. Eli and Cleo share one approval and must both sign for it.\n\nCount each listed approval once, even if it has several signatures or a secret. Extra approvals are fine. Do not add another way to spend. Write the Bitcoin script.",
+      "approval_types": [
+        "person",
+        "hash160",
+        "hash160",
+        "pair"
+      ],
+      "relative_seconds": true,
+      "outer_threshold": 2,
+      "group": "composed-train-compound-v2-174",
+      "id": "composed-train-compound-v2-174",
+      "validation_bucket": null
+    },
+    {
+      "kind": "write",
+      "context": "segwitv0",
+      "choose_context": true,
+      "keys": [
+        "Mina",
+        "Nora",
+        "Casey",
+        "Cleo",
+        "Tess",
+        "Pia"
+      ],
+      "tier": "hard",
+      "policy": "thresh(2,or(pk($0),pk($1)),and(pk($2),pk($3)),and(pk($4),older(4194316)),and(pk($5),older(4194306)))",
+      "prompt": "Our club reserve needs at least 2 of the following 4 approvals for a withdrawal.\n\n1. Mina and Nora share one approval, which either person can give alone; both signing still counts once.\n2. Casey and Cleo share one approval and must both sign for it.\n3. Tess gives one approval with a signature, but it can count only with a relative time lock of at least 6144 seconds, using 12 units of 512 seconds on Bitcoin's relative-lock clock.\n4. Pia gives one approval with a signature, but it can count only with a relative time lock of at least 1024 seconds, using 2 units of 512 seconds on Bitcoin's relative-lock clock.\n\nCount each listed approval once, even if it has several signatures or a secret. Extra approvals are fine. Do not add another way to spend. Write the Bitcoin script.",
+      "approval_types": [
+        "either",
+        "pair",
+        "delay",
+        "delay"
+      ],
+      "relative_seconds": true,
+      "outer_threshold": 2,
+      "group": "composed-train-compound-v2-110",
+      "id": "composed-train-compound-v2-110",
+      "validation_bucket": null
+    },
+    {
+      "kind": "write",
+      "context": "segwitv0",
+      "choose_context": true,
+      "keys": [
+        "Pia",
+        "Casey",
+        "Vik",
+        "Nora",
+        "Alex"
+      ],
+      "tier": "hard",
+      "policy": "thresh(2,and(pk($0),sha256($sha256)),and(pk($1),pk($2)),and(pk($3),pk($4)))",
+      "prompt": "Our charity fund needs at least 2 of the following 3 approvals for a withdrawal.\n\n1. Pia gives one approval with a signature and the 32-byte secret matching SHA-256 $sha256; neither item alone is enough.\n2. Casey and Vik share one approval and must both sign for it.\n3. Nora and Alex share one approval and must both sign for it.\n\nCount each listed approval once, even if it has several signatures or a secret. Extra approvals are fine. Do not add another way to spend. Write the Bitcoin script.",
+      "approval_types": [
+        "sha",
+        "pair",
+        "pair"
+      ],
+      "relative_seconds": true,
+      "outer_threshold": 2,
+      "group": "composed-train-compound-v2-054",
+      "id": "composed-train-compound-v2-054",
+      "validation_bucket": null
+    },
+    {
+      "kind": "write",
+      "context": "segwitv0",
+      "choose_context": true,
+      "keys": [
+        "Sam",
+        "Alex",
+        "Cleo",
+        "Blair",
+        "Mina"
+      ],
+      "tier": "hard",
+      "policy": "thresh(2,and(pk($0),pk($1)),and(pk($2),sha256($sha256)),or(pk($3),pk($4)))",
+      "prompt": "For our community fund, the spending rule is at least 2 approvals out of these 3.\n\n1. Sam and Alex share one approval and must both sign for it.\n2. Cleo gives one approval with a signature and the 32-byte secret matching SHA-256 $sha256; neither item alone is enough.\n3. Blair and Mina share one approval, which either person can give alone; both signing still counts once.\n\nCount each listed approval once, even if it has several signatures or a secret. Extra approvals are fine. Do not add another way to spend. Write the Bitcoin script.",
+      "approval_types": [
+        "pair",
+        "sha",
+        "either"
+      ],
+      "relative_seconds": false,
+      "outer_threshold": 2,
+      "group": "composed-train-compound-v2-030",
+      "id": "composed-train-compound-v2-030",
+      "validation_bucket": null
+    },
+    {
+      "kind": "write",
+      "context": "segwitv0",
+      "choose_context": true,
+      "keys": [
+        "Vik",
+        "Sam",
+        "Tess"
+      ],
+      "tier": "medium",
+      "policy": "thresh(2,and(pk($0),hash160($hash160)),pk($1),and(pk($2),sha256($sha256)))",
+      "prompt": "For our community fund, the spending rule is at least 2 approvals out of these 3.\n\n1. Vik gives one approval with a signature and the 32-byte secret matching HASH160 $hash160; neither item alone is enough.\n2. Sam can give one approval with a signature.\n3. Tess gives one approval with a signature and the 32-byte secret matching SHA-256 $sha256; neither item alone is enough.\n\nCount each listed approval once, even if it has several signatures or a secret. Extra approvals are fine. Do not add another way to spend. Write the Bitcoin script.",
+      "approval_types": [
+        "hash160",
+        "person",
+        "sha"
+      ],
+      "relative_seconds": false,
+      "outer_threshold": 2,
+      "group": "composed-train-compound-v2-007",
+      "id": "composed-train-compound-v2-007",
+      "validation_bucket": null
+    },
+    {
+      "kind": "write",
+      "context": "segwitv0",
+      "choose_context": true,
+      "keys": [
+        "Mina",
+        "Sam",
+        "Uma",
+        "Eli"
+      ],
+      "tier": "medium",
+      "policy": "thresh(3,and(pk($0),after(956403)),pk($1),and(pk($2),sha256($sha256)),pk($3))",
+      "prompt": "For our club reserve, the spending rule is at least 3 approvals out of these 4.\n\n1. Mina gives one approval with a signature, but it needs the spending transaction to have block-height locktime at least 956403.\n2. Sam can give one approval with a signature.\n3. Uma gives one approval with a signature and the 32-byte secret matching SHA-256 $sha256; neither item alone is enough.\n4. Eli can give one approval with a signature.\n\nCount each listed approval once, even if it has several signatures or a secret. Extra approvals are fine. Do not add another way to spend. Write the Bitcoin script.",
+      "approval_types": [
+        "deadline",
+        "person",
+        "sha",
+        "person"
+      ],
+      "relative_seconds": false,
+      "outer_threshold": 3,
+      "group": "composed-train-compound-v2-159",
+      "id": "composed-train-compound-v2-159",
+      "validation_bucket": null
+    },
+    {
+      "kind": "write",
+      "context": "segwitv0",
+      "choose_context": true,
+      "keys": [
+        "Sam",
+        "Alex",
+        "Ben",
+        "Vik",
+        "Casey"
+      ],
+      "tier": "hard",
+      "policy": "thresh(2,and(pk($0),after(970135)),pk($1),and(pk($2),after(965977)),and(pk($3),pk($4)))",
+      "prompt": "Please set up this business reserve so that any 2 approvals from this list can spend.\n\n1. Sam gives one approval with a signature, but it needs the spending transaction to have block-height locktime at least 970135.\n2. Alex can give one approval with a signature.\n3. Ben gives one approval with a signature, but it needs the spending transaction to have block-height locktime at least 965977.\n4. Vik and Casey share one approval and must both sign for it.\n\nCount each listed approval once, even if it has several signatures or a secret. Extra approvals are fine. Do not add another way to spend. Write the Bitcoin script.",
+      "approval_types": [
+        "deadline",
+        "person",
+        "deadline",
+        "pair"
+      ],
+      "relative_seconds": true,
+      "outer_threshold": 2,
+      "group": "composed-train-compound-v2-179",
+      "id": "composed-train-compound-v2-179",
+      "validation_bucket": null
+    },
+    {
+      "kind": "write",
+      "context": "segwitv0",
+      "choose_context": true,
+      "keys": [
+        "Cleo",
+        "Wren",
+        "Alex"
+      ],
+      "tier": "medium",
+      "policy": "thresh(2,pk($0),pk($1),and(pk($2),after(943022)))",
+      "prompt": "Our business reserve needs at least 2 of the following 3 approvals for a withdrawal.\n\n1. Cleo can give one approval with a signature.\n2. Wren can give one approval with a signature.\n3. Alex gives one approval with a signature, but it needs the spending transaction to have block-height locktime at least 943022.\n\nCount each listed approval once, even if it has several signatures or a secret. Extra approvals are fine. Do not add another way to spend. Write the Bitcoin script.",
+      "approval_types": [
+        "person",
+        "person",
+        "deadline"
+      ],
+      "relative_seconds": true,
+      "outer_threshold": 2,
+      "group": "composed-train-compound-v2-146",
+      "id": "composed-train-compound-v2-146",
+      "validation_bucket": null
+    },
+    {
+      "kind": "write",
+      "context": "segwitv0",
+      "choose_context": true,
+      "keys": [
+        "Mina",
+        "Nora",
+        "Pia",
+        "Uma"
+      ],
+      "tier": "medium",
+      "policy": "thresh(2,and(pk($0),older(288)),pk($1),or(pk($2),pk($3)))",
+      "prompt": "Please set up this club reserve so that any 2 approvals from this list can spend.\n\n1. Mina gives one approval with a signature, but it can count only with the output to be at least 288 blocks old, measured from confirmation.\n2. Nora can give one approval with a signature.\n3. Pia and Uma share one approval, which either person can give alone; both signing still counts once.\n\nCount each listed approval once, even if it has several signatures or a secret. Extra approvals are fine. Do not add another way to spend. Write the Bitcoin script.",
+      "approval_types": [
+        "delay",
+        "person",
+        "either"
+      ],
+      "relative_seconds": false,
+      "outer_threshold": 2,
+      "group": "composed-train-compound-v2-173",
+      "id": "composed-train-compound-v2-173",
+      "validation_bucket": null
+    },
+    {
+      "kind": "write",
+      "context": "segwitv0",
+      "choose_context": true,
+      "keys": [
+        "Vik",
+        "Wren",
+        "Casey",
+        "Tess"
+      ],
+      "tier": "medium",
+      "policy": "thresh(2,and(pk($0),older(48)),and(pk($1),pk($2)),and(pk($3),older(432)))",
+      "prompt": "For our community fund, the spending rule is at least 2 approvals out of these 3.\n\n1. Vik gives one approval with a signature, but it can count only with the output to be at least 48 blocks old, measured from confirmation.\n2. Wren and Casey share one approval and must both sign for it.\n3. Tess gives one approval with a signature, but it can count only with the output to be at least 432 blocks old, measured from confirmation.\n\nCount each listed approval once, even if it has several signatures or a secret. Extra approvals are fine. Do not add another way to spend. Write the Bitcoin script.",
+      "approval_types": [
+        "delay",
+        "pair",
+        "delay"
+      ],
+      "relative_seconds": false,
+      "outer_threshold": 2,
+      "group": "composed-train-compound-v2-153",
+      "id": "composed-train-compound-v2-153",
+      "validation_bucket": null
+    },
+    {
+      "kind": "write",
+      "context": "segwitv0",
+      "choose_context": true,
+      "keys": [
+        "Pia",
+        "Wren",
+        "Tess",
+        "Owen",
+        "Mina",
+        "Nora"
+      ],
+      "tier": "hard",
+      "policy": "thresh(2,and(pk($0),pk($1)),thresh(2,pk($2),pk($3),pk($4)),and(pk($5),hash160($hash160)))",
+      "prompt": "For our club reserve, the spending rule is at least 2 approvals out of these 3.\n\n1. Pia and Wren share one approval and must both sign for it.\n2. Tess, Owen and Mina form a committee; any two must sign to give its one approval.\n3. Nora gives one approval with a signature and the 32-byte secret matching HASH160 $hash160; neither item alone is enough.\n\nCount each listed approval once, even if it has several signatures or a secret. Extra approvals are fine. Do not add another way to spend. Write the Bitcoin script.",
+      "approval_types": [
+        "pair",
+        "committee",
+        "hash160"
+      ],
+      "relative_seconds": false,
+      "outer_threshold": 2,
+      "group": "composed-train-compound-v2-121",
+      "id": "composed-train-compound-v2-121",
+      "validation_bucket": null
+    },
+    {
+      "kind": "write",
+      "context": "segwitv0",
+      "choose_context": true,
+      "keys": [
+        "Uma",
+        "Casey",
+        "Ada",
+        "Ben",
+        "Vik"
+      ],
+      "tier": "hard",
+      "policy": "thresh(2,pk($0),and(pk($1),sha256($sha256)),and(pk($2),older(144)),and(pk($3),pk($4)))",
+      "prompt": "For our co-op wallet, the spending rule is at least 2 approvals out of these 4.\n\n1. Uma can give one approval with a signature.\n2. Casey gives one approval with a signature and the 32-byte secret matching SHA-256 $sha256; neither item alone is enough.\n3. Ada gives one approval with a signature, but it can count only with the output to be at least 144 blocks old, measured from confirmation.\n4. Ben and Vik share one approval and must both sign for it.\n\nCount each listed approval once, even if it has several signatures or a secret. Extra approvals are fine. Do not add another way to spend. Write the Bitcoin script.",
+      "approval_types": [
+        "person",
+        "sha",
+        "delay",
+        "pair"
+      ],
+      "relative_seconds": false,
+      "outer_threshold": 2,
+      "group": "composed-train-compound-v2-020",
+      "id": "composed-train-compound-v2-020",
+      "validation_bucket": null
+    },
+    {
+      "kind": "write",
+      "context": "segwitv0",
+      "choose_context": true,
+      "keys": [
+        "Cleo",
+        "Ben",
+        "Alex",
+        "Pia",
+        "Ada",
+        "Uma"
+      ],
+      "tier": "hard",
+      "policy": "thresh(2,and(pk($0),older(288)),and(pk($1),hash160($hash160)),thresh(2,pk($2),pk($3),pk($4)),pk($5))",
+      "prompt": "For our co-op wallet, the spending rule is at least 2 approvals out of these 4.\n\n1. Cleo gives one approval with a signature, but it can count only with the output to be at least 288 blocks old, measured from confirmation.\n2. Ben gives one approval with a signature and the 32-byte secret matching HASH160 $hash160; neither item alone is enough.\n3. Alex, Pia and Ada form a committee; any two must sign to give its one approval.\n4. Uma can give one approval with a signature.\n\nCount each listed approval once, even if it has several signatures or a secret. Extra approvals are fine. Do not add another way to spend. Write the Bitcoin script.",
+      "approval_types": [
+        "delay",
+        "hash160",
+        "committee",
+        "person"
+      ],
+      "relative_seconds": false,
+      "outer_threshold": 2,
+      "group": "composed-train-compound-v2-051",
+      "id": "composed-train-compound-v2-051",
+      "validation_bucket": null
+    },
+    {
+      "kind": "write",
+      "context": "segwitv0",
+      "choose_context": true,
+      "keys": [
+        "Vik",
+        "Cleo",
+        "Sam",
+        "Uma",
+        "Ben"
+      ],
+      "tier": "hard",
+      "policy": "thresh(3,and(pk($0),older(288)),pk($1),pk($2),and(pk($3),pk($4)))",
+      "prompt": "Our club reserve needs at least 3 of the following 4 approvals for a withdrawal.\n\n1. Vik gives one approval with a signature, but it can count only with the output to be at least 288 blocks old, measured from confirmation.\n2. Cleo can give one approval with a signature.\n3. Sam can give one approval with a signature.\n4. Uma and Ben share one approval and must both sign for it.\n\nCount each listed approval once, even if it has several signatures or a secret. Extra approvals are fine. Do not add another way to spend. Write the Bitcoin script.",
+      "approval_types": [
+        "delay",
+        "person",
+        "person",
+        "pair"
+      ],
+      "relative_seconds": false,
+      "outer_threshold": 3,
+      "group": "composed-train-compound-v2-177",
+      "id": "composed-train-compound-v2-177",
+      "validation_bucket": null
+    },
+    {
+      "kind": "write",
+      "context": "segwitv0",
+      "choose_context": true,
+      "keys": [
+        "Eli",
+        "Pia",
+        "Ben",
+        "Mina"
+      ],
+      "tier": "medium",
+      "policy": "thresh(2,and(pk($0),pk($1)),and(pk($2),after(944223)),and(pk($3),after(941111)))",
+      "prompt": "Our charity fund needs at least 2 of the following 3 approvals for a withdrawal.\n\n1. Eli and Pia share one approval and must both sign for it.\n2. Ben gives one approval with a signature, but it needs the spending transaction to have block-height locktime at least 944223.\n3. Mina gives one approval with a signature, but it needs the spending transaction to have block-height locktime at least 941111.\n\nCount each listed approval once, even if it has several signatures or a secret. Extra approvals are fine. Do not add another way to spend. Write the Bitcoin script.",
+      "approval_types": [
+        "pair",
+        "deadline",
+        "deadline"
+      ],
+      "relative_seconds": false,
+      "outer_threshold": 2,
+      "group": "composed-train-compound-v2-184",
+      "id": "composed-train-compound-v2-184",
+      "validation_bucket": null
+    },
+    {
+      "kind": "write",
+      "context": "segwitv0",
+      "choose_context": true,
+      "keys": [
+        "Cleo",
+        "Vik",
+        "Owen",
+        "Casey"
+      ],
+      "tier": "medium",
+      "policy": "thresh(3,and(pk($0),older(4194306)),pk($1),and(pk($2),after(934699)),pk($3))",
+      "prompt": "For our co-op wallet, the spending rule is at least 3 approvals out of these 4.\n\n1. Cleo gives one approval with a signature, but it can count only with a relative time lock of at least 1024 seconds, using 2 units of 512 seconds on Bitcoin's relative-lock clock.\n2. Vik can give one approval with a signature.\n3. Owen gives one approval with a signature, but it needs the spending transaction to have block-height locktime at least 934699.\n4. Casey can give one approval with a signature.\n\nCount each listed approval once, even if it has several signatures or a secret. Extra approvals are fine. Do not add another way to spend. Write the Bitcoin script.",
+      "approval_types": [
+        "delay",
+        "person",
+        "deadline",
+        "person"
+      ],
+      "relative_seconds": true,
+      "outer_threshold": 3,
+      "group": "composed-train-compound-v2-124",
+      "id": "composed-train-compound-v2-124",
+      "validation_bucket": null
+    },
+    {
+      "kind": "write",
+      "context": "segwitv0",
+      "choose_context": true,
+      "keys": [
+        "Ben",
+        "Wren",
+        "Pia",
+        "Eli",
+        "Ada"
+      ],
+      "tier": "hard",
+      "policy": "thresh(2,and(pk($0),hash160($hash160)),thresh(2,pk($1),pk($2),pk($3)),and(pk($4),older(4194306)))",
+      "prompt": "For our club reserve, the spending rule is at least 2 approvals out of these 3.\n\n1. Ben gives one approval with a signature and the 32-byte secret matching HASH160 $hash160; neither item alone is enough.\n2. Wren, Pia and Eli form a committee; any two must sign to give its one approval.\n3. Ada gives one approval with a signature, but it can count only with a relative time lock of at least 1024 seconds, using 2 units of 512 seconds on Bitcoin's relative-lock clock.\n\nCount each listed approval once, even if it has several signatures or a secret. Extra approvals are fine. Do not add another way to spend. Write the Bitcoin script.",
+      "approval_types": [
+        "hash160",
+        "committee",
+        "delay"
+      ],
+      "relative_seconds": true,
+      "outer_threshold": 2,
+      "group": "composed-train-compound-v2-114",
+      "id": "composed-train-compound-v2-114",
+      "validation_bucket": null
+    },
+    {
+      "kind": "write",
+      "context": "segwitv0",
+      "choose_context": true,
+      "keys": [
+        "Casey",
+        "Eli",
+        "Mina",
+        "Wren",
+        "Pia",
+        "Ben"
+      ],
+      "tier": "hard",
+      "policy": "thresh(2,or(pk($0),pk($1)),and(pk($2),pk($3)),pk($4),pk($5))",
+      "prompt": "Our club reserve needs at least 2 of the following 4 approvals for a withdrawal.\n\n1. Casey and Eli share one approval, which either person can give alone; both signing still counts once.\n2. Mina and Wren share one approval and must both sign for it.\n3. Pia can give one approval with a signature.\n4. Ben can give one approval with a signature.\n\nCount each listed approval once, even if it has several signatures or a secret. Extra approvals are fine. Do not add another way to spend. Write the Bitcoin script.",
+      "approval_types": [
+        "either",
+        "pair",
+        "person",
+        "person"
+      ],
+      "relative_seconds": true,
+      "outer_threshold": 2,
+      "group": "composed-train-compound-v2-143",
+      "id": "composed-train-compound-v2-143",
+      "validation_bucket": null
+    },
+    {
+      "kind": "write",
+      "context": "segwitv0",
+      "choose_context": true,
+      "keys": [
+        "Blair",
+        "Vik",
+        "Alex",
+        "Nora",
+        "Casey",
+        "Pia"
+      ],
+      "tier": "hard",
+      "policy": "thresh(2,and(pk($0),older(4194316)),or(pk($1),pk($2)),or(pk($3),pk($4)),and(pk($5),older(4194310)))",
+      "prompt": "Our community fund needs at least 2 of the following 4 approvals for a withdrawal.\n\n1. Blair gives one approval with a signature, but it can count only with a relative time lock of at least 6144 seconds, using 12 units of 512 seconds on Bitcoin's relative-lock clock.\n2. Vik and Alex share one approval, which either person can give alone; both signing still counts once.\n3. Nora and Casey share one approval, which either person can give alone; both signing still counts once.\n4. Pia gives one approval with a signature, but it can count only with a relative time lock of at least 3072 seconds, using 6 units of 512 seconds on Bitcoin's relative-lock clock.\n\nCount each listed approval once, even if it has several signatures or a secret. Extra approvals are fine. Do not add another way to spend. Write the Bitcoin script.",
+      "approval_types": [
+        "delay",
+        "either",
+        "either",
+        "delay"
+      ],
+      "relative_seconds": true,
+      "outer_threshold": 2,
+      "group": "composed-train-compound-v2-144",
+      "id": "composed-train-compound-v2-144",
+      "validation_bucket": null
+    },
+    {
+      "kind": "write",
+      "context": "segwitv0",
+      "choose_context": true,
+      "keys": [
+        "Eli",
+        "Wren",
+        "Pia",
+        "Nora",
+        "Ben",
+        "Owen"
+      ],
+      "tier": "hard",
+      "policy": "thresh(3,or(pk($0),pk($1)),and(pk($2),pk($3)),and(pk($4),after(973220)),and(pk($5),hash160($hash160)))",
+      "prompt": "Please set up this business reserve so that any 3 approvals from this list can spend.\n\n1. Eli and Wren share one approval, which either person can give alone; both signing still counts once.\n2. Pia and Nora share one approval and must both sign for it.\n3. Ben gives one approval with a signature, but it needs the spending transaction to have block-height locktime at least 973220.\n4. Owen gives one approval with a signature and the 32-byte secret matching HASH160 $hash160; neither item alone is enough.\n\nCount each listed approval once, even if it has several signatures or a secret. Extra approvals are fine. Do not add another way to spend. Write the Bitcoin script.",
+      "approval_types": [
+        "either",
+        "pair",
+        "deadline",
+        "hash160"
+      ],
+      "relative_seconds": true,
+      "outer_threshold": 3,
+      "group": "composed-train-compound-v2-014",
+      "id": "composed-train-compound-v2-014",
+      "validation_bucket": null
+    },
+    {
+      "kind": "write",
+      "context": "segwitv0",
+      "choose_context": true,
+      "keys": [
+        "Nora",
+        "Tess",
+        "Uma",
+        "Cleo",
+        "Eli",
+        "Pia"
+      ],
+      "tier": "hard",
+      "policy": "thresh(2,and(pk($0),pk($1)),and(pk($2),hash160($hash160)),pk($3),and(pk($4),pk($5)))",
+      "prompt": "For our club reserve, the spending rule is at least 2 approvals out of these 4.\n\n1. Nora and Tess share one approval and must both sign for it.\n2. Uma gives one approval with a signature and the 32-byte secret matching HASH160 $hash160; neither item alone is enough.\n3. Cleo can give one approval with a signature.\n4. Eli and Pia share one approval and must both sign for it.\n\nCount each listed approval once, even if it has several signatures or a secret. Extra approvals are fine. Do not add another way to spend. Write the Bitcoin script.",
+      "approval_types": [
+        "pair",
+        "hash160",
+        "person",
+        "pair"
+      ],
+      "relative_seconds": false,
+      "outer_threshold": 2,
+      "group": "composed-train-compound-v2-168",
+      "id": "composed-train-compound-v2-168",
+      "validation_bucket": null
+    },
+    {
+      "kind": "write",
+      "context": "segwitv0",
+      "choose_context": true,
+      "keys": [
+        "Uma",
+        "Nora",
+        "Pia",
+        "Ada"
+      ],
+      "tier": "medium",
+      "policy": "thresh(2,and(pk($0),older(4194316)),and(pk($1),older(4194316)),and(pk($2),pk($3)))",
+      "prompt": "Please set up this business reserve so that any 2 approvals from this list can spend.\n\n1. Uma gives one approval with a signature, but it can count only with a relative time lock of at least 6144 seconds, using 12 units of 512 seconds on Bitcoin's relative-lock clock.\n2. Nora gives one approval with a signature, but it can count only with a relative time lock of at least 6144 seconds, using 12 units of 512 seconds on Bitcoin's relative-lock clock.\n3. Pia and Ada share one approval and must both sign for it.\n\nCount each listed approval once, even if it has several signatures or a secret. Extra approvals are fine. Do not add another way to spend. Write the Bitcoin script.",
+      "approval_types": [
+        "delay",
+        "delay",
+        "pair"
+      ],
+      "relative_seconds": true,
+      "outer_threshold": 2,
+      "group": "composed-train-compound-v2-151",
+      "id": "composed-train-compound-v2-151",
+      "validation_bucket": null
+    },
+    {
+      "kind": "write",
+      "context": "segwitv0",
+      "choose_context": true,
+      "keys": [
+        "Vik",
+        "Tess",
+        "Casey",
+        "Ada"
+      ],
+      "tier": "medium",
+      "policy": "thresh(2,pk($0),pk($1),or(pk($2),pk($3)))",
+      "prompt": "For our community fund, the spending rule is at least 2 approvals out of these 3.\n\n1. Vik can give one approval with a signature.\n2. Tess can give one approval with a signature.\n3. Casey and Ada share one approval, which either person can give alone; both signing still counts once.\n\nCount each listed approval once, even if it has several signatures or a secret. Extra approvals are fine. Do not add another way to spend. Write the Bitcoin script.",
+      "approval_types": [
+        "person",
+        "person",
+        "either"
+      ],
+      "relative_seconds": true,
+      "outer_threshold": 2,
+      "group": "composed-train-compound-v2-016",
+      "id": "composed-train-compound-v2-016",
+      "validation_bucket": null
+    }
+  ],
+  "purpose_note": "Fixed training-fit sample selected before training; not held-out evaluation"
+}

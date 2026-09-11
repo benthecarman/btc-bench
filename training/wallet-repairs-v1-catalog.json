@@ -1,0 +1,109 @@
+{
+  "suite": "wallet-repairs-v1",
+  "evaluation_only": false,
+  "cases": [
+    {
+      "id": "wrp1-one-derivation",
+      "family": "one-derivation",
+      "group": "wrp1-one-derivation",
+      "request": "I am setting up a native SegWit account for Nina. She alone can spend, with no delay or recovery route.",
+      "keys": [
+        "Nina"
+      ],
+      "template": "wpkh(@0/**)",
+      "policy": "pk(@0)"
+    },
+    {
+      "id": "wrp1-no-comment-suffix",
+      "family": "no-comment-suffix",
+      "group": "wrp1-no-comment-suffix",
+      "request": "Make a Taproot account for Omar. His key is the only spending route, and he can spend at any time.",
+      "keys": [
+        "Omar"
+      ],
+      "template": "tr(@0/**)",
+      "policy": "pk(@0)"
+    },
+    {
+      "id": "wrp1-single-leaf",
+      "family": "single-leaf",
+      "group": "wrp1-single-leaf",
+      "request": "I need a Taproot reserve. Ravi can spend alone whenever needed. Alternatively, any two of Pia, Quinn, and Suri can spend together without Ravi. Those are the only routes.",
+      "keys": [
+        "Pia",
+        "Quinn",
+        "Ravi",
+        "Suri"
+      ],
+      "template": "tr(@2/**,multi_a(2,@0/**,@1/**,@3/**))",
+      "policy": "or(pk(@2),thresh(2,pk(@0),pk(@1),pk(@3)))"
+    },
+    {
+      "id": "wrp1-every-template-key",
+      "family": "every-template-key",
+      "group": "wrp1-every-template-key",
+      "request": "For my Taproot savings account, Uma can spend at any time. Tess can recover the money once the output has aged at least 720 blocks since confirmation, without Uma. Keep both routes available after that.",
+      "keys": [
+        "Tess",
+        "Uma"
+      ],
+      "template": "tr(@1/**,and_v(v:pk(@0/**),older(720)))",
+      "policy": "or(pk(@1),and(pk(@0),older(720)))"
+    },
+    {
+      "id": "wrp1-and-v-type",
+      "family": "and-v-type",
+      "group": "wrp1-and-v-type",
+      "request": "Create a native SegWit script account that requires both Vera and Will to sign. Neither can spend alone. There is no time restriction or alternate route.",
+      "keys": [
+        "Vera",
+        "Will"
+      ],
+      "template": "wsh(multi(2,@0/**,@1/**))",
+      "policy": "and(pk(@0),pk(@1))"
+    },
+    {
+      "id": "wrp1-or-b-type",
+      "family": "or-b-type",
+      "group": "wrp1-or-b-type",
+      "request": "I want a native SegWit script account where either Xena or Yuri can spend alone. There is no waiting period and neither needs the other signature.",
+      "keys": [
+        "Xena",
+        "Yuri"
+      ],
+      "template": "wsh(multi(1,@0/**,@1/**))",
+      "policy": "or(pk(@0),pk(@1))"
+    },
+    {
+      "id": "wrp1-separate-councils",
+      "family": "separate-councils",
+      "group": "wrp1-separate-councils",
+      "request": "Set up a Taproot reserve with Faye as the owner. Faye can spend alone at any time. Without Faye, a withdrawal needs at least one of Asha, Bea, and Chen AND both Dale and Enid. Extra signatures from the first group cannot replace Dale or Enid. Allow exactly these routes.",
+      "keys": [
+        "Asha",
+        "Bea",
+        "Chen",
+        "Dale",
+        "Enid",
+        "Faye"
+      ],
+      "template": "tr(@5/**,and_v(v:multi_a(1,@0/**,@1/**,@2/**),multi_a(2,@3/**,@4/**)))",
+      "policy": "or(pk(@5),and(thresh(1,pk(@0),pk(@1),pk(@2)),and(pk(@3),pk(@4))))"
+    },
+    {
+      "id": "wrp1-independent-routes",
+      "family": "independent-routes",
+      "group": "wrp1-independent-routes",
+      "request": "Build a Taproot wallet with three ways to spend. Gita can spend alone immediately. Any two of Hale, Imani, and Jules can also spend immediately without Gita. Separately, Kian can recover the money once the output is at least 576 blocks old from confirmation, without anyone else. Each route is independent; permit no others.",
+      "keys": [
+        "Gita",
+        "Hale",
+        "Imani",
+        "Jules",
+        "Kian"
+      ],
+      "template": "tr(@0/**,{multi_a(2,@1/**,@2/**,@3/**),and_v(v:pk(@4/**),older(576))})",
+      "policy": "or(pk(@0),or(thresh(2,pk(@1),pk(@2),pk(@3)),and(pk(@4),older(576))))"
+    }
+  ]
+}

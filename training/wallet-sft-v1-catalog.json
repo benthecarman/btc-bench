@@ -1,0 +1,1686 @@
+{
+  "suite": "wallet-sft-v1",
+  "evaluation_only": false,
+  "cases": [
+    {
+      "id": "ws1-native-single-00",
+      "family": "native-single",
+      "group": "ws1-native-single-00",
+      "request": "I want a native SegWit P2WPKH account for Bruno. A signature from Bruno is sufficient at any time. There are no other spending routes.",
+      "keys": [
+        "Bruno"
+      ],
+      "template": "wpkh(@0/**)",
+      "policy": "pk(@0)"
+    },
+    {
+      "id": "ws1-native-single-01",
+      "family": "native-single",
+      "group": "ws1-native-single-01",
+      "request": "I want a native SegWit P2WPKH account for Gus. A signature from Gus is sufficient at any time. There are no other spending routes.",
+      "keys": [
+        "Gus"
+      ],
+      "template": "wpkh(@0/**)",
+      "policy": "pk(@0)"
+    },
+    {
+      "id": "ws1-native-single-02",
+      "family": "native-single",
+      "group": "ws1-native-single-02",
+      "request": "I want a native SegWit P2WPKH account for Bruno. A signature from Bruno is sufficient at any time. There are no other spending routes.",
+      "keys": [
+        "Bruno"
+      ],
+      "template": "wpkh(@0/**)",
+      "policy": "pk(@0)"
+    },
+    {
+      "id": "ws1-native-single-03",
+      "family": "native-single",
+      "group": "ws1-native-single-03",
+      "request": "I want a native SegWit P2WPKH account for Farah. A signature from Farah is sufficient at any time. There are no other spending routes.",
+      "keys": [
+        "Farah"
+      ],
+      "template": "wpkh(@0/**)",
+      "policy": "pk(@0)"
+    },
+    {
+      "id": "ws1-native-single-04",
+      "family": "native-single",
+      "group": "ws1-native-single-04",
+      "request": "I want a native SegWit P2WPKH account for Ada. A signature from Ada is sufficient at any time. There are no other spending routes.",
+      "keys": [
+        "Ada"
+      ],
+      "template": "wpkh(@0/**)",
+      "policy": "pk(@0)"
+    },
+    {
+      "id": "ws1-native-single-05",
+      "family": "native-single",
+      "group": "ws1-native-single-05",
+      "request": "I want a native SegWit P2WPKH account for Dion. A signature from Dion is sufficient at any time. There are no other spending routes.",
+      "keys": [
+        "Dion"
+      ],
+      "template": "wpkh(@0/**)",
+      "policy": "pk(@0)"
+    },
+    {
+      "id": "ws1-native-single-06",
+      "family": "native-single",
+      "group": "ws1-native-single-06",
+      "request": "I want a native SegWit P2WPKH account for Hugo. A signature from Hugo is sufficient at any time. There are no other spending routes.",
+      "keys": [
+        "Hugo"
+      ],
+      "template": "wpkh(@0/**)",
+      "policy": "pk(@0)"
+    },
+    {
+      "id": "ws1-native-single-07",
+      "family": "native-single",
+      "group": "ws1-native-single-07",
+      "request": "I want a native SegWit P2WPKH account for Dion. A signature from Dion is sufficient at any time. There are no other spending routes.",
+      "keys": [
+        "Dion"
+      ],
+      "template": "wpkh(@0/**)",
+      "policy": "pk(@0)"
+    },
+    {
+      "id": "ws1-native-quorum-00",
+      "family": "native-quorum",
+      "group": "ws1-native-quorum-00",
+      "request": "Make a native SegWit P2WSH account. A withdrawal needs signatures from at least 1 of Esme, Farah, Noel. There is no waiting period, and no other route.",
+      "keys": [
+        "Farah",
+        "Noel",
+        "Esme"
+      ],
+      "template": "wsh(multi(1,@2/**,@0/**,@1/**))",
+      "policy": "thresh(1,pk(@2),pk(@0),pk(@1))"
+    },
+    {
+      "id": "ws1-native-quorum-01",
+      "family": "native-quorum",
+      "group": "ws1-native-quorum-01",
+      "request": "Make a native SegWit P2WSH account. A withdrawal needs signatures from at least 2 of Cora, Ada, Ida. There is no waiting period, and no other route.",
+      "keys": [
+        "Ada",
+        "Cora",
+        "Ida"
+      ],
+      "template": "wsh(multi(2,@1/**,@0/**,@2/**))",
+      "policy": "thresh(2,pk(@1),pk(@0),pk(@2))"
+    },
+    {
+      "id": "ws1-native-quorum-02",
+      "family": "native-quorum",
+      "group": "ws1-native-quorum-02",
+      "request": "Make a native SegWit P2WSH account. A withdrawal needs signatures from at least 3 of Ada, Cora, Esme. There is no waiting period, and no other route.",
+      "keys": [
+        "Esme",
+        "Cora",
+        "Ada"
+      ],
+      "template": "wsh(multi(3,@2/**,@1/**,@0/**))",
+      "policy": "thresh(3,pk(@2),pk(@1),pk(@0))"
+    },
+    {
+      "id": "ws1-native-quorum-03",
+      "family": "native-quorum",
+      "group": "ws1-native-quorum-03",
+      "request": "Make a native SegWit P2WSH account. A withdrawal needs signatures from at least 1 of Dion, Cora, Bruno. There is no waiting period, and no other route.",
+      "keys": [
+        "Dion",
+        "Cora",
+        "Bruno"
+      ],
+      "template": "wsh(multi(1,@0/**,@1/**,@2/**))",
+      "policy": "thresh(1,pk(@0),pk(@1),pk(@2))"
+    },
+    {
+      "id": "ws1-native-quorum-04",
+      "family": "native-quorum",
+      "group": "ws1-native-quorum-04",
+      "request": "Make a native SegWit P2WSH account. A withdrawal needs signatures from at least 2 of Noel, Hugo, Gus. There is no waiting period, and no other route.",
+      "keys": [
+        "Gus",
+        "Noel",
+        "Hugo"
+      ],
+      "template": "wsh(multi(2,@1/**,@2/**,@0/**))",
+      "policy": "thresh(2,pk(@1),pk(@2),pk(@0))"
+    },
+    {
+      "id": "ws1-native-quorum-05",
+      "family": "native-quorum",
+      "group": "ws1-native-quorum-05",
+      "request": "Make a native SegWit P2WSH account. A withdrawal needs signatures from at least 3 of Hugo, Ada, Gus. There is no waiting period, and no other route.",
+      "keys": [
+        "Gus",
+        "Ada",
+        "Hugo"
+      ],
+      "template": "wsh(multi(3,@2/**,@1/**,@0/**))",
+      "policy": "thresh(3,pk(@2),pk(@1),pk(@0))"
+    },
+    {
+      "id": "ws1-native-quorum-06",
+      "family": "native-quorum",
+      "group": "ws1-native-quorum-06",
+      "request": "Make a native SegWit P2WSH account. A withdrawal needs signatures from at least 1 of Leon, Dion, Ada. There is no waiting period, and no other route.",
+      "keys": [
+        "Ada",
+        "Leon",
+        "Dion"
+      ],
+      "template": "wsh(multi(1,@1/**,@2/**,@0/**))",
+      "policy": "thresh(1,pk(@1),pk(@2),pk(@0))"
+    },
+    {
+      "id": "ws1-native-quorum-07",
+      "family": "native-quorum",
+      "group": "ws1-native-quorum-07",
+      "request": "Make a native SegWit P2WSH account. A withdrawal needs signatures from at least 2 of Ada, Hugo, Jin. There is no waiting period, and no other route.",
+      "keys": [
+        "Ada",
+        "Jin",
+        "Hugo"
+      ],
+      "template": "wsh(multi(2,@0/**,@2/**,@1/**))",
+      "policy": "thresh(2,pk(@0),pk(@2),pk(@1))"
+    },
+    {
+      "id": "ws1-taproot-single-00",
+      "family": "taproot-single",
+      "group": "ws1-taproot-single-00",
+      "request": "I want a Taproot account for Cora. A signature from Cora is sufficient at any time. There are no other spending routes.",
+      "keys": [
+        "Cora"
+      ],
+      "template": "tr(@0/**)",
+      "policy": "pk(@0)"
+    },
+    {
+      "id": "ws1-taproot-single-01",
+      "family": "taproot-single",
+      "group": "ws1-taproot-single-01",
+      "request": "I want a Taproot account for Leon. A signature from Leon is sufficient at any time. There are no other spending routes.",
+      "keys": [
+        "Leon"
+      ],
+      "template": "tr(@0/**)",
+      "policy": "pk(@0)"
+    },
+    {
+      "id": "ws1-taproot-single-02",
+      "family": "taproot-single",
+      "group": "ws1-taproot-single-02",
+      "request": "I want a Taproot account for Dion. A signature from Dion is sufficient at any time. There are no other spending routes.",
+      "keys": [
+        "Dion"
+      ],
+      "template": "tr(@0/**)",
+      "policy": "pk(@0)"
+    },
+    {
+      "id": "ws1-taproot-single-03",
+      "family": "taproot-single",
+      "group": "ws1-taproot-single-03",
+      "request": "I want a Taproot account for Cora. A signature from Cora is sufficient at any time. There are no other spending routes.",
+      "keys": [
+        "Cora"
+      ],
+      "template": "tr(@0/**)",
+      "policy": "pk(@0)"
+    },
+    {
+      "id": "ws1-taproot-single-04",
+      "family": "taproot-single",
+      "group": "ws1-taproot-single-04",
+      "request": "I want a Taproot account for Bruno. A signature from Bruno is sufficient at any time. There are no other spending routes.",
+      "keys": [
+        "Bruno"
+      ],
+      "template": "tr(@0/**)",
+      "policy": "pk(@0)"
+    },
+    {
+      "id": "ws1-taproot-single-05",
+      "family": "taproot-single",
+      "group": "ws1-taproot-single-05",
+      "request": "I want a Taproot account for Leon. A signature from Leon is sufficient at any time. There are no other spending routes.",
+      "keys": [
+        "Leon"
+      ],
+      "template": "tr(@0/**)",
+      "policy": "pk(@0)"
+    },
+    {
+      "id": "ws1-taproot-single-06",
+      "family": "taproot-single",
+      "group": "ws1-taproot-single-06",
+      "request": "I want a Taproot account for Hugo. A signature from Hugo is sufficient at any time. There are no other spending routes.",
+      "keys": [
+        "Hugo"
+      ],
+      "template": "tr(@0/**)",
+      "policy": "pk(@0)"
+    },
+    {
+      "id": "ws1-taproot-single-07",
+      "family": "taproot-single",
+      "group": "ws1-taproot-single-07",
+      "request": "I want a Taproot account for Kira. A signature from Kira is sufficient at any time. There are no other spending routes.",
+      "keys": [
+        "Kira"
+      ],
+      "template": "tr(@0/**)",
+      "policy": "pk(@0)"
+    },
+    {
+      "id": "ws1-recovery-delay-00",
+      "family": "recovery-delay",
+      "group": "ws1-recovery-delay-00",
+      "request": "Please configure a Taproot reserve for Cora. Cora can always spend alone. Independently, Esme can spend alone only once the output has aged at least 6 blocks since confirmation. The owner remains unrestricted. Permit exactly those routes.",
+      "keys": [
+        "Cora",
+        "Esme"
+      ],
+      "template": "tr(@0/**,and_v(v:pk(@1/**),older(6)))",
+      "policy": "or(pk(@0),and(pk(@1),older(6)))"
+    },
+    {
+      "id": "ws1-recovery-delay-01",
+      "family": "recovery-delay",
+      "group": "ws1-recovery-delay-01",
+      "request": "I need a Taproot wallet for this arrangement. Hugo can always spend alone. Independently, Esme can spend alone only once the output has aged at least 12 blocks since confirmation. The owner remains unrestricted. Permit exactly those routes.",
+      "keys": [
+        "Esme",
+        "Hugo"
+      ],
+      "template": "tr(@1/**,and_v(v:pk(@0/**),older(12)))",
+      "policy": "or(pk(@1),and(pk(@0),older(12)))"
+    },
+    {
+      "id": "ws1-recovery-delay-02",
+      "family": "recovery-delay",
+      "group": "ws1-recovery-delay-02",
+      "request": "Can you describe this account as a Taproot wallet? Ada can always spend alone. Independently, Orla can spend alone only once the output has aged at least 48 blocks since confirmation. The owner remains unrestricted. Permit exactly those routes.",
+      "keys": [
+        "Ada",
+        "Orla"
+      ],
+      "template": "tr(@0/**,and_v(v:pk(@1/**),older(48)))",
+      "policy": "or(pk(@0),and(pk(@1),older(48)))"
+    },
+    {
+      "id": "ws1-recovery-delay-03",
+      "family": "recovery-delay",
+      "group": "ws1-recovery-delay-03",
+      "request": "Build a Taproot savings wallet. Pia can always spend alone. Independently, Esme can spend alone only once the output has aged at least 96 blocks since confirmation. The owner remains unrestricted. Permit exactly those routes.",
+      "keys": [
+        "Pia",
+        "Esme"
+      ],
+      "template": "tr(@0/**,and_v(v:pk(@1/**),older(96)))",
+      "policy": "or(pk(@0),and(pk(@1),older(96)))"
+    },
+    {
+      "id": "ws1-recovery-delay-04",
+      "family": "recovery-delay",
+      "group": "ws1-recovery-delay-04",
+      "request": "Please configure a Taproot reserve for Farah. Farah can always spend alone. Independently, Pia can spend alone only once the output has aged at least 192 blocks since confirmation. The owner remains unrestricted. Permit exactly those routes.",
+      "keys": [
+        "Pia",
+        "Farah"
+      ],
+      "template": "tr(@1/**,and_v(v:pk(@0/**),older(192)))",
+      "policy": "or(pk(@1),and(pk(@0),older(192)))"
+    },
+    {
+      "id": "ws1-recovery-delay-05",
+      "family": "recovery-delay",
+      "group": "ws1-recovery-delay-05",
+      "request": "I need a Taproot wallet for this arrangement. Esme can always spend alone. Independently, Ida can spend alone only once the output has aged at least 432 blocks since confirmation. The owner remains unrestricted. Permit exactly those routes.",
+      "keys": [
+        "Ida",
+        "Esme"
+      ],
+      "template": "tr(@1/**,and_v(v:pk(@0/**),older(432)))",
+      "policy": "or(pk(@1),and(pk(@0),older(432)))"
+    },
+    {
+      "id": "ws1-recovery-delay-06",
+      "family": "recovery-delay",
+      "group": "ws1-recovery-delay-06",
+      "request": "Can you describe this account as a Taproot wallet? Farah can always spend alone. Independently, Esme can spend alone only once the output has aged at least 864 blocks since confirmation. The owner remains unrestricted. Permit exactly those routes.",
+      "keys": [
+        "Esme",
+        "Farah"
+      ],
+      "template": "tr(@1/**,and_v(v:pk(@0/**),older(864)))",
+      "policy": "or(pk(@1),and(pk(@0),older(864)))"
+    },
+    {
+      "id": "ws1-recovery-delay-07",
+      "family": "recovery-delay",
+      "group": "ws1-recovery-delay-07",
+      "request": "Build a Taproot savings wallet. Orla can always spend alone. Independently, Ida can spend alone only once the output has aged at least 2016 blocks since confirmation. The owner remains unrestricted. Permit exactly those routes.",
+      "keys": [
+        "Orla",
+        "Ida"
+      ],
+      "template": "tr(@0/**,and_v(v:pk(@1/**),older(2016)))",
+      "policy": "or(pk(@0),and(pk(@1),older(2016)))"
+    },
+    {
+      "id": "ws1-recovery-height-00",
+      "family": "recovery-height",
+      "group": "ws1-recovery-height-00",
+      "request": "Please configure a Taproot reserve for Hugo. Hugo can always spend alone. Independently, Jin can spend alone only once the spending transaction has a block-height locktime of at least 840144. The owner remains unrestricted. Permit exactly those routes.",
+      "keys": [
+        "Jin",
+        "Hugo"
+      ],
+      "template": "tr(@1/**,and_v(v:pk(@0/**),after(840144)))",
+      "policy": "or(pk(@1),and(pk(@0),after(840144)))"
+    },
+    {
+      "id": "ws1-recovery-height-01",
+      "family": "recovery-height",
+      "group": "ws1-recovery-height-01",
+      "request": "I need a Taproot wallet for this arrangement. Hugo can always spend alone. Independently, Esme can spend alone only once the spending transaction has a block-height locktime of at least 840401. The owner remains unrestricted. Permit exactly those routes.",
+      "keys": [
+        "Hugo",
+        "Esme"
+      ],
+      "template": "tr(@0/**,and_v(v:pk(@1/**),after(840401)))",
+      "policy": "or(pk(@0),and(pk(@1),after(840401)))"
+    },
+    {
+      "id": "ws1-recovery-height-02",
+      "family": "recovery-height",
+      "group": "ws1-recovery-height-02",
+      "request": "Can you describe this account as a Taproot wallet? Pia can always spend alone. Independently, Mara can spend alone only once the spending transaction has a block-height locktime of at least 840658. The owner remains unrestricted. Permit exactly those routes.",
+      "keys": [
+        "Mara",
+        "Pia"
+      ],
+      "template": "tr(@1/**,and_v(v:pk(@0/**),after(840658)))",
+      "policy": "or(pk(@1),and(pk(@0),after(840658)))"
+    },
+    {
+      "id": "ws1-recovery-height-03",
+      "family": "recovery-height",
+      "group": "ws1-recovery-height-03",
+      "request": "Build a Taproot savings wallet. Hugo can always spend alone. Independently, Leon can spend alone only once the spending transaction has a block-height locktime of at least 840915. The owner remains unrestricted. Permit exactly those routes.",
+      "keys": [
+        "Hugo",
+        "Leon"
+      ],
+      "template": "tr(@0/**,and_v(v:pk(@1/**),after(840915)))",
+      "policy": "or(pk(@0),and(pk(@1),after(840915)))"
+    },
+    {
+      "id": "ws1-recovery-height-04",
+      "family": "recovery-height",
+      "group": "ws1-recovery-height-04",
+      "request": "Please configure a Taproot reserve for Orla. Orla can always spend alone. Independently, Cora can spend alone only once the spending transaction has a block-height locktime of at least 841172. The owner remains unrestricted. Permit exactly those routes.",
+      "keys": [
+        "Orla",
+        "Cora"
+      ],
+      "template": "tr(@0/**,and_v(v:pk(@1/**),after(841172)))",
+      "policy": "or(pk(@0),and(pk(@1),after(841172)))"
+    },
+    {
+      "id": "ws1-recovery-height-05",
+      "family": "recovery-height",
+      "group": "ws1-recovery-height-05",
+      "request": "I need a Taproot wallet for this arrangement. Bruno can always spend alone. Independently, Pia can spend alone only once the spending transaction has a block-height locktime of at least 841429. The owner remains unrestricted. Permit exactly those routes.",
+      "keys": [
+        "Bruno",
+        "Pia"
+      ],
+      "template": "tr(@0/**,and_v(v:pk(@1/**),after(841429)))",
+      "policy": "or(pk(@0),and(pk(@1),after(841429)))"
+    },
+    {
+      "id": "ws1-recovery-height-06",
+      "family": "recovery-height",
+      "group": "ws1-recovery-height-06",
+      "request": "Can you describe this account as a Taproot wallet? Mara can always spend alone. Independently, Leon can spend alone only once the spending transaction has a block-height locktime of at least 841686. The owner remains unrestricted. Permit exactly those routes.",
+      "keys": [
+        "Mara",
+        "Leon"
+      ],
+      "template": "tr(@0/**,and_v(v:pk(@1/**),after(841686)))",
+      "policy": "or(pk(@0),and(pk(@1),after(841686)))"
+    },
+    {
+      "id": "ws1-recovery-height-07",
+      "family": "recovery-height",
+      "group": "ws1-recovery-height-07",
+      "request": "Build a Taproot savings wallet. Farah can always spend alone. Independently, Jin can spend alone only once the spending transaction has a block-height locktime of at least 841943. The owner remains unrestricted. Permit exactly those routes.",
+      "keys": [
+        "Jin",
+        "Farah"
+      ],
+      "template": "tr(@1/**,and_v(v:pk(@0/**),after(841943)))",
+      "policy": "or(pk(@1),and(pk(@0),after(841943)))"
+    },
+    {
+      "id": "ws1-recovery-time-00",
+      "family": "recovery-time",
+      "group": "ws1-recovery-time-00",
+      "request": "Please configure a Taproot reserve for Mara. Mara can always spend alone. Independently, Ida can spend alone only once the spending transaction has a time-based locktime of at least 1730432000 Unix seconds. The owner remains unrestricted. Permit exactly those routes.",
+      "keys": [
+        "Ida",
+        "Mara"
+      ],
+      "template": "tr(@1/**,and_v(v:pk(@0/**),after(1730432000)))",
+      "policy": "or(pk(@1),and(pk(@0),after(1730432000)))"
+    },
+    {
+      "id": "ws1-recovery-time-01",
+      "family": "recovery-time",
+      "group": "ws1-recovery-time-01",
+      "request": "I need a Taproot wallet for this arrangement. Gus can always spend alone. Independently, Hugo can spend alone only once the spending transaction has a time-based locktime of at least 1731555200 Unix seconds. The owner remains unrestricted. Permit exactly those routes.",
+      "keys": [
+        "Gus",
+        "Hugo"
+      ],
+      "template": "tr(@0/**,and_v(v:pk(@1/**),after(1731555200)))",
+      "policy": "or(pk(@0),and(pk(@1),after(1731555200)))"
+    },
+    {
+      "id": "ws1-recovery-time-02",
+      "family": "recovery-time",
+      "group": "ws1-recovery-time-02",
+      "request": "Can you describe this account as a Taproot wallet? Kira can always spend alone. Independently, Mara can spend alone only once the spending transaction has a time-based locktime of at least 1732678400 Unix seconds. The owner remains unrestricted. Permit exactly those routes.",
+      "keys": [
+        "Kira",
+        "Mara"
+      ],
+      "template": "tr(@0/**,and_v(v:pk(@1/**),after(1732678400)))",
+      "policy": "or(pk(@0),and(pk(@1),after(1732678400)))"
+    },
+    {
+      "id": "ws1-recovery-time-03",
+      "family": "recovery-time",
+      "group": "ws1-recovery-time-03",
+      "request": "Build a Taproot savings wallet. Jin can always spend alone. Independently, Gus can spend alone only once the spending transaction has a time-based locktime of at least 1733801600 Unix seconds. The owner remains unrestricted. Permit exactly those routes.",
+      "keys": [
+        "Gus",
+        "Jin"
+      ],
+      "template": "tr(@1/**,and_v(v:pk(@0/**),after(1733801600)))",
+      "policy": "or(pk(@1),and(pk(@0),after(1733801600)))"
+    },
+    {
+      "id": "ws1-recovery-time-04",
+      "family": "recovery-time",
+      "group": "ws1-recovery-time-04",
+      "request": "Please configure a Taproot reserve for Dion. Dion can always spend alone. Independently, Bruno can spend alone only once the spending transaction has a time-based locktime of at least 1734924800 Unix seconds. The owner remains unrestricted. Permit exactly those routes.",
+      "keys": [
+        "Dion",
+        "Bruno"
+      ],
+      "template": "tr(@0/**,and_v(v:pk(@1/**),after(1734924800)))",
+      "policy": "or(pk(@0),and(pk(@1),after(1734924800)))"
+    },
+    {
+      "id": "ws1-recovery-time-05",
+      "family": "recovery-time",
+      "group": "ws1-recovery-time-05",
+      "request": "I need a Taproot wallet for this arrangement. Noel can always spend alone. Independently, Orla can spend alone only once the spending transaction has a time-based locktime of at least 1736048000 Unix seconds. The owner remains unrestricted. Permit exactly those routes.",
+      "keys": [
+        "Orla",
+        "Noel"
+      ],
+      "template": "tr(@1/**,and_v(v:pk(@0/**),after(1736048000)))",
+      "policy": "or(pk(@1),and(pk(@0),after(1736048000)))"
+    },
+    {
+      "id": "ws1-recovery-time-06",
+      "family": "recovery-time",
+      "group": "ws1-recovery-time-06",
+      "request": "Can you describe this account as a Taproot wallet? Pia can always spend alone. Independently, Hugo can spend alone only once the spending transaction has a time-based locktime of at least 1737171200 Unix seconds. The owner remains unrestricted. Permit exactly those routes.",
+      "keys": [
+        "Hugo",
+        "Pia"
+      ],
+      "template": "tr(@1/**,and_v(v:pk(@0/**),after(1737171200)))",
+      "policy": "or(pk(@1),and(pk(@0),after(1737171200)))"
+    },
+    {
+      "id": "ws1-recovery-time-07",
+      "family": "recovery-time",
+      "group": "ws1-recovery-time-07",
+      "request": "Build a Taproot savings wallet. Bruno can always spend alone. Independently, Hugo can spend alone only once the spending transaction has a time-based locktime of at least 1738294400 Unix seconds. The owner remains unrestricted. Permit exactly those routes.",
+      "keys": [
+        "Hugo",
+        "Bruno"
+      ],
+      "template": "tr(@1/**,and_v(v:pk(@0/**),after(1738294400)))",
+      "policy": "or(pk(@1),and(pk(@0),after(1738294400)))"
+    },
+    {
+      "id": "ws1-immediate-team-00",
+      "family": "immediate-team",
+      "group": "ws1-immediate-team-00",
+      "request": "Please configure a Taproot reserve for Cora. Cora can always spend alone. A separate route requires signatures from at least 1 of Jin, Dion, Hugo, without Cora. Permit exactly those routes.",
+      "keys": [
+        "Jin",
+        "Dion",
+        "Hugo",
+        "Cora"
+      ],
+      "template": "tr(@3/**,multi_a(1,@0/**,@1/**,@2/**))",
+      "policy": "or(pk(@3),thresh(1,pk(@0),pk(@1),pk(@2)))"
+    },
+    {
+      "id": "ws1-immediate-team-01",
+      "family": "immediate-team",
+      "group": "ws1-immediate-team-01",
+      "request": "I need a Taproot wallet for this arrangement. Dion can always spend alone. A separate route requires signatures from at least 2 of Gus, Cora, Kira, without Dion. Permit exactly those routes.",
+      "keys": [
+        "Dion",
+        "Cora",
+        "Gus",
+        "Kira"
+      ],
+      "template": "tr(@0/**,multi_a(2,@2/**,@1/**,@3/**))",
+      "policy": "or(pk(@0),thresh(2,pk(@2),pk(@1),pk(@3)))"
+    },
+    {
+      "id": "ws1-immediate-team-02",
+      "family": "immediate-team",
+      "group": "ws1-immediate-team-02",
+      "request": "Can you describe this account as a Taproot wallet? Noel can always spend alone. A separate route requires signatures from at least 3 of Pia, Kira, Orla, without Noel. Permit exactly those routes.",
+      "keys": [
+        "Kira",
+        "Noel",
+        "Pia",
+        "Orla"
+      ],
+      "template": "tr(@1/**,multi_a(3,@2/**,@0/**,@3/**))",
+      "policy": "or(pk(@1),thresh(3,pk(@2),pk(@0),pk(@3)))"
+    },
+    {
+      "id": "ws1-immediate-team-03",
+      "family": "immediate-team",
+      "group": "ws1-immediate-team-03",
+      "request": "Build a Taproot savings wallet. Esme can always spend alone. A separate route requires signatures from at least 1 of Orla, Bruno, Dion, without Esme. Permit exactly those routes.",
+      "keys": [
+        "Esme",
+        "Orla",
+        "Bruno",
+        "Dion"
+      ],
+      "template": "tr(@0/**,multi_a(1,@1/**,@2/**,@3/**))",
+      "policy": "or(pk(@0),thresh(1,pk(@1),pk(@2),pk(@3)))"
+    },
+    {
+      "id": "ws1-immediate-team-04",
+      "family": "immediate-team",
+      "group": "ws1-immediate-team-04",
+      "request": "Please configure a Taproot reserve for Mara. Mara can always spend alone. A separate route requires signatures from at least 2 of Pia, Kira, Orla, without Mara. Permit exactly those routes.",
+      "keys": [
+        "Mara",
+        "Orla",
+        "Kira",
+        "Pia"
+      ],
+      "template": "tr(@0/**,multi_a(2,@3/**,@2/**,@1/**))",
+      "policy": "or(pk(@0),thresh(2,pk(@3),pk(@2),pk(@1)))"
+    },
+    {
+      "id": "ws1-immediate-team-05",
+      "family": "immediate-team",
+      "group": "ws1-immediate-team-05",
+      "request": "I need a Taproot wallet for this arrangement. Esme can always spend alone. A separate route requires signatures from at least 3 of Bruno, Ida, Noel, without Esme. Permit exactly those routes.",
+      "keys": [
+        "Noel",
+        "Bruno",
+        "Esme",
+        "Ida"
+      ],
+      "template": "tr(@2/**,multi_a(3,@1/**,@3/**,@0/**))",
+      "policy": "or(pk(@2),thresh(3,pk(@1),pk(@3),pk(@0)))"
+    },
+    {
+      "id": "ws1-immediate-team-06",
+      "family": "immediate-team",
+      "group": "ws1-immediate-team-06",
+      "request": "Can you describe this account as a Taproot wallet? Cora can always spend alone. A separate route requires signatures from at least 1 of Pia, Gus, Leon, without Cora. Permit exactly those routes.",
+      "keys": [
+        "Gus",
+        "Leon",
+        "Pia",
+        "Cora"
+      ],
+      "template": "tr(@3/**,multi_a(1,@2/**,@0/**,@1/**))",
+      "policy": "or(pk(@3),thresh(1,pk(@2),pk(@0),pk(@1)))"
+    },
+    {
+      "id": "ws1-immediate-team-07",
+      "family": "immediate-team",
+      "group": "ws1-immediate-team-07",
+      "request": "Build a Taproot savings wallet. Kira can always spend alone. A separate route requires signatures from at least 2 of Hugo, Ida, Dion, without Kira. Permit exactly those routes.",
+      "keys": [
+        "Hugo",
+        "Dion",
+        "Kira",
+        "Ida"
+      ],
+      "template": "tr(@2/**,multi_a(2,@0/**,@3/**,@1/**))",
+      "policy": "or(pk(@2),thresh(2,pk(@0),pk(@3),pk(@1)))"
+    },
+    {
+      "id": "ws1-delayed-team-00",
+      "family": "delayed-team",
+      "group": "ws1-delayed-team-00",
+      "request": "Please configure a Taproot reserve for Kira. Kira can always spend alone. A separate route requires signatures from at least 1 of Orla, Hugo, Noel, without Kira. That team must also wait until the output has aged at least 6 blocks since confirmation. Permit exactly those routes.",
+      "keys": [
+        "Orla",
+        "Hugo",
+        "Kira",
+        "Noel"
+      ],
+      "template": "tr(@2/**,and_v(v:multi_a(1,@0/**,@1/**,@3/**),older(6)))",
+      "policy": "or(pk(@2),and(thresh(1,pk(@0),pk(@1),pk(@3)),older(6)))"
+    },
+    {
+      "id": "ws1-delayed-team-01",
+      "family": "delayed-team",
+      "group": "ws1-delayed-team-01",
+      "request": "I need a Taproot wallet for this arrangement. Farah can always spend alone. A separate route requires signatures from at least 2 of Kira, Dion, Mara, without Farah. That team must also wait until the output has aged at least 12 blocks since confirmation. Permit exactly those routes.",
+      "keys": [
+        "Farah",
+        "Dion",
+        "Mara",
+        "Kira"
+      ],
+      "template": "tr(@0/**,and_v(v:multi_a(2,@3/**,@1/**,@2/**),older(12)))",
+      "policy": "or(pk(@0),and(thresh(2,pk(@3),pk(@1),pk(@2)),older(12)))"
+    },
+    {
+      "id": "ws1-delayed-team-02",
+      "family": "delayed-team",
+      "group": "ws1-delayed-team-02",
+      "request": "Can you describe this account as a Taproot wallet? Orla can always spend alone. A separate route requires signatures from at least 3 of Bruno, Pia, Noel, without Orla. That team must also wait until the output has aged at least 48 blocks since confirmation. Permit exactly those routes.",
+      "keys": [
+        "Pia",
+        "Orla",
+        "Noel",
+        "Bruno"
+      ],
+      "template": "tr(@1/**,and_v(v:multi_a(3,@3/**,@0/**,@2/**),older(48)))",
+      "policy": "or(pk(@1),and(thresh(3,pk(@3),pk(@0),pk(@2)),older(48)))"
+    },
+    {
+      "id": "ws1-delayed-team-03",
+      "family": "delayed-team",
+      "group": "ws1-delayed-team-03",
+      "request": "Build a Taproot savings wallet. Noel can always spend alone. A separate route requires signatures from at least 1 of Leon, Hugo, Cora, without Noel. That team must also wait until the output has aged at least 96 blocks since confirmation. Permit exactly those routes.",
+      "keys": [
+        "Noel",
+        "Hugo",
+        "Cora",
+        "Leon"
+      ],
+      "template": "tr(@0/**,and_v(v:multi_a(1,@3/**,@1/**,@2/**),older(96)))",
+      "policy": "or(pk(@0),and(thresh(1,pk(@3),pk(@1),pk(@2)),older(96)))"
+    },
+    {
+      "id": "ws1-delayed-team-04",
+      "family": "delayed-team",
+      "group": "ws1-delayed-team-04",
+      "request": "Please configure a Taproot reserve for Noel. Noel can always spend alone. A separate route requires signatures from at least 2 of Dion, Cora, Farah, without Noel. That team must also wait until the output has aged at least 192 blocks since confirmation. Permit exactly those routes.",
+      "keys": [
+        "Cora",
+        "Dion",
+        "Farah",
+        "Noel"
+      ],
+      "template": "tr(@3/**,and_v(v:multi_a(2,@1/**,@0/**,@2/**),older(192)))",
+      "policy": "or(pk(@3),and(thresh(2,pk(@1),pk(@0),pk(@2)),older(192)))"
+    },
+    {
+      "id": "ws1-delayed-team-05",
+      "family": "delayed-team",
+      "group": "ws1-delayed-team-05",
+      "request": "I need a Taproot wallet for this arrangement. Kira can always spend alone. A separate route requires signatures from at least 3 of Leon, Ida, Esme, without Kira. That team must also wait until the output has aged at least 432 blocks since confirmation. Permit exactly those routes.",
+      "keys": [
+        "Esme",
+        "Leon",
+        "Ida",
+        "Kira"
+      ],
+      "template": "tr(@3/**,and_v(v:multi_a(3,@1/**,@2/**,@0/**),older(432)))",
+      "policy": "or(pk(@3),and(thresh(3,pk(@1),pk(@2),pk(@0)),older(432)))"
+    },
+    {
+      "id": "ws1-delayed-team-06",
+      "family": "delayed-team",
+      "group": "ws1-delayed-team-06",
+      "request": "Can you describe this account as a Taproot wallet? Ida can always spend alone. A separate route requires signatures from at least 1 of Gus, Noel, Cora, without Ida. That team must also wait until the output has aged at least 864 blocks since confirmation. Permit exactly those routes.",
+      "keys": [
+        "Gus",
+        "Noel",
+        "Ida",
+        "Cora"
+      ],
+      "template": "tr(@2/**,and_v(v:multi_a(1,@0/**,@1/**,@3/**),older(864)))",
+      "policy": "or(pk(@2),and(thresh(1,pk(@0),pk(@1),pk(@3)),older(864)))"
+    },
+    {
+      "id": "ws1-delayed-team-07",
+      "family": "delayed-team",
+      "group": "ws1-delayed-team-07",
+      "request": "Build a Taproot savings wallet. Orla can always spend alone. A separate route requires signatures from at least 2 of Noel, Mara, Kira, without Orla. That team must also wait until the output has aged at least 2016 blocks since confirmation. Permit exactly those routes.",
+      "keys": [
+        "Orla",
+        "Noel",
+        "Mara",
+        "Kira"
+      ],
+      "template": "tr(@0/**,and_v(v:multi_a(2,@1/**,@2/**,@3/**),older(2016)))",
+      "policy": "or(pk(@0),and(thresh(2,pk(@1),pk(@2),pk(@3)),older(2016)))"
+    },
+    {
+      "id": "ws1-height-team-00",
+      "family": "height-team",
+      "group": "ws1-height-team-00",
+      "request": "Please configure a Taproot reserve for Bruno. Bruno can always spend alone. A separate route requires signatures from at least 1 of Mara, Gus, Leon, without Bruno. That team must also wait until the spending transaction has a block-height locktime of at least 840188. Permit exactly those routes.",
+      "keys": [
+        "Mara",
+        "Bruno",
+        "Leon",
+        "Gus"
+      ],
+      "template": "tr(@1/**,and_v(v:multi_a(1,@0/**,@3/**,@2/**),after(840188)))",
+      "policy": "or(pk(@1),and(thresh(1,pk(@0),pk(@3),pk(@2)),after(840188)))"
+    },
+    {
+      "id": "ws1-height-team-01",
+      "family": "height-team",
+      "group": "ws1-height-team-01",
+      "request": "I need a Taproot wallet for this arrangement. Ada can always spend alone. A separate route requires signatures from at least 2 of Dion, Leon, Noel, without Ada. That team must also wait until the spending transaction has a block-height locktime of at least 840445. Permit exactly those routes.",
+      "keys": [
+        "Leon",
+        "Dion",
+        "Noel",
+        "Ada"
+      ],
+      "template": "tr(@3/**,and_v(v:multi_a(2,@1/**,@0/**,@2/**),after(840445)))",
+      "policy": "or(pk(@3),and(thresh(2,pk(@1),pk(@0),pk(@2)),after(840445)))"
+    },
+    {
+      "id": "ws1-height-team-02",
+      "family": "height-team",
+      "group": "ws1-height-team-02",
+      "request": "Can you describe this account as a Taproot wallet? Jin can always spend alone. A separate route requires signatures from at least 3 of Mara, Pia, Ada, without Jin. That team must also wait until the spending transaction has a block-height locktime of at least 840702. Permit exactly those routes.",
+      "keys": [
+        "Mara",
+        "Jin",
+        "Ada",
+        "Pia"
+      ],
+      "template": "tr(@1/**,and_v(v:multi_a(3,@0/**,@3/**,@2/**),after(840702)))",
+      "policy": "or(pk(@1),and(thresh(3,pk(@0),pk(@3),pk(@2)),after(840702)))"
+    },
+    {
+      "id": "ws1-height-team-03",
+      "family": "height-team",
+      "group": "ws1-height-team-03",
+      "request": "Build a Taproot savings wallet. Esme can always spend alone. A separate route requires signatures from at least 1 of Ada, Leon, Noel, without Esme. That team must also wait until the spending transaction has a block-height locktime of at least 840959. Permit exactly those routes.",
+      "keys": [
+        "Noel",
+        "Esme",
+        "Leon",
+        "Ada"
+      ],
+      "template": "tr(@1/**,and_v(v:multi_a(1,@3/**,@2/**,@0/**),after(840959)))",
+      "policy": "or(pk(@1),and(thresh(1,pk(@3),pk(@2),pk(@0)),after(840959)))"
+    },
+    {
+      "id": "ws1-height-team-04",
+      "family": "height-team",
+      "group": "ws1-height-team-04",
+      "request": "Please configure a Taproot reserve for Dion. Dion can always spend alone. A separate route requires signatures from at least 2 of Mara, Ida, Cora, without Dion. That team must also wait until the spending transaction has a block-height locktime of at least 841216. Permit exactly those routes.",
+      "keys": [
+        "Ida",
+        "Dion",
+        "Cora",
+        "Mara"
+      ],
+      "template": "tr(@1/**,and_v(v:multi_a(2,@3/**,@0/**,@2/**),after(841216)))",
+      "policy": "or(pk(@1),and(thresh(2,pk(@3),pk(@0),pk(@2)),after(841216)))"
+    },
+    {
+      "id": "ws1-height-team-05",
+      "family": "height-team",
+      "group": "ws1-height-team-05",
+      "request": "I need a Taproot wallet for this arrangement. Farah can always spend alone. A separate route requires signatures from at least 3 of Mara, Hugo, Pia, without Farah. That team must also wait until the spending transaction has a block-height locktime of at least 841473. Permit exactly those routes.",
+      "keys": [
+        "Pia",
+        "Mara",
+        "Farah",
+        "Hugo"
+      ],
+      "template": "tr(@2/**,and_v(v:multi_a(3,@1/**,@3/**,@0/**),after(841473)))",
+      "policy": "or(pk(@2),and(thresh(3,pk(@1),pk(@3),pk(@0)),after(841473)))"
+    },
+    {
+      "id": "ws1-height-team-06",
+      "family": "height-team",
+      "group": "ws1-height-team-06",
+      "request": "Can you describe this account as a Taproot wallet? Gus can always spend alone. A separate route requires signatures from at least 1 of Leon, Kira, Jin, without Gus. That team must also wait until the spending transaction has a block-height locktime of at least 841730. Permit exactly those routes.",
+      "keys": [
+        "Jin",
+        "Leon",
+        "Gus",
+        "Kira"
+      ],
+      "template": "tr(@2/**,and_v(v:multi_a(1,@1/**,@3/**,@0/**),after(841730)))",
+      "policy": "or(pk(@2),and(thresh(1,pk(@1),pk(@3),pk(@0)),after(841730)))"
+    },
+    {
+      "id": "ws1-height-team-07",
+      "family": "height-team",
+      "group": "ws1-height-team-07",
+      "request": "Build a Taproot savings wallet. Farah can always spend alone. A separate route requires signatures from at least 2 of Pia, Ida, Hugo, without Farah. That team must also wait until the spending transaction has a block-height locktime of at least 841987. Permit exactly those routes.",
+      "keys": [
+        "Farah",
+        "Ida",
+        "Hugo",
+        "Pia"
+      ],
+      "template": "tr(@0/**,and_v(v:multi_a(2,@3/**,@1/**,@2/**),after(841987)))",
+      "policy": "or(pk(@0),and(thresh(2,pk(@3),pk(@1),pk(@2)),after(841987)))"
+    },
+    {
+      "id": "ws1-time-team-00",
+      "family": "time-team",
+      "group": "ws1-time-team-00",
+      "request": "Please configure a Taproot reserve for Hugo. Hugo can always spend alone. A separate route requires signatures from at least 1 of Leon, Dion, Cora, without Hugo. That team must also wait until the spending transaction has a time-based locktime of at least 1730777600 Unix seconds. Permit exactly those routes.",
+      "keys": [
+        "Leon",
+        "Cora",
+        "Dion",
+        "Hugo"
+      ],
+      "template": "tr(@3/**,and_v(v:multi_a(1,@0/**,@2/**,@1/**),after(1730777600)))",
+      "policy": "or(pk(@3),and(thresh(1,pk(@0),pk(@2),pk(@1)),after(1730777600)))"
+    },
+    {
+      "id": "ws1-time-team-01",
+      "family": "time-team",
+      "group": "ws1-time-team-01",
+      "request": "I need a Taproot wallet for this arrangement. Hugo can always spend alone. A separate route requires signatures from at least 2 of Noel, Mara, Dion, without Hugo. That team must also wait until the spending transaction has a time-based locktime of at least 1731900800 Unix seconds. Permit exactly those routes.",
+      "keys": [
+        "Hugo",
+        "Mara",
+        "Noel",
+        "Dion"
+      ],
+      "template": "tr(@0/**,and_v(v:multi_a(2,@2/**,@1/**,@3/**),after(1731900800)))",
+      "policy": "or(pk(@0),and(thresh(2,pk(@2),pk(@1),pk(@3)),after(1731900800)))"
+    },
+    {
+      "id": "ws1-time-team-02",
+      "family": "time-team",
+      "group": "ws1-time-team-02",
+      "request": "Can you describe this account as a Taproot wallet? Jin can always spend alone. A separate route requires signatures from at least 3 of Kira, Esme, Farah, without Jin. That team must also wait until the spending transaction has a time-based locktime of at least 1733024000 Unix seconds. Permit exactly those routes.",
+      "keys": [
+        "Kira",
+        "Jin",
+        "Farah",
+        "Esme"
+      ],
+      "template": "tr(@1/**,and_v(v:multi_a(3,@0/**,@3/**,@2/**),after(1733024000)))",
+      "policy": "or(pk(@1),and(thresh(3,pk(@0),pk(@3),pk(@2)),after(1733024000)))"
+    },
+    {
+      "id": "ws1-time-team-03",
+      "family": "time-team",
+      "group": "ws1-time-team-03",
+      "request": "Build a Taproot savings wallet. Bruno can always spend alone. A separate route requires signatures from at least 1 of Kira, Farah, Jin, without Bruno. That team must also wait until the spending transaction has a time-based locktime of at least 1734147200 Unix seconds. Permit exactly those routes.",
+      "keys": [
+        "Farah",
+        "Jin",
+        "Kira",
+        "Bruno"
+      ],
+      "template": "tr(@3/**,and_v(v:multi_a(1,@2/**,@0/**,@1/**),after(1734147200)))",
+      "policy": "or(pk(@3),and(thresh(1,pk(@2),pk(@0),pk(@1)),after(1734147200)))"
+    },
+    {
+      "id": "ws1-time-team-04",
+      "family": "time-team",
+      "group": "ws1-time-team-04",
+      "request": "Please configure a Taproot reserve for Esme. Esme can always spend alone. A separate route requires signatures from at least 2 of Ada, Noel, Farah, without Esme. That team must also wait until the spending transaction has a time-based locktime of at least 1735270400 Unix seconds. Permit exactly those routes.",
+      "keys": [
+        "Esme",
+        "Farah",
+        "Noel",
+        "Ada"
+      ],
+      "template": "tr(@0/**,and_v(v:multi_a(2,@3/**,@2/**,@1/**),after(1735270400)))",
+      "policy": "or(pk(@0),and(thresh(2,pk(@3),pk(@2),pk(@1)),after(1735270400)))"
+    },
+    {
+      "id": "ws1-time-team-05",
+      "family": "time-team",
+      "group": "ws1-time-team-05",
+      "request": "I need a Taproot wallet for this arrangement. Jin can always spend alone. A separate route requires signatures from at least 3 of Ada, Mara, Cora, without Jin. That team must also wait until the spending transaction has a time-based locktime of at least 1736393600 Unix seconds. Permit exactly those routes.",
+      "keys": [
+        "Cora",
+        "Ada",
+        "Mara",
+        "Jin"
+      ],
+      "template": "tr(@3/**,and_v(v:multi_a(3,@1/**,@2/**,@0/**),after(1736393600)))",
+      "policy": "or(pk(@3),and(thresh(3,pk(@1),pk(@2),pk(@0)),after(1736393600)))"
+    },
+    {
+      "id": "ws1-time-team-06",
+      "family": "time-team",
+      "group": "ws1-time-team-06",
+      "request": "Can you describe this account as a Taproot wallet? Pia can always spend alone. A separate route requires signatures from at least 1 of Gus, Bruno, Leon, without Pia. That team must also wait until the spending transaction has a time-based locktime of at least 1737516800 Unix seconds. Permit exactly those routes.",
+      "keys": [
+        "Gus",
+        "Leon",
+        "Pia",
+        "Bruno"
+      ],
+      "template": "tr(@2/**,and_v(v:multi_a(1,@0/**,@3/**,@1/**),after(1737516800)))",
+      "policy": "or(pk(@2),and(thresh(1,pk(@0),pk(@3),pk(@1)),after(1737516800)))"
+    },
+    {
+      "id": "ws1-time-team-07",
+      "family": "time-team",
+      "group": "ws1-time-team-07",
+      "request": "Build a Taproot savings wallet. Ida can always spend alone. A separate route requires signatures from at least 2 of Ada, Dion, Mara, without Ida. That team must also wait until the spending transaction has a time-based locktime of at least 1738640000 Unix seconds. Permit exactly those routes.",
+      "keys": [
+        "Ida",
+        "Dion",
+        "Ada",
+        "Mara"
+      ],
+      "template": "tr(@0/**,and_v(v:multi_a(2,@2/**,@1/**,@3/**),after(1738640000)))",
+      "policy": "or(pk(@0),and(thresh(2,pk(@2),pk(@1),pk(@3)),after(1738640000)))"
+    },
+    {
+      "id": "ws1-joint-approval-00",
+      "family": "joint-approval",
+      "group": "ws1-joint-approval-00",
+      "request": "Please configure a Taproot reserve for Noel. Noel can always spend alone. The second route needs both Farah and Bruno, without the owner. Permit exactly those routes.",
+      "keys": [
+        "Farah",
+        "Noel",
+        "Bruno"
+      ],
+      "template": "tr(@1/**,and_v(v:pk(@0/**),pk(@2/**)))",
+      "policy": "or(pk(@1),and(pk(@0),pk(@2)))"
+    },
+    {
+      "id": "ws1-joint-approval-01",
+      "family": "joint-approval",
+      "group": "ws1-joint-approval-01",
+      "request": "I need a Taproot wallet for this arrangement. Jin can always spend alone. The second route needs both Ada and Esme, without the owner. Permit exactly those routes.",
+      "keys": [
+        "Jin",
+        "Ada",
+        "Esme"
+      ],
+      "template": "tr(@0/**,and_v(v:pk(@1/**),pk(@2/**)))",
+      "policy": "or(pk(@0),and(pk(@1),pk(@2)))"
+    },
+    {
+      "id": "ws1-joint-approval-02",
+      "family": "joint-approval",
+      "group": "ws1-joint-approval-02",
+      "request": "Can you describe this account as a Taproot wallet? Mara can always spend alone. The second route needs both Cora and Esme, without the owner. Permit exactly those routes.",
+      "keys": [
+        "Cora",
+        "Mara",
+        "Esme"
+      ],
+      "template": "tr(@1/**,and_v(v:pk(@0/**),pk(@2/**)))",
+      "policy": "or(pk(@1),and(pk(@0),pk(@2)))"
+    },
+    {
+      "id": "ws1-joint-approval-03",
+      "family": "joint-approval",
+      "group": "ws1-joint-approval-03",
+      "request": "Build a Taproot savings wallet. Hugo can always spend alone. The second route needs both Kira and Ida, without the owner. Permit exactly those routes.",
+      "keys": [
+        "Kira",
+        "Hugo",
+        "Ida"
+      ],
+      "template": "tr(@1/**,and_v(v:pk(@0/**),pk(@2/**)))",
+      "policy": "or(pk(@1),and(pk(@0),pk(@2)))"
+    },
+    {
+      "id": "ws1-joint-approval-04",
+      "family": "joint-approval",
+      "group": "ws1-joint-approval-04",
+      "request": "Please configure a Taproot reserve for Gus. Gus can always spend alone. The second route needs both Dion and Orla, without the owner. Permit exactly those routes.",
+      "keys": [
+        "Gus",
+        "Orla",
+        "Dion"
+      ],
+      "template": "tr(@0/**,and_v(v:pk(@2/**),pk(@1/**)))",
+      "policy": "or(pk(@0),and(pk(@2),pk(@1)))"
+    },
+    {
+      "id": "ws1-joint-approval-05",
+      "family": "joint-approval",
+      "group": "ws1-joint-approval-05",
+      "request": "I need a Taproot wallet for this arrangement. Bruno can always spend alone. The second route needs both Esme and Farah, without the owner. Permit exactly those routes.",
+      "keys": [
+        "Farah",
+        "Bruno",
+        "Esme"
+      ],
+      "template": "tr(@1/**,and_v(v:pk(@2/**),pk(@0/**)))",
+      "policy": "or(pk(@1),and(pk(@2),pk(@0)))"
+    },
+    {
+      "id": "ws1-joint-approval-06",
+      "family": "joint-approval",
+      "group": "ws1-joint-approval-06",
+      "request": "Can you describe this account as a Taproot wallet? Mara can always spend alone. The second route needs both Farah and Orla, without the owner. Permit exactly those routes.",
+      "keys": [
+        "Farah",
+        "Orla",
+        "Mara"
+      ],
+      "template": "tr(@2/**,and_v(v:pk(@0/**),pk(@1/**)))",
+      "policy": "or(pk(@2),and(pk(@0),pk(@1)))"
+    },
+    {
+      "id": "ws1-joint-approval-07",
+      "family": "joint-approval",
+      "group": "ws1-joint-approval-07",
+      "request": "Build a Taproot savings wallet. Ida can always spend alone. The second route needs both Dion and Mara, without the owner. Permit exactly those routes.",
+      "keys": [
+        "Dion",
+        "Ida",
+        "Mara"
+      ],
+      "template": "tr(@1/**,and_v(v:pk(@0/**),pk(@2/**)))",
+      "policy": "or(pk(@1),and(pk(@0),pk(@2)))"
+    },
+    {
+      "id": "ws1-joint-councils-00",
+      "family": "joint-councils",
+      "group": "ws1-joint-councils-00",
+      "request": "Please configure a Taproot reserve for Hugo. Hugo can always spend alone. The alternative needs at least 1 of Orla, Leon, Kira, AND at least 1 of Ada and Noel. Each group must meet its own requirement; extra signatures in one group cannot replace approval from the other. Permit exactly those routes.",
+      "keys": [
+        "Hugo",
+        "Orla",
+        "Noel",
+        "Leon",
+        "Ada",
+        "Kira"
+      ],
+      "template": "tr(@0/**,and_v(v:multi_a(1,@1/**,@3/**,@5/**),multi_a(1,@4/**,@2/**)))",
+      "policy": "or(pk(@0),and(thresh(1,pk(@1),pk(@3),pk(@5)),thresh(1,pk(@4),pk(@2))))"
+    },
+    {
+      "id": "ws1-joint-councils-01",
+      "family": "joint-councils",
+      "group": "ws1-joint-councils-01",
+      "request": "I need a Taproot wallet for this arrangement. Dion can always spend alone. The alternative needs at least 2 of Bruno, Cora, Leon, AND at least 2 of Hugo and Ida. Each group must meet its own requirement; extra signatures in one group cannot replace approval from the other. Permit exactly those routes.",
+      "keys": [
+        "Leon",
+        "Bruno",
+        "Ida",
+        "Cora",
+        "Dion",
+        "Hugo"
+      ],
+      "template": "tr(@4/**,and_v(v:multi_a(2,@1/**,@3/**,@0/**),multi_a(2,@5/**,@2/**)))",
+      "policy": "or(pk(@4),and(thresh(2,pk(@1),pk(@3),pk(@0)),thresh(2,pk(@5),pk(@2))))"
+    },
+    {
+      "id": "ws1-joint-councils-02",
+      "family": "joint-councils",
+      "group": "ws1-joint-councils-02",
+      "request": "Can you describe this account as a Taproot wallet? Leon can always spend alone. The alternative needs at least 3 of Pia, Dion, Jin, AND at least 1 of Cora and Ada. Each group must meet its own requirement; extra signatures in one group cannot replace approval from the other. Permit exactly those routes.",
+      "keys": [
+        "Ada",
+        "Cora",
+        "Dion",
+        "Pia",
+        "Jin",
+        "Leon"
+      ],
+      "template": "tr(@5/**,and_v(v:multi_a(3,@3/**,@2/**,@4/**),multi_a(1,@1/**,@0/**)))",
+      "policy": "or(pk(@5),and(thresh(3,pk(@3),pk(@2),pk(@4)),thresh(1,pk(@1),pk(@0))))"
+    },
+    {
+      "id": "ws1-joint-councils-03",
+      "family": "joint-councils",
+      "group": "ws1-joint-councils-03",
+      "request": "Build a Taproot savings wallet. Noel can always spend alone. The alternative needs at least 1 of Jin, Mara, Orla, AND at least 2 of Ada and Gus. Each group must meet its own requirement; extra signatures in one group cannot replace approval from the other. Permit exactly those routes.",
+      "keys": [
+        "Jin",
+        "Orla",
+        "Gus",
+        "Ada",
+        "Noel",
+        "Mara"
+      ],
+      "template": "tr(@4/**,and_v(v:multi_a(1,@0/**,@5/**,@1/**),multi_a(2,@3/**,@2/**)))",
+      "policy": "or(pk(@4),and(thresh(1,pk(@0),pk(@5),pk(@1)),thresh(2,pk(@3),pk(@2))))"
+    },
+    {
+      "id": "ws1-joint-councils-04",
+      "family": "joint-councils",
+      "group": "ws1-joint-councils-04",
+      "request": "Please configure a Taproot reserve for Dion. Dion can always spend alone. The alternative needs at least 2 of Farah, Mara, Hugo, AND at least 1 of Ida and Orla. Each group must meet its own requirement; extra signatures in one group cannot replace approval from the other. Permit exactly those routes.",
+      "keys": [
+        "Orla",
+        "Mara",
+        "Ida",
+        "Farah",
+        "Dion",
+        "Hugo"
+      ],
+      "template": "tr(@4/**,and_v(v:multi_a(2,@3/**,@1/**,@5/**),multi_a(1,@2/**,@0/**)))",
+      "policy": "or(pk(@4),and(thresh(2,pk(@3),pk(@1),pk(@5)),thresh(1,pk(@2),pk(@0))))"
+    },
+    {
+      "id": "ws1-joint-councils-05",
+      "family": "joint-councils",
+      "group": "ws1-joint-councils-05",
+      "request": "I need a Taproot wallet for this arrangement. Hugo can always spend alone. The alternative needs at least 3 of Pia, Cora, Esme, AND at least 2 of Noel and Farah. Each group must meet its own requirement; extra signatures in one group cannot replace approval from the other. Permit exactly those routes.",
+      "keys": [
+        "Hugo",
+        "Cora",
+        "Esme",
+        "Pia",
+        "Noel",
+        "Farah"
+      ],
+      "template": "tr(@0/**,and_v(v:multi_a(3,@3/**,@1/**,@2/**),multi_a(2,@4/**,@5/**)))",
+      "policy": "or(pk(@0),and(thresh(3,pk(@3),pk(@1),pk(@2)),thresh(2,pk(@4),pk(@5))))"
+    },
+    {
+      "id": "ws1-joint-councils-06",
+      "family": "joint-councils",
+      "group": "ws1-joint-councils-06",
+      "request": "Can you describe this account as a Taproot wallet? Kira can always spend alone. The alternative needs at least 1 of Hugo, Esme, Orla, AND at least 1 of Cora and Noel. Each group must meet its own requirement; extra signatures in one group cannot replace approval from the other. Permit exactly those routes.",
+      "keys": [
+        "Orla",
+        "Cora",
+        "Esme",
+        "Hugo",
+        "Noel",
+        "Kira"
+      ],
+      "template": "tr(@5/**,and_v(v:multi_a(1,@3/**,@2/**,@0/**),multi_a(1,@1/**,@4/**)))",
+      "policy": "or(pk(@5),and(thresh(1,pk(@3),pk(@2),pk(@0)),thresh(1,pk(@1),pk(@4))))"
+    },
+    {
+      "id": "ws1-joint-councils-07",
+      "family": "joint-councils",
+      "group": "ws1-joint-councils-07",
+      "request": "Build a Taproot savings wallet. Bruno can always spend alone. The alternative needs at least 2 of Ida, Pia, Kira, AND at least 2 of Gus and Dion. Each group must meet its own requirement; extra signatures in one group cannot replace approval from the other. Permit exactly those routes.",
+      "keys": [
+        "Dion",
+        "Kira",
+        "Bruno",
+        "Gus",
+        "Ida",
+        "Pia"
+      ],
+      "template": "tr(@2/**,and_v(v:multi_a(2,@4/**,@5/**,@1/**),multi_a(2,@3/**,@0/**)))",
+      "policy": "or(pk(@2),and(thresh(2,pk(@4),pk(@5),pk(@1)),thresh(2,pk(@3),pk(@0))))"
+    },
+    {
+      "id": "ws1-alternative-recovery-00",
+      "family": "alternative-recovery",
+      "group": "ws1-alternative-recovery-00",
+      "request": "Please configure a Taproot reserve for Farah. Farah can always spend alone. Kira can also spend alone at any time. A third route requires at least 1 of Esme, Ida, Cora, and is available only when the output has aged at least 6 blocks since confirmation. The team does not need either immediate signer. Permit exactly those routes.",
+      "keys": [
+        "Cora",
+        "Kira",
+        "Esme",
+        "Farah",
+        "Ida"
+      ],
+      "template": "tr(@3/**,{pk(@1/**),and_v(v:multi_a(1,@2/**,@4/**,@0/**),older(6))})",
+      "policy": "or(pk(@3),or(pk(@1),and(thresh(1,pk(@2),pk(@4),pk(@0)),older(6))))"
+    },
+    {
+      "id": "ws1-alternative-recovery-01",
+      "family": "alternative-recovery",
+      "group": "ws1-alternative-recovery-01",
+      "request": "I need a Taproot wallet for this arrangement. Jin can always spend alone. Leon can also spend alone at any time. A third route requires at least 2 of Kira, Bruno, Hugo, and is available only when the output has aged at least 12 blocks since confirmation. The team does not need either immediate signer. Permit exactly those routes.",
+      "keys": [
+        "Hugo",
+        "Leon",
+        "Jin",
+        "Kira",
+        "Bruno"
+      ],
+      "template": "tr(@2/**,{pk(@1/**),and_v(v:multi_a(2,@3/**,@4/**,@0/**),older(12))})",
+      "policy": "or(pk(@2),or(pk(@1),and(thresh(2,pk(@3),pk(@4),pk(@0)),older(12))))"
+    },
+    {
+      "id": "ws1-alternative-recovery-02",
+      "family": "alternative-recovery",
+      "group": "ws1-alternative-recovery-02",
+      "request": "Can you describe this account as a Taproot wallet? Gus can always spend alone. Ida can also spend alone at any time. A third route requires at least 3 of Kira, Leon, Mara, and is available only when the output has aged at least 48 blocks since confirmation. The team does not need either immediate signer. Permit exactly those routes.",
+      "keys": [
+        "Kira",
+        "Leon",
+        "Mara",
+        "Gus",
+        "Ida"
+      ],
+      "template": "tr(@3/**,{pk(@4/**),and_v(v:multi_a(3,@0/**,@1/**,@2/**),older(48))})",
+      "policy": "or(pk(@3),or(pk(@4),and(thresh(3,pk(@0),pk(@1),pk(@2)),older(48))))"
+    },
+    {
+      "id": "ws1-alternative-recovery-03",
+      "family": "alternative-recovery",
+      "group": "ws1-alternative-recovery-03",
+      "request": "Build a Taproot savings wallet. Gus can always spend alone. Pia can also spend alone at any time. A third route requires at least 1 of Esme, Farah, Leon, and is available only when the output has aged at least 96 blocks since confirmation. The team does not need either immediate signer. Permit exactly those routes.",
+      "keys": [
+        "Farah",
+        "Leon",
+        "Pia",
+        "Gus",
+        "Esme"
+      ],
+      "template": "tr(@3/**,{pk(@2/**),and_v(v:multi_a(1,@4/**,@0/**,@1/**),older(96))})",
+      "policy": "or(pk(@3),or(pk(@2),and(thresh(1,pk(@4),pk(@0),pk(@1)),older(96))))"
+    },
+    {
+      "id": "ws1-alternative-recovery-04",
+      "family": "alternative-recovery",
+      "group": "ws1-alternative-recovery-04",
+      "request": "Please configure a Taproot reserve for Leon. Leon can always spend alone. Kira can also spend alone at any time. A third route requires at least 2 of Ida, Dion, Jin, and is available only when the output has aged at least 192 blocks since confirmation. The team does not need either immediate signer. Permit exactly those routes.",
+      "keys": [
+        "Ida",
+        "Jin",
+        "Dion",
+        "Kira",
+        "Leon"
+      ],
+      "template": "tr(@4/**,{pk(@3/**),and_v(v:multi_a(2,@0/**,@2/**,@1/**),older(192))})",
+      "policy": "or(pk(@4),or(pk(@3),and(thresh(2,pk(@0),pk(@2),pk(@1)),older(192))))"
+    },
+    {
+      "id": "ws1-alternative-recovery-05",
+      "family": "alternative-recovery",
+      "group": "ws1-alternative-recovery-05",
+      "request": "I need a Taproot wallet for this arrangement. Farah can always spend alone. Dion can also spend alone at any time. A third route requires at least 3 of Ada, Cora, Pia, and is available only when the output has aged at least 432 blocks since confirmation. The team does not need either immediate signer. Permit exactly those routes.",
+      "keys": [
+        "Pia",
+        "Dion",
+        "Cora",
+        "Farah",
+        "Ada"
+      ],
+      "template": "tr(@3/**,{pk(@1/**),and_v(v:multi_a(3,@4/**,@2/**,@0/**),older(432))})",
+      "policy": "or(pk(@3),or(pk(@1),and(thresh(3,pk(@4),pk(@2),pk(@0)),older(432))))"
+    },
+    {
+      "id": "ws1-alternative-recovery-06",
+      "family": "alternative-recovery",
+      "group": "ws1-alternative-recovery-06",
+      "request": "Can you describe this account as a Taproot wallet? Esme can always spend alone. Hugo can also spend alone at any time. A third route requires at least 1 of Ada, Kira, Ida, and is available only when the output has aged at least 864 blocks since confirmation. The team does not need either immediate signer. Permit exactly those routes.",
+      "keys": [
+        "Kira",
+        "Hugo",
+        "Ada",
+        "Ida",
+        "Esme"
+      ],
+      "template": "tr(@4/**,{pk(@1/**),and_v(v:multi_a(1,@2/**,@0/**,@3/**),older(864))})",
+      "policy": "or(pk(@4),or(pk(@1),and(thresh(1,pk(@2),pk(@0),pk(@3)),older(864))))"
+    },
+    {
+      "id": "ws1-alternative-recovery-07",
+      "family": "alternative-recovery",
+      "group": "ws1-alternative-recovery-07",
+      "request": "Build a Taproot savings wallet. Ida can always spend alone. Esme can also spend alone at any time. A third route requires at least 2 of Orla, Mara, Ada, and is available only when the output has aged at least 2016 blocks since confirmation. The team does not need either immediate signer. Permit exactly those routes.",
+      "keys": [
+        "Ada",
+        "Orla",
+        "Ida",
+        "Mara",
+        "Esme"
+      ],
+      "template": "tr(@2/**,{pk(@4/**),and_v(v:multi_a(2,@1/**,@3/**,@0/**),older(2016))})",
+      "policy": "or(pk(@2),or(pk(@4),and(thresh(2,pk(@1),pk(@3),pk(@0)),older(2016))))"
+    },
+    {
+      "id": "ws1-joint-delay-00",
+      "family": "joint-delay",
+      "group": "ws1-joint-delay-00",
+      "request": "Please configure a Taproot reserve for Jin. Jin can always spend alone. The second route needs both Esme and Hugo, without the owner. This joint route is available only once the output has aged at least 6 blocks since confirmation. Permit exactly those routes.",
+      "keys": [
+        "Jin",
+        "Esme",
+        "Hugo"
+      ],
+      "template": "tr(@0/**,and_v(v:and_v(v:pk(@1/**),pk(@2/**)),older(6)))",
+      "policy": "or(pk(@0),and(and(pk(@1),pk(@2)),older(6)))"
+    },
+    {
+      "id": "ws1-joint-delay-01",
+      "family": "joint-delay",
+      "group": "ws1-joint-delay-01",
+      "request": "I need a Taproot wallet for this arrangement. Orla can always spend alone. The second route needs both Gus and Hugo, without the owner. This joint route is available only once the output has aged at least 12 blocks since confirmation. Permit exactly those routes.",
+      "keys": [
+        "Hugo",
+        "Orla",
+        "Gus"
+      ],
+      "template": "tr(@1/**,and_v(v:and_v(v:pk(@2/**),pk(@0/**)),older(12)))",
+      "policy": "or(pk(@1),and(and(pk(@2),pk(@0)),older(12)))"
+    },
+    {
+      "id": "ws1-joint-delay-02",
+      "family": "joint-delay",
+      "group": "ws1-joint-delay-02",
+      "request": "Can you describe this account as a Taproot wallet? Bruno can always spend alone. The second route needs both Cora and Dion, without the owner. This joint route is available only once the output has aged at least 48 blocks since confirmation. Permit exactly those routes.",
+      "keys": [
+        "Dion",
+        "Cora",
+        "Bruno"
+      ],
+      "template": "tr(@2/**,and_v(v:and_v(v:pk(@1/**),pk(@0/**)),older(48)))",
+      "policy": "or(pk(@2),and(and(pk(@1),pk(@0)),older(48)))"
+    },
+    {
+      "id": "ws1-joint-delay-03",
+      "family": "joint-delay",
+      "group": "ws1-joint-delay-03",
+      "request": "Build a Taproot savings wallet. Mara can always spend alone. The second route needs both Gus and Leon, without the owner. This joint route is available only once the output has aged at least 96 blocks since confirmation. Permit exactly those routes.",
+      "keys": [
+        "Mara",
+        "Gus",
+        "Leon"
+      ],
+      "template": "tr(@0/**,and_v(v:and_v(v:pk(@1/**),pk(@2/**)),older(96)))",
+      "policy": "or(pk(@0),and(and(pk(@1),pk(@2)),older(96)))"
+    },
+    {
+      "id": "ws1-joint-delay-04",
+      "family": "joint-delay",
+      "group": "ws1-joint-delay-04",
+      "request": "Please configure a Taproot reserve for Bruno. Bruno can always spend alone. The second route needs both Farah and Esme, without the owner. This joint route is available only once the output has aged at least 192 blocks since confirmation. Permit exactly those routes.",
+      "keys": [
+        "Esme",
+        "Bruno",
+        "Farah"
+      ],
+      "template": "tr(@1/**,and_v(v:and_v(v:pk(@2/**),pk(@0/**)),older(192)))",
+      "policy": "or(pk(@1),and(and(pk(@2),pk(@0)),older(192)))"
+    },
+    {
+      "id": "ws1-joint-delay-05",
+      "family": "joint-delay",
+      "group": "ws1-joint-delay-05",
+      "request": "I need a Taproot wallet for this arrangement. Cora can always spend alone. The second route needs both Ada and Ida, without the owner. This joint route is available only once the output has aged at least 432 blocks since confirmation. Permit exactly those routes.",
+      "keys": [
+        "Ida",
+        "Ada",
+        "Cora"
+      ],
+      "template": "tr(@2/**,and_v(v:and_v(v:pk(@1/**),pk(@0/**)),older(432)))",
+      "policy": "or(pk(@2),and(and(pk(@1),pk(@0)),older(432)))"
+    },
+    {
+      "id": "ws1-joint-delay-06",
+      "family": "joint-delay",
+      "group": "ws1-joint-delay-06",
+      "request": "Can you describe this account as a Taproot wallet? Orla can always spend alone. The second route needs both Hugo and Ada, without the owner. This joint route is available only once the output has aged at least 864 blocks since confirmation. Permit exactly those routes.",
+      "keys": [
+        "Ada",
+        "Orla",
+        "Hugo"
+      ],
+      "template": "tr(@1/**,and_v(v:and_v(v:pk(@2/**),pk(@0/**)),older(864)))",
+      "policy": "or(pk(@1),and(and(pk(@2),pk(@0)),older(864)))"
+    },
+    {
+      "id": "ws1-joint-delay-07",
+      "family": "joint-delay",
+      "group": "ws1-joint-delay-07",
+      "request": "Build a Taproot savings wallet. Bruno can always spend alone. The second route needs both Gus and Orla, without the owner. This joint route is available only once the output has aged at least 2016 blocks since confirmation. Permit exactly those routes.",
+      "keys": [
+        "Gus",
+        "Bruno",
+        "Orla"
+      ],
+      "template": "tr(@1/**,and_v(v:and_v(v:pk(@0/**),pk(@2/**)),older(2016)))",
+      "policy": "or(pk(@1),and(and(pk(@0),pk(@2)),older(2016)))"
+    },
+    {
+      "id": "ws1-joint-height-00",
+      "family": "joint-height",
+      "group": "ws1-joint-height-00",
+      "request": "Please configure a Taproot reserve for Leon. Leon can always spend alone. The second route needs both Mara and Gus, without the owner. This joint route is available only once the spending transaction has a block-height locktime of at least 840254. Permit exactly those routes.",
+      "keys": [
+        "Mara",
+        "Gus",
+        "Leon"
+      ],
+      "template": "tr(@2/**,and_v(v:and_v(v:pk(@0/**),pk(@1/**)),after(840254)))",
+      "policy": "or(pk(@2),and(and(pk(@0),pk(@1)),after(840254)))"
+    },
+    {
+      "id": "ws1-joint-height-01",
+      "family": "joint-height",
+      "group": "ws1-joint-height-01",
+      "request": "I need a Taproot wallet for this arrangement. Cora can always spend alone. The second route needs both Pia and Gus, without the owner. This joint route is available only once the spending transaction has a block-height locktime of at least 840511. Permit exactly those routes.",
+      "keys": [
+        "Pia",
+        "Gus",
+        "Cora"
+      ],
+      "template": "tr(@2/**,and_v(v:and_v(v:pk(@0/**),pk(@1/**)),after(840511)))",
+      "policy": "or(pk(@2),and(and(pk(@0),pk(@1)),after(840511)))"
+    },
+    {
+      "id": "ws1-joint-height-02",
+      "family": "joint-height",
+      "group": "ws1-joint-height-02",
+      "request": "Can you describe this account as a Taproot wallet? Dion can always spend alone. The second route needs both Leon and Noel, without the owner. This joint route is available only once the spending transaction has a block-height locktime of at least 840768. Permit exactly those routes.",
+      "keys": [
+        "Noel",
+        "Leon",
+        "Dion"
+      ],
+      "template": "tr(@2/**,and_v(v:and_v(v:pk(@1/**),pk(@0/**)),after(840768)))",
+      "policy": "or(pk(@2),and(and(pk(@1),pk(@0)),after(840768)))"
+    },
+    {
+      "id": "ws1-joint-height-03",
+      "family": "joint-height",
+      "group": "ws1-joint-height-03",
+      "request": "Build a Taproot savings wallet. Orla can always spend alone. The second route needs both Farah and Hugo, without the owner. This joint route is available only once the spending transaction has a block-height locktime of at least 841025. Permit exactly those routes.",
+      "keys": [
+        "Hugo",
+        "Farah",
+        "Orla"
+      ],
+      "template": "tr(@2/**,and_v(v:and_v(v:pk(@1/**),pk(@0/**)),after(841025)))",
+      "policy": "or(pk(@2),and(and(pk(@1),pk(@0)),after(841025)))"
+    },
+    {
+      "id": "ws1-joint-height-04",
+      "family": "joint-height",
+      "group": "ws1-joint-height-04",
+      "request": "Please configure a Taproot reserve for Hugo. Hugo can always spend alone. The second route needs both Ada and Ida, without the owner. This joint route is available only once the spending transaction has a block-height locktime of at least 841282. Permit exactly those routes.",
+      "keys": [
+        "Hugo",
+        "Ada",
+        "Ida"
+      ],
+      "template": "tr(@0/**,and_v(v:and_v(v:pk(@1/**),pk(@2/**)),after(841282)))",
+      "policy": "or(pk(@0),and(and(pk(@1),pk(@2)),after(841282)))"
+    },
+    {
+      "id": "ws1-joint-height-05",
+      "family": "joint-height",
+      "group": "ws1-joint-height-05",
+      "request": "I need a Taproot wallet for this arrangement. Mara can always spend alone. The second route needs both Gus and Jin, without the owner. This joint route is available only once the spending transaction has a block-height locktime of at least 841539. Permit exactly those routes.",
+      "keys": [
+        "Jin",
+        "Mara",
+        "Gus"
+      ],
+      "template": "tr(@1/**,and_v(v:and_v(v:pk(@2/**),pk(@0/**)),after(841539)))",
+      "policy": "or(pk(@1),and(and(pk(@2),pk(@0)),after(841539)))"
+    },
+    {
+      "id": "ws1-joint-height-06",
+      "family": "joint-height",
+      "group": "ws1-joint-height-06",
+      "request": "Can you describe this account as a Taproot wallet? Dion can always spend alone. The second route needs both Ida and Kira, without the owner. This joint route is available only once the spending transaction has a block-height locktime of at least 841796. Permit exactly those routes.",
+      "keys": [
+        "Kira",
+        "Ida",
+        "Dion"
+      ],
+      "template": "tr(@2/**,and_v(v:and_v(v:pk(@1/**),pk(@0/**)),after(841796)))",
+      "policy": "or(pk(@2),and(and(pk(@1),pk(@0)),after(841796)))"
+    },
+    {
+      "id": "ws1-joint-height-07",
+      "family": "joint-height",
+      "group": "ws1-joint-height-07",
+      "request": "Build a Taproot savings wallet. Pia can always spend alone. The second route needs both Kira and Noel, without the owner. This joint route is available only once the spending transaction has a block-height locktime of at least 842053. Permit exactly those routes.",
+      "keys": [
+        "Noel",
+        "Kira",
+        "Pia"
+      ],
+      "template": "tr(@2/**,and_v(v:and_v(v:pk(@1/**),pk(@0/**)),after(842053)))",
+      "policy": "or(pk(@2),and(and(pk(@1),pk(@0)),after(842053)))"
+    },
+    {
+      "id": "ws1-joint-time-00",
+      "family": "joint-time",
+      "group": "ws1-joint-time-00",
+      "request": "Please configure a Taproot reserve for Esme. Esme can always spend alone. The second route needs both Jin and Gus, without the owner. This joint route is available only once the spending transaction has a time-based locktime of at least 1731296000 Unix seconds. Permit exactly those routes.",
+      "keys": [
+        "Esme",
+        "Gus",
+        "Jin"
+      ],
+      "template": "tr(@0/**,and_v(v:and_v(v:pk(@2/**),pk(@1/**)),after(1731296000)))",
+      "policy": "or(pk(@0),and(and(pk(@2),pk(@1)),after(1731296000)))"
+    },
+    {
+      "id": "ws1-joint-time-01",
+      "family": "joint-time",
+      "group": "ws1-joint-time-01",
+      "request": "I need a Taproot wallet for this arrangement. Hugo can always spend alone. The second route needs both Cora and Esme, without the owner. This joint route is available only once the spending transaction has a time-based locktime of at least 1732419200 Unix seconds. Permit exactly those routes.",
+      "keys": [
+        "Cora",
+        "Hugo",
+        "Esme"
+      ],
+      "template": "tr(@1/**,and_v(v:and_v(v:pk(@0/**),pk(@2/**)),after(1732419200)))",
+      "policy": "or(pk(@1),and(and(pk(@0),pk(@2)),after(1732419200)))"
+    },
+    {
+      "id": "ws1-joint-time-02",
+      "family": "joint-time",
+      "group": "ws1-joint-time-02",
+      "request": "Can you describe this account as a Taproot wallet? Farah can always spend alone. The second route needs both Jin and Mara, without the owner. This joint route is available only once the spending transaction has a time-based locktime of at least 1733542400 Unix seconds. Permit exactly those routes.",
+      "keys": [
+        "Jin",
+        "Mara",
+        "Farah"
+      ],
+      "template": "tr(@2/**,and_v(v:and_v(v:pk(@0/**),pk(@1/**)),after(1733542400)))",
+      "policy": "or(pk(@2),and(and(pk(@0),pk(@1)),after(1733542400)))"
+    },
+    {
+      "id": "ws1-joint-time-03",
+      "family": "joint-time",
+      "group": "ws1-joint-time-03",
+      "request": "Build a Taproot savings wallet. Farah can always spend alone. The second route needs both Noel and Kira, without the owner. This joint route is available only once the spending transaction has a time-based locktime of at least 1734665600 Unix seconds. Permit exactly those routes.",
+      "keys": [
+        "Kira",
+        "Farah",
+        "Noel"
+      ],
+      "template": "tr(@1/**,and_v(v:and_v(v:pk(@2/**),pk(@0/**)),after(1734665600)))",
+      "policy": "or(pk(@1),and(and(pk(@2),pk(@0)),after(1734665600)))"
+    },
+    {
+      "id": "ws1-joint-time-04",
+      "family": "joint-time",
+      "group": "ws1-joint-time-04",
+      "request": "Please configure a Taproot reserve for Bruno. Bruno can always spend alone. The second route needs both Kira and Noel, without the owner. This joint route is available only once the spending transaction has a time-based locktime of at least 1735788800 Unix seconds. Permit exactly those routes.",
+      "keys": [
+        "Noel",
+        "Bruno",
+        "Kira"
+      ],
+      "template": "tr(@1/**,and_v(v:and_v(v:pk(@2/**),pk(@0/**)),after(1735788800)))",
+      "policy": "or(pk(@1),and(and(pk(@2),pk(@0)),after(1735788800)))"
+    },
+    {
+      "id": "ws1-joint-time-05",
+      "family": "joint-time",
+      "group": "ws1-joint-time-05",
+      "request": "I need a Taproot wallet for this arrangement. Hugo can always spend alone. The second route needs both Orla and Gus, without the owner. This joint route is available only once the spending transaction has a time-based locktime of at least 1736912000 Unix seconds. Permit exactly those routes.",
+      "keys": [
+        "Hugo",
+        "Orla",
+        "Gus"
+      ],
+      "template": "tr(@0/**,and_v(v:and_v(v:pk(@1/**),pk(@2/**)),after(1736912000)))",
+      "policy": "or(pk(@0),and(and(pk(@1),pk(@2)),after(1736912000)))"
+    },
+    {
+      "id": "ws1-joint-time-06",
+      "family": "joint-time",
+      "group": "ws1-joint-time-06",
+      "request": "Can you describe this account as a Taproot wallet? Jin can always spend alone. The second route needs both Hugo and Ada, without the owner. This joint route is available only once the spending transaction has a time-based locktime of at least 1738035200 Unix seconds. Permit exactly those routes.",
+      "keys": [
+        "Ada",
+        "Hugo",
+        "Jin"
+      ],
+      "template": "tr(@2/**,and_v(v:and_v(v:pk(@1/**),pk(@0/**)),after(1738035200)))",
+      "policy": "or(pk(@2),and(and(pk(@1),pk(@0)),after(1738035200)))"
+    },
+    {
+      "id": "ws1-joint-time-07",
+      "family": "joint-time",
+      "group": "ws1-joint-time-07",
+      "request": "Build a Taproot savings wallet. Ada can always spend alone. The second route needs both Pia and Jin, without the owner. This joint route is available only once the spending transaction has a time-based locktime of at least 1739158400 Unix seconds. Permit exactly those routes.",
+      "keys": [
+        "Jin",
+        "Ada",
+        "Pia"
+      ],
+      "template": "tr(@1/**,and_v(v:and_v(v:pk(@2/**),pk(@0/**)),after(1739158400)))",
+      "policy": "or(pk(@1),and(and(pk(@2),pk(@0)),after(1739158400)))"
+    }
+  ]
+}

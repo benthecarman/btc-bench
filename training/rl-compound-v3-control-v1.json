@@ -1,0 +1,22 @@
+{
+  "data": "datasets/sft-compound-v3-rl-control-v1.jsonl",
+  "data_sha256": "0b2923afeedbb4f02857c4b5bc419449f79d2f12a7c4e69abd2c37f3e059a382",
+  "rows": 256,
+  "question_counts": {
+    "t1-human-composed-train-compound-v3-080": 16,
+    "t1-human-composed-train-compound-v2-166": 16,
+    "t1-human-composed-train-compound-v2-032": 16,
+    "t1-human-composed-train-compound-v3-072": 16,
+    "t1-human-composed-train-compound-v2-057": 24,
+    "t1-human-composed-train-compound-v2-076": 16,
+    "t1-human-composed-train-compound-v3-086": 16,
+    "t1-human-composed-train-compound-v3-049": 24,
+    "t1-human-composed-train-compound-v3-074": 24,
+    "t1-human-composed-train-compound-v3-027": 16,
+    "t1-human-composed-train-compound-v3-023": 16,
+    "t1-human-composed-train-compound-v3-085": 16,
+    "t1-human-composed-train-compound-v3-075": 24,
+    "t1-human-composed-train-compound-v3-015": 16
+  },
+  "rollout_source_sha256": "ff6b152977a5779c445787d274ace3835ec271abb5d9fc4e7e633e9ef5c52c95"
+}

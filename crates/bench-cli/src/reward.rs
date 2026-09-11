@@ -139,8 +139,28 @@ fn run_tool(req: ToolRequest) -> Result<serde_json::Value> {
 }
 
 #[derive(Deserialize)]
+#[serde(untagged)]
+enum RewardTask {
+    Wallet(WalletRewardTask),
+    Legacy(Fixture),
+}
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct WalletRewardTask {
+    task: WalletTag,
+    fixture: bench_wallet::WalletFixture,
+}
+
+#[derive(Deserialize)]
+enum WalletTag {
+    #[serde(rename = "wallet")]
+    Wallet,
+}
+
+#[derive(Deserialize)]
 struct RewardRequest {
-    task: Fixture,
+    task: RewardTask,
     answer: serde_json::Value,
     #[serde(default)]
     shaping: Option<Shaping>,
@@ -241,6 +261,32 @@ fn shape_script(graded: f64, c: &Components, s: &Shaping, floor_eligible: bool) 
 }
 
 fn grade_one(req: RewardRequest, default_shaping: &Shaping) -> Result<RewardResponse> {
+    if let RewardTask::Wallet(wallet) = &req.task {
+        let _ = &wallet.task;
+        // Wallet rewards are always binary. No syntax rung can reward an
+        // unsafe or incomplete contract, even when legacy shaping is enabled.
+        let text = match &req.answer {
+            serde_json::Value::String(s) => Some(s.as_str()),
+            v if v["task"] == "descriptor" => v["descriptor"].as_str(),
+            _ => None,
+        };
+        let result = bench_wallet::grade(&wallet.fixture, text.unwrap_or(""));
+        return Ok(RewardResponse {
+            task_id: result.task_id,
+            score: result.score,
+            shaped: result.score,
+            size_score: None,
+            reason: result.reason,
+            lint: vec![],
+            components: Components {
+                equivalent: result.score == 1.0,
+                ..Components::default()
+            },
+        });
+    }
+    let RewardTask::Legacy(task) = req.task else {
+        unreachable!()
+    };
     let answer = answer_from_value(req.answer)?;
     let shaping = match req.shaping {
         Some(s) => {
@@ -249,7 +295,7 @@ fn grade_one(req: RewardRequest, default_shaping: &Shaping) -> Result<RewardResp
         }
         None => *default_shaping,
     };
-    match (&req.task, &answer) {
+    match (&task, &answer) {
         (Fixture::Write(w), TaskAnswer::Script(a)) => {
             let r = grade_write(w, &a.script);
             let c = script_components(
@@ -532,13 +578,60 @@ mod tests {
     fn reward(answer: &str, shaping: Shaping) -> RewardResponse {
         grade_one(
             RewardRequest {
-                task: Fixture::Write(write_fixture()),
+                task: RewardTask::Legacy(Fixture::Write(write_fixture())),
                 answer: serde_json::Value::String(answer.into()),
                 shaping: Some(shaping),
             },
             &Shaping::default(),
         )
         .unwrap()
+    }
+
+    #[test]
+    fn wallet_dispatch_matches_offline_and_rejects_extra_spending_paths() {
+        let owner = "79be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798";
+        let backup = "c6047f9441ed7d6d3045406e95c07cd85c778e4b8cef3ca7abac09b95c709ee5";
+        let outsider = "f9308a019258c31049344f85f89d5229b531c845836f99b08601f113bce036f9";
+        let reference = format!("tr({owner},and_v(v:pk({backup}),older(144)))");
+        let fixture: bench_wallet::WalletFixture = serde_json::from_value(json!({
+            "id":"wallet-reward-test", "group":"test", "family":"test", "split":"training",
+            "output_kind":"concrete", "request":"", "spec_en":"", "keys":[],
+            "reference_template":"", "policy_template":"", "cleartext":[], "confusion_score":0,
+            "derivations":[{"is_change":false,"address_index":0,"descriptor":reference,
+              "policy":format!("or(pk({owner}),and(pk({backup}),older(144)))")}]
+        }))
+        .unwrap();
+        let shaping = Shaping {
+            parse: 0.1,
+            decode: 0.1,
+            agreement: 0.2,
+            ..Default::default()
+        };
+        for answer in [
+            reference.clone(),
+            format!("tr({owner},{{and_v(v:pk({backup}),older(144)),pk({outsider})}})"),
+            reference.replace("144", "143"),
+            "OP_0".into(),
+            "tr()".into(),
+        ] {
+            let offline = bench_wallet::grade(&fixture, &answer).score;
+            for value in [
+                json!(answer),
+                json!({"task":"descriptor","descriptor":answer}),
+            ] {
+                let request = serde_json::from_value(
+                    json!({"task":{"task":"wallet","fixture":fixture},"answer":value}),
+                )
+                .unwrap();
+                let result = grade_one(request, &shaping).unwrap();
+                assert_eq!(result.score, offline);
+                assert_eq!(result.shaped, offline);
+            }
+        }
+        let request = serde_json::from_value(json!({"task":{"task":"wallet","fixture":fixture},
+            "answer":{"task":"script","script":reference}}))
+        .unwrap();
+        assert_eq!(grade_one(request, &shaping).unwrap().score, 0.0);
     }
 
     #[test]
@@ -628,7 +721,7 @@ mod tests {
         let reward = |answer: &str| {
             grade_one(
                 RewardRequest {
-                    task: fixtures[0].clone(),
+                    task: RewardTask::Legacy(fixtures[0].clone()),
                     answer: serde_json::Value::String(answer.into()),
                     shaping: Some(shaping),
                 },
@@ -702,7 +795,7 @@ mod tests {
                 for structured in [false, true] {
                     let r = grade_one(
                         RewardRequest {
-                            task: fixture.clone(),
+                            task: RewardTask::Legacy(fixture.clone()),
                             answer: if structured {
                                 json!({"task": "script", "script": answer})
                             } else {
@@ -719,7 +812,7 @@ mod tests {
             }
             let r = grade_one(
                 RewardRequest {
-                    task: fixture.clone(),
+                    task: RewardTask::Legacy(fixture.clone()),
                     answer: json!("OP_1"),
                     shaping: None,
                 },

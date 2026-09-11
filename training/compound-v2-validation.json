@@ -1,0 +1,1240 @@
+{
+  "generator": "compound-validation-v1",
+  "purpose": "validation",
+  "seed": 20260911,
+  "exclusions": {
+    "evals/human-v2.json": "1ebf73d5b9f6ae21b33a9ab3b7d72ecfb764c0fc06e0958a1d2586d789868772",
+    "evals/composition-transfer-v1.json": "1e5683ffe9a56542ab5106276f7901affc600e0092b7a4db5eb27ae3f53c4ca1",
+    "training/compound-approvals-v1-samples.json": "2278c3e211c9e557c3d8d146ed4eff423b13c5145e18a422e9d600458ff582cb",
+    "datasets/composed-training-v1-source.json": "8e3b54dcccdaec6dcebb3bae71bac877c7313e3b548b842e753d3f496bc2c811",
+    "datasets/sft-train-think.jsonl": "22dd01f38fbc37705efc512542e61e5b30de4381f37709b422811d3bc7768e7f"
+  },
+  "coverage": {
+    "recognized_original_policy_traces": 14700
+  },
+  "cases": [
+    {
+      "kind": "write",
+      "context": "segwitv0",
+      "choose_context": true,
+      "keys": [
+        "Nora",
+        "Owen",
+        "Uma",
+        "Ada",
+        "Pia",
+        "Ben"
+      ],
+      "tier": "hard",
+      "policy": "thresh(2,or(pk($0),pk($1)),and(pk($2),after(959035)),and(pk($3),sha256($sha256)),and(pk($4),pk($5)))",
+      "prompt": "I am setting up a co-op wallet. A withdrawal should work with any 2 of these approvals. Please write the Bitcoin script.\n\n- Nora and Owen share one approval, which either person can give alone; both signing still counts once.\n- Uma gives one approval with a signature, but it needs the spending transaction to have block-height locktime at least 959035.\n- Ada gives one approval with a signature and the 32-byte secret matching SHA-256 $sha256; neither item alone is enough.\n- Pia and Ben share one approval and must both sign for it.\n\nEach item above counts as one approval. Extra signatures within an item do not add approvals. Allow every combination that meets these rules and no other spending route.",
+      "approval_types": [
+        "either",
+        "deadline",
+        "sha",
+        "pair"
+      ],
+      "relative_seconds": false,
+      "outer_threshold": 2,
+      "group": "composed-val-compound-v2-000",
+      "id": "composed-val-compound-v2-000",
+      "validation_bucket": "new arrangement"
+    },
+    {
+      "kind": "write",
+      "context": "segwitv0",
+      "choose_context": true,
+      "keys": [
+        "Nora",
+        "Vik",
+        "Eli",
+        "Uma",
+        "Mina",
+        "Alex"
+      ],
+      "tier": "hard",
+      "policy": "thresh(2,and(pk($0),hash160($hash160)),or(pk($1),pk($2)),and(pk($3),sha256($sha256)),or(pk($4),pk($5)))",
+      "prompt": "I am setting up a charity fund. A withdrawal should work with any 2 of these approvals. Please write the Bitcoin script.\n\n- Nora gives one approval with a signature and the 32-byte secret matching HASH160 $hash160; neither item alone is enough.\n- Vik and Eli share one approval, which either person can give alone; both signing still counts once.\n- Uma gives one approval with a signature and the 32-byte secret matching SHA-256 $sha256; neither item alone is enough.\n- Mina and Alex share one approval, which either person can give alone; both signing still counts once.\n\nEach item above counts as one approval. Extra signatures within an item do not add approvals. Allow every combination that meets these rules and no other spending route.",
+      "approval_types": [
+        "hash160",
+        "either",
+        "sha",
+        "either"
+      ],
+      "relative_seconds": false,
+      "outer_threshold": 2,
+      "group": "composed-val-compound-v2-001",
+      "id": "composed-val-compound-v2-001",
+      "validation_bucket": "new arrangement"
+    },
+    {
+      "kind": "write",
+      "context": "segwitv0",
+      "choose_context": true,
+      "keys": [
+        "Blair",
+        "Uma",
+        "Wren",
+        "Cleo",
+        "Ben"
+      ],
+      "tier": "hard",
+      "policy": "thresh(2,pk($0),thresh(2,pk($1),pk($2),pk($3)),and(pk($4),sha256($sha256)))",
+      "prompt": "I am setting up a community fund. A withdrawal should work with any 2 of these approvals. Please write the Bitcoin script.\n\n- Blair can give one approval with a signature.\n- Uma, Wren and Cleo form a committee; any two must sign to give its one approval.\n- Ben gives one approval with a signature and the 32-byte secret matching SHA-256 $sha256; neither item alone is enough.\n\nEach item above counts as one approval. Extra signatures within an item do not add approvals. Allow every combination that meets these rules and no other spending route.",
+      "approval_types": [
+        "person",
+        "committee",
+        "sha"
+      ],
+      "relative_seconds": true,
+      "outer_threshold": 2,
+      "group": "composed-val-compound-v2-002",
+      "id": "composed-val-compound-v2-002",
+      "validation_bucket": "new arrangement"
+    },
+    {
+      "kind": "write",
+      "context": "segwitv0",
+      "choose_context": true,
+      "keys": [
+        "Tess",
+        "Ben",
+        "Mina",
+        "Eli",
+        "Blair"
+      ],
+      "tier": "hard",
+      "policy": "thresh(2,pk($0),thresh(2,pk($1),pk($2),pk($3)),and(pk($4),older(144)))",
+      "prompt": "I am setting up a co-op wallet. A withdrawal should work with any 2 of these approvals. Please write the Bitcoin script.\n\n- Tess can give one approval with a signature.\n- Ben, Mina and Eli form a committee; any two must sign to give its one approval.\n- Blair gives one approval with a signature, but it can count only with the output to be at least 144 blocks old, measured from confirmation.\n\nEach item above counts as one approval. Extra signatures within an item do not add approvals. Allow every combination that meets these rules and no other spending route.",
+      "approval_types": [
+        "person",
+        "committee",
+        "delay"
+      ],
+      "relative_seconds": false,
+      "outer_threshold": 2,
+      "group": "composed-val-compound-v2-003",
+      "id": "composed-val-compound-v2-003",
+      "validation_bucket": "new arrangement"
+    },
+    {
+      "kind": "write",
+      "context": "segwitv0",
+      "choose_context": true,
+      "keys": [
+        "Eli",
+        "Wren",
+        "Tess",
+        "Blair"
+      ],
+      "tier": "medium",
+      "policy": "thresh(3,pk($0),and(pk($1),older(432)),pk($2),pk($3))",
+      "prompt": "Can you write the Bitcoin script for our community fund? We need at least 3 approvals to release the money.\n\n- Eli can give one approval with a signature.\n- Wren gives one approval with a signature, but it can count only with the output to be at least 432 blocks old, measured from confirmation.\n- Tess can give one approval with a signature.\n- Blair can give one approval with a signature.\n\nEach item above counts as one approval. Extra signatures within an item do not add approvals. Allow every combination that meets these rules and no other spending route.",
+      "approval_types": [
+        "person",
+        "delay",
+        "person",
+        "person"
+      ],
+      "relative_seconds": false,
+      "outer_threshold": 3,
+      "group": "composed-val-compound-v2-004",
+      "id": "composed-val-compound-v2-004",
+      "validation_bucket": "new arrangement"
+    },
+    {
+      "kind": "write",
+      "context": "segwitv0",
+      "choose_context": true,
+      "keys": [
+        "Ben",
+        "Uma",
+        "Pia",
+        "Eli",
+        "Vik",
+        "Owen"
+      ],
+      "tier": "hard",
+      "policy": "thresh(2,pk($0),and(pk($1),pk($2)),and(pk($3),pk($4)),pk($5))",
+      "prompt": "Can you write the Bitcoin script for our club reserve? We need at least 2 approvals to release the money.\n\n- Ben can give one approval with a signature.\n- Uma and Pia share one approval and must both sign for it.\n- Eli and Vik share one approval and must both sign for it.\n- Owen can give one approval with a signature.\n\nEach item above counts as one approval. Extra signatures within an item do not add approvals. Allow every combination that meets these rules and no other spending route.",
+      "approval_types": [
+        "person",
+        "pair",
+        "pair",
+        "person"
+      ],
+      "relative_seconds": false,
+      "outer_threshold": 2,
+      "group": "composed-val-compound-v2-005",
+      "id": "composed-val-compound-v2-005",
+      "validation_bucket": "new arrangement"
+    },
+    {
+      "kind": "write",
+      "context": "segwitv0",
+      "choose_context": true,
+      "keys": [
+        "Cleo",
+        "Casey",
+        "Nora",
+        "Owen",
+        "Eli",
+        "Pia"
+      ],
+      "tier": "hard",
+      "policy": "thresh(3,and(pk($0),older(4194306)),and(pk($1),older(4194308)),or(pk($2),pk($3)),or(pk($4),pk($5)))",
+      "prompt": "I am setting up a club reserve. A withdrawal should work with any 3 of these approvals. Please write the Bitcoin script.\n\n- Cleo gives one approval with a signature, but it can count only with a relative time lock of at least 1024 seconds, using 2 units of 512 seconds on Bitcoin's relative-lock clock.\n- Casey gives one approval with a signature, but it can count only with a relative time lock of at least 2048 seconds, using 4 units of 512 seconds on Bitcoin's relative-lock clock.\n- Nora and Owen share one approval, which either person can give alone; both signing still counts once.\n- Eli and Pia share one approval, which either person can give alone; both signing still counts once.\n\nEach item above counts as one approval. Extra signatures within an item do not add approvals. Allow every combination that meets these rules and no other spending route.",
+      "approval_types": [
+        "delay",
+        "delay",
+        "either",
+        "either"
+      ],
+      "relative_seconds": true,
+      "outer_threshold": 3,
+      "group": "composed-val-compound-v2-006",
+      "id": "composed-val-compound-v2-006",
+      "validation_bucket": "new arrangement"
+    },
+    {
+      "kind": "write",
+      "context": "segwitv0",
+      "choose_context": true,
+      "keys": [
+        "Mina",
+        "Wren",
+        "Ben"
+      ],
+      "tier": "medium",
+      "policy": "thresh(2,and(pk($0),hash160($hash160)),pk($1),pk($2))",
+      "prompt": "Can you write the Bitcoin script for our charity fund? We need at least 2 approvals to release the money.\n\n- Mina gives one approval with a signature and the 32-byte secret matching HASH160 $hash160; neither item alone is enough.\n- Wren can give one approval with a signature.\n- Ben can give one approval with a signature.\n\nEach item above counts as one approval. Extra signatures within an item do not add approvals. Allow every combination that meets these rules and no other spending route.",
+      "approval_types": [
+        "hash160",
+        "person",
+        "person"
+      ],
+      "relative_seconds": true,
+      "outer_threshold": 2,
+      "group": "composed-val-compound-v2-007",
+      "id": "composed-val-compound-v2-007",
+      "validation_bucket": "new arrangement"
+    },
+    {
+      "kind": "write",
+      "context": "segwitv0",
+      "choose_context": true,
+      "keys": [
+        "Owen",
+        "Mina",
+        "Pia",
+        "Nora"
+      ],
+      "tier": "medium",
+      "policy": "thresh(2,and(pk($0),hash160($hash160)),and(pk($1),pk($2)),and(pk($3),hash160($hash160)))",
+      "prompt": "Can you write the Bitcoin script for our co-op wallet? We need at least 2 approvals to release the money.\n\n- Owen gives one approval with a signature and the 32-byte secret matching HASH160 $hash160; neither item alone is enough.\n- Mina and Pia share one approval and must both sign for it.\n- Nora gives one approval with a signature and the 32-byte secret matching HASH160 $hash160; neither item alone is enough.\n\nEach item above counts as one approval. Extra signatures within an item do not add approvals. Allow every combination that meets these rules and no other spending route.",
+      "approval_types": [
+        "hash160",
+        "pair",
+        "hash160"
+      ],
+      "relative_seconds": false,
+      "outer_threshold": 2,
+      "group": "composed-val-compound-v2-008",
+      "id": "composed-val-compound-v2-008",
+      "validation_bucket": "new arrangement"
+    },
+    {
+      "kind": "write",
+      "context": "segwitv0",
+      "choose_context": true,
+      "keys": [
+        "Sam",
+        "Casey",
+        "Cleo",
+        "Vik",
+        "Blair"
+      ],
+      "tier": "hard",
+      "policy": "thresh(3,and(pk($0),sha256($sha256)),and(pk($1),sha256($sha256)),and(pk($2),pk($3)),pk($4))",
+      "prompt": "Can you write the Bitcoin script for our club reserve? We need at least 3 approvals to release the money.\n\n- Sam gives one approval with a signature and the 32-byte secret matching SHA-256 $sha256; neither item alone is enough.\n- Casey gives one approval with a signature and the 32-byte secret matching SHA-256 $sha256; neither item alone is enough.\n- Cleo and Vik share one approval and must both sign for it.\n- Blair can give one approval with a signature.\n\nEach item above counts as one approval. Extra signatures within an item do not add approvals. Allow every combination that meets these rules and no other spending route.",
+      "approval_types": [
+        "sha",
+        "sha",
+        "pair",
+        "person"
+      ],
+      "relative_seconds": true,
+      "outer_threshold": 3,
+      "group": "composed-val-compound-v2-009",
+      "id": "composed-val-compound-v2-009",
+      "validation_bucket": "new arrangement"
+    },
+    {
+      "kind": "write",
+      "context": "segwitv0",
+      "choose_context": true,
+      "keys": [
+        "Wren",
+        "Eli",
+        "Sam",
+        "Ben",
+        "Uma"
+      ],
+      "tier": "hard",
+      "policy": "thresh(3,and(pk($0),pk($1)),pk($2),and(pk($3),after(967868)),and(pk($4),after(940944)))",
+      "prompt": "Can you write the Bitcoin script for our co-op wallet? We need at least 3 approvals to release the money.\n\n- Wren and Eli share one approval and must both sign for it.\n- Sam can give one approval with a signature.\n- Ben gives one approval with a signature, but it needs the spending transaction to have block-height locktime at least 967868.\n- Uma gives one approval with a signature, but it needs the spending transaction to have block-height locktime at least 940944.\n\nEach item above counts as one approval. Extra signatures within an item do not add approvals. Allow every combination that meets these rules and no other spending route.",
+      "approval_types": [
+        "pair",
+        "person",
+        "deadline",
+        "deadline"
+      ],
+      "relative_seconds": false,
+      "outer_threshold": 3,
+      "group": "composed-val-compound-v2-010",
+      "id": "composed-val-compound-v2-010",
+      "validation_bucket": "new arrangement"
+    },
+    {
+      "kind": "write",
+      "context": "segwitv0",
+      "choose_context": true,
+      "keys": [
+        "Cleo",
+        "Ada",
+        "Casey",
+        "Vik",
+        "Nora"
+      ],
+      "tier": "hard",
+      "policy": "thresh(2,pk($0),and(pk($1),pk($2)),and(pk($3),older(4194308)),pk($4))",
+      "prompt": "I am setting up a charity fund. A withdrawal should work with any 2 of these approvals. Please write the Bitcoin script.\n\n- Cleo can give one approval with a signature.\n- Ada and Casey share one approval and must both sign for it.\n- Vik gives one approval with a signature, but it can count only with a relative time lock of at least 2048 seconds, using 4 units of 512 seconds on Bitcoin's relative-lock clock.\n- Nora can give one approval with a signature.\n\nEach item above counts as one approval. Extra signatures within an item do not add approvals. Allow every combination that meets these rules and no other spending route.",
+      "approval_types": [
+        "person",
+        "pair",
+        "delay",
+        "person"
+      ],
+      "relative_seconds": true,
+      "outer_threshold": 2,
+      "group": "composed-val-compound-v2-011",
+      "id": "composed-val-compound-v2-011",
+      "validation_bucket": "new arrangement"
+    },
+    {
+      "kind": "write",
+      "context": "segwitv0",
+      "choose_context": true,
+      "keys": [
+        "Casey",
+        "Alex",
+        "Mina",
+        "Sam"
+      ],
+      "tier": "medium",
+      "policy": "thresh(3,and(pk($0),after(940996)),pk($1),and(pk($2),hash160($hash160)),pk($3))",
+      "prompt": "Can you write the Bitcoin script for our community fund? We need at least 3 approvals to release the money.\n\n- Casey gives one approval with a signature, but it needs the spending transaction to have block-height locktime at least 940996.\n- Alex can give one approval with a signature.\n- Mina gives one approval with a signature and the 32-byte secret matching HASH160 $hash160; neither item alone is enough.\n- Sam can give one approval with a signature.\n\nEach item above counts as one approval. Extra signatures within an item do not add approvals. Allow every combination that meets these rules and no other spending route.",
+      "approval_types": [
+        "deadline",
+        "person",
+        "hash160",
+        "person"
+      ],
+      "relative_seconds": false,
+      "outer_threshold": 3,
+      "group": "composed-val-compound-v2-012",
+      "id": "composed-val-compound-v2-012",
+      "validation_bucket": "new arrangement"
+    },
+    {
+      "kind": "write",
+      "context": "segwitv0",
+      "choose_context": true,
+      "keys": [
+        "Mina",
+        "Sam",
+        "Wren",
+        "Ben"
+      ],
+      "tier": "medium",
+      "policy": "thresh(2,and(pk($0),older(4194308)),and(pk($1),older(4194308)),or(pk($2),pk($3)))",
+      "prompt": "I am setting up a co-op wallet. A withdrawal should work with any 2 of these approvals. Please write the Bitcoin script.\n\n- Mina gives one approval with a signature, but it can count only with a relative time lock of at least 2048 seconds, using 4 units of 512 seconds on Bitcoin's relative-lock clock.\n- Sam gives one approval with a signature, but it can count only with a relative time lock of at least 2048 seconds, using 4 units of 512 seconds on Bitcoin's relative-lock clock.\n- Wren and Ben share one approval, which either person can give alone; both signing still counts once.\n\nEach item above counts as one approval. Extra signatures within an item do not add approvals. Allow every combination that meets these rules and no other spending route.",
+      "approval_types": [
+        "delay",
+        "delay",
+        "either"
+      ],
+      "relative_seconds": true,
+      "outer_threshold": 2,
+      "group": "composed-val-compound-v2-013",
+      "id": "composed-val-compound-v2-013",
+      "validation_bucket": "new arrangement"
+    },
+    {
+      "kind": "write",
+      "context": "segwitv0",
+      "choose_context": true,
+      "keys": [
+        "Uma",
+        "Vik",
+        "Pia",
+        "Alex",
+        "Nora",
+        "Mina"
+      ],
+      "tier": "hard",
+      "policy": "thresh(3,and(pk($0),hash160($hash160)),and(pk($1),pk($2)),and(pk($3),hash160($hash160)),and(pk($4),pk($5)))",
+      "prompt": "I am setting up a community fund. A withdrawal should work with any 3 of these approvals. Please write the Bitcoin script.\n\n- Uma gives one approval with a signature and the 32-byte secret matching HASH160 $hash160; neither item alone is enough.\n- Vik and Pia share one approval and must both sign for it.\n- Alex gives one approval with a signature and the 32-byte secret matching HASH160 $hash160; neither item alone is enough.\n- Nora and Mina share one approval and must both sign for it.\n\nEach item above counts as one approval. Extra signatures within an item do not add approvals. Allow every combination that meets these rules and no other spending route.",
+      "approval_types": [
+        "hash160",
+        "pair",
+        "hash160",
+        "pair"
+      ],
+      "relative_seconds": true,
+      "outer_threshold": 3,
+      "group": "composed-val-compound-v2-014",
+      "id": "composed-val-compound-v2-014",
+      "validation_bucket": "new arrangement"
+    },
+    {
+      "kind": "write",
+      "context": "segwitv0",
+      "choose_context": true,
+      "keys": [
+        "Cleo",
+        "Tess",
+        "Blair",
+        "Vik"
+      ],
+      "tier": "medium",
+      "policy": "thresh(2,and(pk($0),pk($1)),and(pk($2),sha256($sha256)),and(pk($3),after(976175)))",
+      "prompt": "I am setting up a charity fund. A withdrawal should work with any 2 of these approvals. Please write the Bitcoin script.\n\n- Cleo and Tess share one approval and must both sign for it.\n- Blair gives one approval with a signature and the 32-byte secret matching SHA-256 $sha256; neither item alone is enough.\n- Vik gives one approval with a signature, but it needs the spending transaction to have block-height locktime at least 976175.\n\nEach item above counts as one approval. Extra signatures within an item do not add approvals. Allow every combination that meets these rules and no other spending route.",
+      "approval_types": [
+        "pair",
+        "sha",
+        "deadline"
+      ],
+      "relative_seconds": false,
+      "outer_threshold": 2,
+      "group": "composed-val-compound-v2-015",
+      "id": "composed-val-compound-v2-015",
+      "validation_bucket": "new arrangement"
+    },
+    {
+      "kind": "write",
+      "context": "segwitv0",
+      "choose_context": true,
+      "keys": [
+        "Sam",
+        "Casey",
+        "Ben",
+        "Mina",
+        "Cleo",
+        "Wren"
+      ],
+      "tier": "hard",
+      "policy": "thresh(2,or(pk($0),pk($1)),or(pk($2),pk($3)),and(pk($4),pk($5)))",
+      "prompt": "Can you write the Bitcoin script for our co-op wallet? We need at least 2 approvals to release the money.\n\n- Sam and Casey share one approval, which either person can give alone; both signing still counts once.\n- Ben and Mina share one approval, which either person can give alone; both signing still counts once.\n- Cleo and Wren share one approval and must both sign for it.\n\nEach item above counts as one approval. Extra signatures within an item do not add approvals. Allow every combination that meets these rules and no other spending route.",
+      "approval_types": [
+        "either",
+        "either",
+        "pair"
+      ],
+      "relative_seconds": false,
+      "outer_threshold": 2,
+      "group": "composed-val-compound-v2-016",
+      "id": "composed-val-compound-v2-016",
+      "validation_bucket": "new arrangement"
+    },
+    {
+      "kind": "write",
+      "context": "segwitv0",
+      "choose_context": true,
+      "keys": [
+        "Pia",
+        "Eli",
+        "Owen",
+        "Mina",
+        "Wren",
+        "Ben"
+      ],
+      "tier": "hard",
+      "policy": "thresh(3,or(pk($0),pk($1)),or(pk($2),pk($3)),pk($4),pk($5))",
+      "prompt": "Can you write the Bitcoin script for our co-op wallet? We need at least 3 approvals to release the money.\n\n- Pia and Eli share one approval, which either person can give alone; both signing still counts once.\n- Owen and Mina share one approval, which either person can give alone; both signing still counts once.\n- Wren can give one approval with a signature.\n- Ben can give one approval with a signature.\n\nEach item above counts as one approval. Extra signatures within an item do not add approvals. Allow every combination that meets these rules and no other spending route.",
+      "approval_types": [
+        "either",
+        "either",
+        "person",
+        "person"
+      ],
+      "relative_seconds": true,
+      "outer_threshold": 3,
+      "group": "composed-val-compound-v2-017",
+      "id": "composed-val-compound-v2-017",
+      "validation_bucket": "new arrangement"
+    },
+    {
+      "kind": "write",
+      "context": "segwitv0",
+      "choose_context": true,
+      "keys": [
+        "Wren",
+        "Casey",
+        "Eli",
+        "Ben"
+      ],
+      "tier": "medium",
+      "policy": "thresh(2,and(pk($0),after(941565)),and(pk($1),older(144)),and(pk($2),pk($3)))",
+      "prompt": "Can you write the Bitcoin script for our co-op wallet? We need at least 2 approvals to release the money.\n\n- Wren gives one approval with a signature, but it needs the spending transaction to have block-height locktime at least 941565.\n- Casey gives one approval with a signature, but it can count only with the output to be at least 144 blocks old, measured from confirmation.\n- Eli and Ben share one approval and must both sign for it.\n\nEach item above counts as one approval. Extra signatures within an item do not add approvals. Allow every combination that meets these rules and no other spending route.",
+      "approval_types": [
+        "deadline",
+        "delay",
+        "pair"
+      ],
+      "relative_seconds": false,
+      "outer_threshold": 2,
+      "group": "composed-val-compound-v2-018",
+      "id": "composed-val-compound-v2-018",
+      "validation_bucket": "new arrangement"
+    },
+    {
+      "kind": "write",
+      "context": "segwitv0",
+      "choose_context": true,
+      "keys": [
+        "Eli",
+        "Uma",
+        "Blair",
+        "Mina",
+        "Pia",
+        "Casey"
+      ],
+      "tier": "hard",
+      "policy": "thresh(3,and(pk($0),hash160($hash160)),and(pk($1),hash160($hash160)),pk($2),thresh(2,pk($3),pk($4),pk($5)))",
+      "prompt": "Can you write the Bitcoin script for our co-op wallet? We need at least 3 approvals to release the money.\n\n- Eli gives one approval with a signature and the 32-byte secret matching HASH160 $hash160; neither item alone is enough.\n- Uma gives one approval with a signature and the 32-byte secret matching HASH160 $hash160; neither item alone is enough.\n- Blair can give one approval with a signature.\n- Mina, Pia and Casey form a committee; any two must sign to give its one approval.\n\nEach item above counts as one approval. Extra signatures within an item do not add approvals. Allow every combination that meets these rules and no other spending route.",
+      "approval_types": [
+        "hash160",
+        "hash160",
+        "person",
+        "committee"
+      ],
+      "relative_seconds": false,
+      "outer_threshold": 3,
+      "group": "composed-val-compound-v2-019",
+      "id": "composed-val-compound-v2-019",
+      "validation_bucket": "new arrangement"
+    },
+    {
+      "kind": "write",
+      "context": "segwitv0",
+      "choose_context": true,
+      "keys": [
+        "Owen",
+        "Cleo",
+        "Sam",
+        "Nora",
+        "Alex"
+      ],
+      "tier": "hard",
+      "policy": "thresh(2,pk($0),or(pk($1),pk($2)),and(pk($3),hash160($hash160)),and(pk($4),sha256($sha256)))",
+      "prompt": "I am setting up a community fund. A withdrawal should work with any 2 of these approvals. Please write the Bitcoin script.\n\n- Owen can give one approval with a signature.\n- Cleo and Sam share one approval, which either person can give alone; both signing still counts once.\n- Nora gives one approval with a signature and the 32-byte secret matching HASH160 $hash160; neither item alone is enough.\n- Alex gives one approval with a signature and the 32-byte secret matching SHA-256 $sha256; neither item alone is enough.\n\nEach item above counts as one approval. Extra signatures within an item do not add approvals. Allow every combination that meets these rules and no other spending route.",
+      "approval_types": [
+        "person",
+        "either",
+        "hash160",
+        "sha"
+      ],
+      "relative_seconds": true,
+      "outer_threshold": 2,
+      "group": "composed-val-compound-v2-020",
+      "id": "composed-val-compound-v2-020",
+      "validation_bucket": "new arrangement"
+    },
+    {
+      "kind": "write",
+      "context": "segwitv0",
+      "choose_context": true,
+      "keys": [
+        "Alex",
+        "Sam",
+        "Ada",
+        "Mina",
+        "Nora",
+        "Casey"
+      ],
+      "tier": "hard",
+      "policy": "thresh(3,or(pk($0),pk($1)),and(pk($2),sha256($sha256)),or(pk($3),pk($4)),and(pk($5),older(288)))",
+      "prompt": "Can you write the Bitcoin script for our club reserve? We need at least 3 approvals to release the money.\n\n- Alex and Sam share one approval, which either person can give alone; both signing still counts once.\n- Ada gives one approval with a signature and the 32-byte secret matching SHA-256 $sha256; neither item alone is enough.\n- Mina and Nora share one approval, which either person can give alone; both signing still counts once.\n- Casey gives one approval with a signature, but it can count only with the output to be at least 288 blocks old, measured from confirmation.\n\nEach item above counts as one approval. Extra signatures within an item do not add approvals. Allow every combination that meets these rules and no other spending route.",
+      "approval_types": [
+        "either",
+        "sha",
+        "either",
+        "delay"
+      ],
+      "relative_seconds": false,
+      "outer_threshold": 3,
+      "group": "composed-val-compound-v2-021",
+      "id": "composed-val-compound-v2-021",
+      "validation_bucket": "new arrangement"
+    },
+    {
+      "kind": "write",
+      "context": "segwitv0",
+      "choose_context": true,
+      "keys": [
+        "Casey",
+        "Sam",
+        "Blair",
+        "Ben",
+        "Pia",
+        "Uma"
+      ],
+      "tier": "hard",
+      "policy": "thresh(3,thresh(2,pk($0),pk($1),pk($2)),and(pk($3),sha256($sha256)),pk($4),and(pk($5),older(96)))",
+      "prompt": "I am setting up a club reserve. A withdrawal should work with any 3 of these approvals. Please write the Bitcoin script.\n\n- Casey, Sam and Blair form a committee; any two must sign to give its one approval.\n- Ben gives one approval with a signature and the 32-byte secret matching SHA-256 $sha256; neither item alone is enough.\n- Pia can give one approval with a signature.\n- Uma gives one approval with a signature, but it can count only with the output to be at least 96 blocks old, measured from confirmation.\n\nEach item above counts as one approval. Extra signatures within an item do not add approvals. Allow every combination that meets these rules and no other spending route.",
+      "approval_types": [
+        "committee",
+        "sha",
+        "person",
+        "delay"
+      ],
+      "relative_seconds": false,
+      "outer_threshold": 3,
+      "group": "composed-val-compound-v2-022",
+      "id": "composed-val-compound-v2-022",
+      "validation_bucket": "new arrangement"
+    },
+    {
+      "kind": "write",
+      "context": "segwitv0",
+      "choose_context": true,
+      "keys": [
+        "Tess",
+        "Sam",
+        "Mina",
+        "Nora",
+        "Owen"
+      ],
+      "tier": "hard",
+      "policy": "thresh(3,and(pk($0),after(940544)),or(pk($1),pk($2)),and(pk($3),older(4194310)),pk($4))",
+      "prompt": "Can you write the Bitcoin script for our club reserve? We need at least 3 approvals to release the money.\n\n- Tess gives one approval with a signature, but it needs the spending transaction to have block-height locktime at least 940544.\n- Sam and Mina share one approval, which either person can give alone; both signing still counts once.\n- Nora gives one approval with a signature, but it can count only with a relative time lock of at least 3072 seconds, using 6 units of 512 seconds on Bitcoin's relative-lock clock.\n- Owen can give one approval with a signature.\n\nEach item above counts as one approval. Extra signatures within an item do not add approvals. Allow every combination that meets these rules and no other spending route.",
+      "approval_types": [
+        "deadline",
+        "either",
+        "delay",
+        "person"
+      ],
+      "relative_seconds": true,
+      "outer_threshold": 3,
+      "group": "composed-val-compound-v2-023",
+      "id": "composed-val-compound-v2-023",
+      "validation_bucket": "new arrangement"
+    },
+    {
+      "kind": "write",
+      "context": "segwitv0",
+      "choose_context": true,
+      "keys": [
+        "Tess",
+        "Pia",
+        "Sam",
+        "Uma",
+        "Casey"
+      ],
+      "tier": "hard",
+      "policy": "thresh(2,pk($0),and(thresh(2,pk($1),pk($2),pk($3)),older(288)),and(pk($4),after(954808)))",
+      "prompt": "I am setting up a community fund. A withdrawal should work with any 2 of these approvals. Please write the Bitcoin script.\n\n- Tess can give one approval with a signature.\n- Pia, Sam and Uma form a committee; any two must sign to give its one approval, and that approval also needs the output to be at least 288 blocks old, measured from confirmation.\n- Casey gives one approval with a signature, but it needs the spending transaction to have block-height locktime at least 954808.\n\nEach item above counts as one approval. Extra signatures within an item do not add approvals. Allow every combination that meets these rules and no other spending route.",
+      "approval_types": [
+        "person",
+        "delayed_committee",
+        "deadline"
+      ],
+      "relative_seconds": false,
+      "outer_threshold": 2,
+      "group": "composed-val-compound-v2-024",
+      "id": "composed-val-compound-v2-024",
+      "validation_bucket": "held-out gated teams"
+    },
+    {
+      "kind": "write",
+      "context": "segwitv0",
+      "choose_context": true,
+      "keys": [
+        "Casey",
+        "Ben",
+        "Ada",
+        "Tess",
+        "Mina"
+      ],
+      "tier": "hard",
+      "policy": "thresh(2,pk($0),or(pk($1),pk($2)),and(and(pk($3),pk($4)),sha256($sha256)))",
+      "prompt": "I am setting up a community fund. A withdrawal should work with any 2 of these approvals. Please write the Bitcoin script.\n\n- Casey can give one approval with a signature.\n- Ben and Ada share one approval, which either person can give alone; both signing still counts once.\n- Tess and Mina share one approval and must both sign for it; their joint approval also needs the 32-byte secret matching SHA-256 $sha256.\n\nEach item above counts as one approval. Extra signatures within an item do not add approvals. Allow every combination that meets these rules and no other spending route.",
+      "approval_types": [
+        "person",
+        "either",
+        "secret_pair"
+      ],
+      "relative_seconds": true,
+      "outer_threshold": 2,
+      "group": "composed-val-compound-v2-025",
+      "id": "composed-val-compound-v2-025",
+      "validation_bucket": "held-out gated teams"
+    },
+    {
+      "kind": "write",
+      "context": "segwitv0",
+      "choose_context": true,
+      "keys": [
+        "Mina",
+        "Tess",
+        "Pia",
+        "Eli",
+        "Alex"
+      ],
+      "tier": "hard",
+      "policy": "thresh(2,and(and(pk($0),pk($1)),older(4194316)),and(pk($2),hash160($hash160)),or(pk($3),pk($4)))",
+      "prompt": "Can you write the Bitcoin script for our community fund? We need at least 2 approvals to release the money.\n\n- Mina and Tess share one approval and must both sign for it; their joint approval also needs a relative time lock of at least 6144 seconds, using 12 units of 512 seconds on Bitcoin's relative-lock clock.\n- Pia gives one approval with a signature and the 32-byte secret matching HASH160 $hash160; neither item alone is enough.\n- Eli and Alex share one approval, which either person can give alone; both signing still counts once.\n\nEach item above counts as one approval. Extra signatures within an item do not add approvals. Allow every combination that meets these rules and no other spending route.",
+      "approval_types": [
+        "delayed_pair",
+        "hash160",
+        "either"
+      ],
+      "relative_seconds": true,
+      "outer_threshold": 2,
+      "group": "composed-val-compound-v2-026",
+      "id": "composed-val-compound-v2-026",
+      "validation_bucket": "held-out gated teams"
+    },
+    {
+      "kind": "write",
+      "context": "segwitv0",
+      "choose_context": true,
+      "keys": [
+        "Ada",
+        "Mina",
+        "Nora",
+        "Sam",
+        "Vik"
+      ],
+      "tier": "hard",
+      "policy": "thresh(2,and(pk($0),older(4194308)),and(pk($1),pk($2)),and(and(pk($3),pk($4)),sha256($sha256)))",
+      "prompt": "I am setting up a co-op wallet. A withdrawal should work with any 2 of these approvals. Please write the Bitcoin script.\n\n- Ada gives one approval with a signature, but it can count only with a relative time lock of at least 2048 seconds, using 4 units of 512 seconds on Bitcoin's relative-lock clock.\n- Mina and Nora share one approval and must both sign for it.\n- Sam and Vik share one approval and must both sign for it; their joint approval also needs the 32-byte secret matching SHA-256 $sha256.\n\nEach item above counts as one approval. Extra signatures within an item do not add approvals. Allow every combination that meets these rules and no other spending route.",
+      "approval_types": [
+        "delay",
+        "pair",
+        "secret_pair"
+      ],
+      "relative_seconds": true,
+      "outer_threshold": 2,
+      "group": "composed-val-compound-v2-027",
+      "id": "composed-val-compound-v2-027",
+      "validation_bucket": "held-out gated teams"
+    },
+    {
+      "kind": "write",
+      "context": "segwitv0",
+      "choose_context": true,
+      "keys": [
+        "Pia",
+        "Sam",
+        "Eli",
+        "Tess",
+        "Uma",
+        "Cleo"
+      ],
+      "tier": "hard",
+      "policy": "thresh(2,thresh(2,pk($0),pk($1),pk($2)),and(and(pk($3),pk($4)),older(288)),and(pk($5),sha256($sha256)))",
+      "prompt": "Can you write the Bitcoin script for our charity fund? We need at least 2 approvals to release the money.\n\n- Pia, Sam and Eli form a committee; any two must sign to give its one approval.\n- Tess and Uma share one approval and must both sign for it; their joint approval also needs the output to be at least 288 blocks old, measured from confirmation.\n- Cleo gives one approval with a signature and the 32-byte secret matching SHA-256 $sha256; neither item alone is enough.\n\nEach item above counts as one approval. Extra signatures within an item do not add approvals. Allow every combination that meets these rules and no other spending route.",
+      "approval_types": [
+        "committee",
+        "delayed_pair",
+        "sha"
+      ],
+      "relative_seconds": false,
+      "outer_threshold": 2,
+      "group": "composed-val-compound-v2-028",
+      "id": "composed-val-compound-v2-028",
+      "validation_bucket": "held-out gated teams"
+    },
+    {
+      "kind": "write",
+      "context": "segwitv0",
+      "choose_context": true,
+      "keys": [
+        "Blair",
+        "Ada",
+        "Vik",
+        "Eli",
+        "Casey"
+      ],
+      "tier": "hard",
+      "policy": "thresh(2,pk($0),and(thresh(2,pk($1),pk($2),pk($3)),older(4194306)),and(pk($4),sha256($sha256)))",
+      "prompt": "I am setting up a business reserve. A withdrawal should work with any 2 of these approvals. Please write the Bitcoin script.\n\n- Blair can give one approval with a signature.\n- Ada, Vik and Eli form a committee; any two must sign to give its one approval, and that approval also needs a relative time lock of at least 1024 seconds, using 2 units of 512 seconds on Bitcoin's relative-lock clock.\n- Casey gives one approval with a signature and the 32-byte secret matching SHA-256 $sha256; neither item alone is enough.\n\nEach item above counts as one approval. Extra signatures within an item do not add approvals. Allow every combination that meets these rules and no other spending route.",
+      "approval_types": [
+        "person",
+        "delayed_committee",
+        "sha"
+      ],
+      "relative_seconds": true,
+      "outer_threshold": 2,
+      "group": "composed-val-compound-v2-029",
+      "id": "composed-val-compound-v2-029",
+      "validation_bucket": "held-out gated teams"
+    },
+    {
+      "kind": "write",
+      "context": "segwitv0",
+      "choose_context": true,
+      "keys": [
+        "Mina",
+        "Owen",
+        "Wren",
+        "Casey",
+        "Eli"
+      ],
+      "tier": "hard",
+      "policy": "thresh(2,and(pk($0),after(937402)),and(and(pk($1),pk($2)),older(4194316)),and(pk($3),pk($4)))",
+      "prompt": "I am setting up a community fund. A withdrawal should work with any 2 of these approvals. Please write the Bitcoin script.\n\n- Mina gives one approval with a signature, but it needs the spending transaction to have block-height locktime at least 937402.\n- Owen and Wren share one approval and must both sign for it; their joint approval also needs a relative time lock of at least 6144 seconds, using 12 units of 512 seconds on Bitcoin's relative-lock clock.\n- Casey and Eli share one approval and must both sign for it.\n\nEach item above counts as one approval. Extra signatures within an item do not add approvals. Allow every combination that meets these rules and no other spending route.",
+      "approval_types": [
+        "deadline",
+        "delayed_pair",
+        "pair"
+      ],
+      "relative_seconds": true,
+      "outer_threshold": 2,
+      "group": "composed-val-compound-v2-030",
+      "id": "composed-val-compound-v2-030",
+      "validation_bucket": "held-out gated teams"
+    },
+    {
+      "kind": "write",
+      "context": "segwitv0",
+      "choose_context": true,
+      "keys": [
+        "Nora",
+        "Casey",
+        "Blair",
+        "Alex",
+        "Ada",
+        "Pia"
+      ],
+      "tier": "hard",
+      "policy": "thresh(2,and(and(pk($0),pk($1)),sha256($sha256)),pk($2),thresh(2,pk($3),pk($4),pk($5)))",
+      "prompt": "I am setting up a co-op wallet. A withdrawal should work with any 2 of these approvals. Please write the Bitcoin script.\n\n- Nora and Casey share one approval and must both sign for it; their joint approval also needs the 32-byte secret matching SHA-256 $sha256.\n- Blair can give one approval with a signature.\n- Alex, Ada and Pia form a committee; any two must sign to give its one approval.\n\nEach item above counts as one approval. Extra signatures within an item do not add approvals. Allow every combination that meets these rules and no other spending route.",
+      "approval_types": [
+        "secret_pair",
+        "person",
+        "committee"
+      ],
+      "relative_seconds": false,
+      "outer_threshold": 2,
+      "group": "composed-val-compound-v2-031",
+      "id": "composed-val-compound-v2-031",
+      "validation_bucket": "held-out gated teams"
+    },
+    {
+      "kind": "write",
+      "context": "segwitv0",
+      "choose_context": true,
+      "keys": [
+        "Blair",
+        "Sam",
+        "Wren",
+        "Ben",
+        "Pia"
+      ],
+      "tier": "hard",
+      "policy": "thresh(2,pk($0),and(pk($1),older(4194310)),and(thresh(2,pk($2),pk($3),pk($4)),older(4194310)))",
+      "prompt": "Can you write the Bitcoin script for our charity fund? We need at least 2 approvals to release the money.\n\n- Blair can give one approval with a signature.\n- Sam gives one approval with a signature, but it can count only with a relative time lock of at least 3072 seconds, using 6 units of 512 seconds on Bitcoin's relative-lock clock.\n- Wren, Ben and Pia form a committee; any two must sign to give its one approval, and that approval also needs a relative time lock of at least 3072 seconds, using 6 units of 512 seconds on Bitcoin's relative-lock clock.\n\nEach item above counts as one approval. Extra signatures within an item do not add approvals. Allow every combination that meets these rules and no other spending route.",
+      "approval_types": [
+        "person",
+        "delay",
+        "delayed_committee"
+      ],
+      "relative_seconds": true,
+      "outer_threshold": 2,
+      "group": "composed-val-compound-v2-032",
+      "id": "composed-val-compound-v2-032",
+      "validation_bucket": "held-out gated teams"
+    },
+    {
+      "kind": "write",
+      "context": "segwitv0",
+      "choose_context": true,
+      "keys": [
+        "Ben",
+        "Wren",
+        "Pia",
+        "Sam",
+        "Cleo"
+      ],
+      "tier": "hard",
+      "policy": "thresh(2,and(thresh(2,pk($0),pk($1),pk($2)),older(4194316)),pk($3),and(pk($4),hash160($hash160)))",
+      "prompt": "Can you write the Bitcoin script for our co-op wallet? We need at least 2 approvals to release the money.\n\n- Ben, Wren and Pia form a committee; any two must sign to give its one approval, and that approval also needs a relative time lock of at least 6144 seconds, using 12 units of 512 seconds on Bitcoin's relative-lock clock.\n- Sam can give one approval with a signature.\n- Cleo gives one approval with a signature and the 32-byte secret matching HASH160 $hash160; neither item alone is enough.\n\nEach item above counts as one approval. Extra signatures within an item do not add approvals. Allow every combination that meets these rules and no other spending route.",
+      "approval_types": [
+        "delayed_committee",
+        "person",
+        "hash160"
+      ],
+      "relative_seconds": true,
+      "outer_threshold": 2,
+      "group": "composed-val-compound-v2-033",
+      "id": "composed-val-compound-v2-033",
+      "validation_bucket": "held-out gated teams"
+    },
+    {
+      "kind": "write",
+      "context": "segwitv0",
+      "choose_context": true,
+      "keys": [
+        "Alex",
+        "Wren",
+        "Sam",
+        "Eli",
+        "Blair",
+        "Pia"
+      ],
+      "tier": "hard",
+      "policy": "thresh(2,and(pk($0),pk($1)),and(pk($2),pk($3)),and(and(pk($4),pk($5)),sha256($sha256)))",
+      "prompt": "I am setting up a charity fund. A withdrawal should work with any 2 of these approvals. Please write the Bitcoin script.\n\n- Alex and Wren share one approval and must both sign for it.\n- Sam and Eli share one approval and must both sign for it.\n- Blair and Pia share one approval and must both sign for it; their joint approval also needs the 32-byte secret matching SHA-256 $sha256.\n\nEach item above counts as one approval. Extra signatures within an item do not add approvals. Allow every combination that meets these rules and no other spending route.",
+      "approval_types": [
+        "pair",
+        "pair",
+        "secret_pair"
+      ],
+      "relative_seconds": false,
+      "outer_threshold": 2,
+      "group": "composed-val-compound-v2-034",
+      "id": "composed-val-compound-v2-034",
+      "validation_bucket": "held-out gated teams"
+    },
+    {
+      "kind": "write",
+      "context": "segwitv0",
+      "choose_context": true,
+      "keys": [
+        "Sam",
+        "Tess",
+        "Cleo",
+        "Eli",
+        "Vik",
+        "Casey"
+      ],
+      "tier": "hard",
+      "policy": "thresh(2,and(thresh(2,pk($0),pk($1),pk($2)),older(432)),or(pk($3),pk($4)),pk($5))",
+      "prompt": "Can you write the Bitcoin script for our community fund? We need at least 2 approvals to release the money.\n\n- Sam, Tess and Cleo form a committee; any two must sign to give its one approval, and that approval also needs the output to be at least 432 blocks old, measured from confirmation.\n- Eli and Vik share one approval, which either person can give alone; both signing still counts once.\n- Casey can give one approval with a signature.\n\nEach item above counts as one approval. Extra signatures within an item do not add approvals. Allow every combination that meets these rules and no other spending route.",
+      "approval_types": [
+        "delayed_committee",
+        "either",
+        "person"
+      ],
+      "relative_seconds": false,
+      "outer_threshold": 2,
+      "group": "composed-val-compound-v2-035",
+      "id": "composed-val-compound-v2-035",
+      "validation_bucket": "held-out gated teams"
+    },
+    {
+      "kind": "write",
+      "context": "segwitv0",
+      "choose_context": true,
+      "keys": [
+        "Casey",
+        "Vik",
+        "Cleo",
+        "Nora",
+        "Uma"
+      ],
+      "tier": "hard",
+      "policy": "thresh(2,and(and(pk($0),pk($1)),sha256($sha256)),and(pk($2),sha256($sha256)),and(pk($3),pk($4)))",
+      "prompt": "I am setting up a charity fund. A withdrawal should work with any 2 of these approvals. Please write the Bitcoin script.\n\n- Casey and Vik share one approval and must both sign for it; their joint approval also needs the 32-byte secret matching SHA-256 $sha256.\n- Cleo gives one approval with a signature and the 32-byte secret matching SHA-256 $sha256; neither item alone is enough.\n- Nora and Uma share one approval and must both sign for it.\n\nEach item above counts as one approval. Extra signatures within an item do not add approvals. Allow every combination that meets these rules and no other spending route.",
+      "approval_types": [
+        "secret_pair",
+        "sha",
+        "pair"
+      ],
+      "relative_seconds": true,
+      "outer_threshold": 2,
+      "group": "composed-val-compound-v2-036",
+      "id": "composed-val-compound-v2-036",
+      "validation_bucket": "held-out gated teams"
+    },
+    {
+      "kind": "write",
+      "context": "segwitv0",
+      "choose_context": true,
+      "keys": [
+        "Wren",
+        "Blair",
+        "Cleo",
+        "Owen"
+      ],
+      "tier": "medium",
+      "policy": "thresh(2,and(pk($0),sha256($sha256)),pk($1),and(and(pk($2),pk($3)),sha256($sha256)))",
+      "prompt": "Can you write the Bitcoin script for our charity fund? We need at least 2 approvals to release the money.\n\n- Wren gives one approval with a signature and the 32-byte secret matching SHA-256 $sha256; neither item alone is enough.\n- Blair can give one approval with a signature.\n- Cleo and Owen share one approval and must both sign for it; their joint approval also needs the 32-byte secret matching SHA-256 $sha256.\n\nEach item above counts as one approval. Extra signatures within an item do not add approvals. Allow every combination that meets these rules and no other spending route.",
+      "approval_types": [
+        "sha",
+        "person",
+        "secret_pair"
+      ],
+      "relative_seconds": true,
+      "outer_threshold": 2,
+      "group": "composed-val-compound-v2-037",
+      "id": "composed-val-compound-v2-037",
+      "validation_bucket": "held-out gated teams"
+    },
+    {
+      "kind": "write",
+      "context": "segwitv0",
+      "choose_context": true,
+      "keys": [
+        "Vik",
+        "Wren",
+        "Ada",
+        "Sam",
+        "Uma",
+        "Alex"
+      ],
+      "tier": "hard",
+      "policy": "thresh(2,and(pk($0),sha256($sha256)),or(pk($1),pk($2)),and(thresh(2,pk($3),pk($4),pk($5)),older(96)))",
+      "prompt": "Can you write the Bitcoin script for our co-op wallet? We need at least 2 approvals to release the money.\n\n- Vik gives one approval with a signature and the 32-byte secret matching SHA-256 $sha256; neither item alone is enough.\n- Wren and Ada share one approval, which either person can give alone; both signing still counts once.\n- Sam, Uma and Alex form a committee; any two must sign to give its one approval, and that approval also needs the output to be at least 96 blocks old, measured from confirmation.\n\nEach item above counts as one approval. Extra signatures within an item do not add approvals. Allow every combination that meets these rules and no other spending route.",
+      "approval_types": [
+        "sha",
+        "either",
+        "delayed_committee"
+      ],
+      "relative_seconds": false,
+      "outer_threshold": 2,
+      "group": "composed-val-compound-v2-038",
+      "id": "composed-val-compound-v2-038",
+      "validation_bucket": "held-out gated teams"
+    },
+    {
+      "kind": "write",
+      "context": "segwitv0",
+      "choose_context": true,
+      "keys": [
+        "Nora",
+        "Tess",
+        "Casey",
+        "Blair"
+      ],
+      "tier": "medium",
+      "policy": "thresh(2,pk($0),and(and(pk($1),pk($2)),older(96)),pk($3))",
+      "prompt": "Can you write the Bitcoin script for our business reserve? We need at least 2 approvals to release the money.\n\n- Nora can give one approval with a signature.\n- Tess and Casey share one approval and must both sign for it; their joint approval also needs the output to be at least 96 blocks old, measured from confirmation.\n- Blair can give one approval with a signature.\n\nEach item above counts as one approval. Extra signatures within an item do not add approvals. Allow every combination that meets these rules and no other spending route.",
+      "approval_types": [
+        "person",
+        "delayed_pair",
+        "person"
+      ],
+      "relative_seconds": false,
+      "outer_threshold": 2,
+      "group": "composed-val-compound-v2-039",
+      "id": "composed-val-compound-v2-039",
+      "validation_bucket": "held-out gated teams"
+    },
+    {
+      "kind": "write",
+      "context": "segwitv0",
+      "choose_context": true,
+      "keys": [
+        "Mina",
+        "Uma",
+        "Sam",
+        "Ada"
+      ],
+      "tier": "medium",
+      "policy": "thresh(2,pk($0),and(and(pk($1),pk($2)),sha256($sha256)),pk($3))",
+      "prompt": "Can you write the Bitcoin script for our community fund? We need at least 2 approvals to release the money.\n\n- Mina can give one approval with a signature.\n- Uma and Sam share one approval and must both sign for it; their joint approval also needs the 32-byte secret matching SHA-256 $sha256.\n- Ada can give one approval with a signature.\n\nEach item above counts as one approval. Extra signatures within an item do not add approvals. Allow every combination that meets these rules and no other spending route.",
+      "approval_types": [
+        "person",
+        "secret_pair",
+        "person"
+      ],
+      "relative_seconds": true,
+      "outer_threshold": 2,
+      "group": "composed-val-compound-v2-040",
+      "id": "composed-val-compound-v2-040",
+      "validation_bucket": "held-out gated teams"
+    },
+    {
+      "kind": "write",
+      "context": "segwitv0",
+      "choose_context": true,
+      "keys": [
+        "Ben",
+        "Blair",
+        "Sam",
+        "Eli",
+        "Cleo"
+      ],
+      "tier": "hard",
+      "policy": "thresh(2,pk($0),and(and(pk($1),pk($2)),older(4194310)),and(pk($3),pk($4)))",
+      "prompt": "Can you write the Bitcoin script for our charity fund? We need at least 2 approvals to release the money.\n\n- Ben can give one approval with a signature.\n- Blair and Sam share one approval and must both sign for it; their joint approval also needs a relative time lock of at least 3072 seconds, using 6 units of 512 seconds on Bitcoin's relative-lock clock.\n- Eli and Cleo share one approval and must both sign for it.\n\nEach item above counts as one approval. Extra signatures within an item do not add approvals. Allow every combination that meets these rules and no other spending route.",
+      "approval_types": [
+        "person",
+        "delayed_pair",
+        "pair"
+      ],
+      "relative_seconds": true,
+      "outer_threshold": 2,
+      "group": "composed-val-compound-v2-041",
+      "id": "composed-val-compound-v2-041",
+      "validation_bucket": "held-out gated teams"
+    },
+    {
+      "kind": "write",
+      "context": "segwitv0",
+      "choose_context": true,
+      "keys": [
+        "Wren",
+        "Cleo",
+        "Pia",
+        "Alex",
+        "Blair",
+        "Tess"
+      ],
+      "tier": "hard",
+      "policy": "thresh(2,and(thresh(2,pk($0),pk($1),pk($2)),older(4194308)),and(pk($3),pk($4)),and(pk($5),sha256($sha256)))",
+      "prompt": "I am setting up a charity fund. A withdrawal should work with any 2 of these approvals. Please write the Bitcoin script.\n\n- Wren, Cleo and Pia form a committee; any two must sign to give its one approval, and that approval also needs a relative time lock of at least 2048 seconds, using 4 units of 512 seconds on Bitcoin's relative-lock clock.\n- Alex and Blair share one approval and must both sign for it.\n- Tess gives one approval with a signature and the 32-byte secret matching SHA-256 $sha256; neither item alone is enough.\n\nEach item above counts as one approval. Extra signatures within an item do not add approvals. Allow every combination that meets these rules and no other spending route.",
+      "approval_types": [
+        "delayed_committee",
+        "pair",
+        "sha"
+      ],
+      "relative_seconds": true,
+      "outer_threshold": 2,
+      "group": "composed-val-compound-v2-042",
+      "id": "composed-val-compound-v2-042",
+      "validation_bucket": "held-out gated teams"
+    },
+    {
+      "kind": "write",
+      "context": "segwitv0",
+      "choose_context": true,
+      "keys": [
+        "Nora",
+        "Wren",
+        "Pia",
+        "Casey",
+        "Owen"
+      ],
+      "tier": "hard",
+      "policy": "thresh(2,pk($0),pk($1),and(thresh(2,pk($2),pk($3),pk($4)),older(432)))",
+      "prompt": "I am setting up a business reserve. A withdrawal should work with any 2 of these approvals. Please write the Bitcoin script.\n\n- Nora can give one approval with a signature.\n- Wren can give one approval with a signature.\n- Pia, Casey and Owen form a committee; any two must sign to give its one approval, and that approval also needs the output to be at least 432 blocks old, measured from confirmation.\n\nEach item above counts as one approval. Extra signatures within an item do not add approvals. Allow every combination that meets these rules and no other spending route.",
+      "approval_types": [
+        "person",
+        "person",
+        "delayed_committee"
+      ],
+      "relative_seconds": false,
+      "outer_threshold": 2,
+      "group": "composed-val-compound-v2-043",
+      "id": "composed-val-compound-v2-043",
+      "validation_bucket": "held-out gated teams"
+    },
+    {
+      "kind": "write",
+      "context": "segwitv0",
+      "choose_context": true,
+      "keys": [
+        "Owen",
+        "Vik",
+        "Alex",
+        "Pia",
+        "Ada",
+        "Sam"
+      ],
+      "tier": "hard",
+      "policy": "thresh(2,and(pk($0),pk($1)),and(and(pk($2),pk($3)),sha256($sha256)),or(pk($4),pk($5)))",
+      "prompt": "I am setting up a business reserve. A withdrawal should work with any 2 of these approvals. Please write the Bitcoin script.\n\n- Owen and Vik share one approval and must both sign for it.\n- Alex and Pia share one approval and must both sign for it; their joint approval also needs the 32-byte secret matching SHA-256 $sha256.\n- Ada and Sam share one approval, which either person can give alone; both signing still counts once.\n\nEach item above counts as one approval. Extra signatures within an item do not add approvals. Allow every combination that meets these rules and no other spending route.",
+      "approval_types": [
+        "pair",
+        "secret_pair",
+        "either"
+      ],
+      "relative_seconds": true,
+      "outer_threshold": 2,
+      "group": "composed-val-compound-v2-044",
+      "id": "composed-val-compound-v2-044",
+      "validation_bucket": "held-out gated teams"
+    },
+    {
+      "kind": "write",
+      "context": "segwitv0",
+      "choose_context": true,
+      "keys": [
+        "Tess",
+        "Vik",
+        "Alex",
+        "Wren"
+      ],
+      "tier": "medium",
+      "policy": "thresh(2,and(and(pk($0),pk($1)),older(144)),pk($2),and(pk($3),hash160($hash160)))",
+      "prompt": "Can you write the Bitcoin script for our business reserve? We need at least 2 approvals to release the money.\n\n- Tess and Vik share one approval and must both sign for it; their joint approval also needs the output to be at least 144 blocks old, measured from confirmation.\n- Alex can give one approval with a signature.\n- Wren gives one approval with a signature and the 32-byte secret matching HASH160 $hash160; neither item alone is enough.\n\nEach item above counts as one approval. Extra signatures within an item do not add approvals. Allow every combination that meets these rules and no other spending route.",
+      "approval_types": [
+        "delayed_pair",
+        "person",
+        "hash160"
+      ],
+      "relative_seconds": false,
+      "outer_threshold": 2,
+      "group": "composed-val-compound-v2-045",
+      "id": "composed-val-compound-v2-045",
+      "validation_bucket": "held-out gated teams"
+    },
+    {
+      "kind": "write",
+      "context": "segwitv0",
+      "choose_context": true,
+      "keys": [
+        "Ada",
+        "Pia",
+        "Vik",
+        "Cleo",
+        "Nora",
+        "Alex"
+      ],
+      "tier": "hard",
+      "policy": "thresh(2,and(thresh(2,pk($0),pk($1),pk($2)),older(288)),and(pk($3),pk($4)),and(pk($5),sha256($sha256)))",
+      "prompt": "I am setting up a club reserve. A withdrawal should work with any 2 of these approvals. Please write the Bitcoin script.\n\n- Ada, Pia and Vik form a committee; any two must sign to give its one approval, and that approval also needs the output to be at least 288 blocks old, measured from confirmation.\n- Cleo and Nora share one approval and must both sign for it.\n- Alex gives one approval with a signature and the 32-byte secret matching SHA-256 $sha256; neither item alone is enough.\n\nEach item above counts as one approval. Extra signatures within an item do not add approvals. Allow every combination that meets these rules and no other spending route.",
+      "approval_types": [
+        "delayed_committee",
+        "pair",
+        "sha"
+      ],
+      "relative_seconds": false,
+      "outer_threshold": 2,
+      "group": "composed-val-compound-v2-046",
+      "id": "composed-val-compound-v2-046",
+      "validation_bucket": "held-out gated teams"
+    },
+    {
+      "kind": "write",
+      "context": "segwitv0",
+      "choose_context": true,
+      "keys": [
+        "Ben",
+        "Mina",
+        "Vik",
+        "Ada",
+        "Owen",
+        "Blair"
+      ],
+      "tier": "hard",
+      "policy": "thresh(2,and(pk($0),pk($1)),and(and(pk($2),pk($3)),older(432)),or(pk($4),pk($5)))",
+      "prompt": "I am setting up a club reserve. A withdrawal should work with any 2 of these approvals. Please write the Bitcoin script.\n\n- Ben and Mina share one approval and must both sign for it.\n- Vik and Ada share one approval and must both sign for it; their joint approval also needs the output to be at least 432 blocks old, measured from confirmation.\n- Owen and Blair share one approval, which either person can give alone; both signing still counts once.\n\nEach item above counts as one approval. Extra signatures within an item do not add approvals. Allow every combination that meets these rules and no other spending route.",
+      "approval_types": [
+        "pair",
+        "delayed_pair",
+        "either"
+      ],
+      "relative_seconds": false,
+      "outer_threshold": 2,
+      "group": "composed-val-compound-v2-047",
+      "id": "composed-val-compound-v2-047",
+      "validation_bucket": "held-out gated teams"
+    }
+  ]
+}

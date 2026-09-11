@@ -1,0 +1,238 @@
+{
+  "generator": "composed-training-v1",
+  "purpose": "training",
+  "curriculum": "compound-approvals-v1-samples",
+  "authoring_method": "Hand-authored training requests in the composed-training source format",
+  "seed": 20260907,
+  "exclusions": {
+    "evals/human-v2.json": "1ebf73d5b9f6ae21b33a9ab3b7d72ecfb764c0fc06e0958a1d2586d789868772",
+    "evals/composition-transfer-v1.json": "1e5683ffe9a56542ab5106276f7901affc600e0092b7a4db5eb27ae3f53c4ca1"
+  },
+  "excluded_shapes": 165,
+  "evaluation_note": "This curriculum is informed by observed evaluation failures. Exact normalized evaluation shapes are excluded; the compound-approval family is intentionally taught, so later scores are not evidence of unseen-family transfer.",
+  "cases": [
+    {
+      "id": "composed-train-approval-joint-seat",
+      "group": "composed-train-approval-joint-seat",
+      "kind": "write",
+      "context": "segwitv0",
+      "choose_context": true,
+      "keys": [
+        "Nora",
+        "Eli",
+        "Sam",
+        "Tess"
+      ],
+      "tier": "medium",
+      "stage": 1,
+      "policy": "thresh(2,pk($0),pk($1),and(pk($2),pk($3)))",
+      "prompt": "Our club has three votes over its Bitcoin wallet: Nora has one, Eli has one, and Sam and Tess share the third. Sam and Tess must both sign to cast their shared vote. A withdrawal needs at least two votes. Sam and Tess together cannot withdraw without Nora or Eli. Can you write the Bitcoin script?",
+      "teaching_point": "Count the joint signature pair as one vote, not two."
+    },
+    {
+      "id": "composed-train-approval-delayed-seat",
+      "group": "composed-train-approval-delayed-seat",
+      "kind": "write",
+      "context": "segwitv0",
+      "choose_context": true,
+      "keys": [
+        "Mina",
+        "Owen",
+        "Pia"
+      ],
+      "tier": "medium",
+      "stage": 1,
+      "policy": "thresh(2,pk($0),pk($1),and(pk($2),older(96)))",
+      "prompt": "Mina, Owen and Pia look after our reserve wallet. Every spend needs two of them. Pia's signature can count only once the output is at least 96 blocks old, measured from confirmation. Mina and Owen can spend together immediately. Please write the Bitcoin script with exactly those rules.",
+      "teaching_point": "Apply the delay only to Pia; do not delay Mina and Owen."
+    },
+    {
+      "id": "composed-train-approval-delivery-seat",
+      "group": "composed-train-approval-delivery-seat",
+      "kind": "write",
+      "context": "segwitv0",
+      "choose_context": true,
+      "keys": [
+        "Buyer",
+        "Seller",
+        "Inspector"
+      ],
+      "tier": "medium",
+      "stage": 1,
+      "policy": "thresh(2,pk($0),pk($1),and(pk($2),sha256($sha256)))",
+      "prompt": "For this payment, the buyer and seller can settle together. Otherwise the inspector can join either one, but the inspector's approval also needs the 32-byte delivery secret whose SHA-256 is $sha256. Nobody can spend alone, and the secret without the inspector's signature does not count as an approval. Give me the Bitcoin script.",
+      "teaching_point": "Keep the secret attached to the inspector approval."
+    },
+    {
+      "id": "composed-train-approval-three-partnerships",
+      "group": "composed-train-approval-three-partnerships",
+      "kind": "write",
+      "context": "segwitv0",
+      "choose_context": true,
+      "keys": [
+        "North1",
+        "North2",
+        "South1",
+        "South2",
+        "West1",
+        "West2",
+        "West3"
+      ],
+      "tier": "medium",
+      "stage": 2,
+      "policy": "thresh(2,and(pk($0),pk($1)),and(pk($2),pk($3)),and(pk($4),and(pk($5),pk($6))))",
+      "prompt": "Three small partnerships share a Bitcoin reserve: North, South and West. North and South each have two partners; West has three. All partners in a partnership must sign for it to approve. Any two partnerships can release the funds. One signature from each of the three partnerships must not be enough. Please write the Bitcoin script.",
+      "teaching_point": "Count complete partnerships, even when their sizes differ."
+    },
+    {
+      "id": "composed-train-approval-chair-delegate",
+      "group": "composed-train-approval-chair-delegate",
+      "kind": "write",
+      "context": "segwitv0",
+      "choose_context": true,
+      "keys": [
+        "Chair",
+        "Deputy",
+        "Secretary",
+        "Treasurer",
+        "Auditor"
+      ],
+      "tier": "medium",
+      "stage": 2,
+      "policy": "thresh(2,and(pk($0),or(pk($1),pk($2))),pk($3),and(pk($4),sha256($sha256)))",
+      "prompt": "Our nonprofit needs two of three approvals to spend. The board approval needs the chair plus either the deputy or secretary; the chair signing with both the deputy and secretary still gives only one board approval. The treasurer can give the second kind of approval alone. The auditor can give the third with their signature and the 32-byte secret matching SHA-256 $sha256. Can you write the Bitcoin script?",
+      "teaching_point": "Keep an either/or choice inside one approval, rather than counting it twice."
+    },
+    {
+      "id": "composed-train-approval-two-teams-delayed-person",
+      "group": "composed-train-approval-two-teams-delayed-person",
+      "kind": "write",
+      "context": "segwitv0",
+      "choose_context": true,
+      "keys": [
+        "Legal1",
+        "Legal2",
+        "Finance1",
+        "Finance2",
+        "Trustee"
+      ],
+      "tier": "medium",
+      "stage": 2,
+      "policy": "thresh(2,and(pk($0),pk($1)),and(pk($2),pk($3)),and(pk($4),older(288)))",
+      "prompt": "We want two approvals for a payment: our legal team, our finance team, or our trustee. Each team has two keys and must provide both signatures to approve. The trustee uses one signature, but it can count only when the output is at least 288 blocks old. The two teams can approve together immediately. Give me the Bitcoin script.",
+      "teaching_point": "A team is one approval; its members cannot replace the trustee or another team."
+    },
+    {
+      "id": "composed-train-approval-separate-delays",
+      "group": "composed-train-approval-separate-delays",
+      "kind": "write",
+      "context": "segwitv0",
+      "choose_context": true,
+      "keys": [
+        "Ada",
+        "Ben",
+        "Cleo"
+      ],
+      "tier": "hard",
+      "stage": 3,
+      "policy": "thresh(2,and(pk($0),older(48)),and(pk($1),older(144)),and(pk($2),sha256($sha256)))",
+      "prompt": "Ada, Ben and Cleo each have a vote on this Bitcoin reserve. We need any two votes. Ada's signature can count once the output is at least 48 blocks old; Ben's needs at least 144 blocks. Cleo can approve without a delay, but her signature must come with the 32-byte secret matching SHA-256 $sha256. Please write the script. All ages are measured from confirmation.",
+      "teaching_point": "Preserve separate conditions on each vote, including the earlier Ada-plus-Cleo path."
+    },
+    {
+      "id": "composed-train-approval-committee-custodian-trustee",
+      "group": "composed-train-approval-committee-custodian-trustee",
+      "kind": "write",
+      "context": "segwitv0",
+      "choose_context": true,
+      "keys": [
+        "Committee1",
+        "Committee2",
+        "Committee3",
+        "Custodian",
+        "Trustee"
+      ],
+      "tier": "hard",
+      "stage": 3,
+      "policy": "thresh(2,thresh(2,pk($0),pk($1),pk($2)),and(pk($3),hash160($hash160)),and(pk($4),after(991250)))",
+      "prompt": "Two of these three parties must approve a withdrawal: the committee, the custodian, or the trustee. The committee needs two of its three members to sign and counts as one party. The custodian needs a signature plus the 32-byte secret matching HASH160 $hash160. The trustee needs a signature and a spending transaction with block-height locktime at least 991250. Write the Bitcoin script; there should be no other way to spend.",
+      "teaching_point": "A committee quorum remains one outer vote; preserve the hash and absolute lock."
+    },
+    {
+      "id": "composed-train-approval-relative-time-votes",
+      "group": "composed-train-approval-relative-time-votes",
+      "kind": "write",
+      "context": "segwitv0",
+      "choose_context": true,
+      "keys": [
+        "Alex",
+        "Blair",
+        "Casey"
+      ],
+      "tier": "hard",
+      "stage": 3,
+      "policy": "thresh(2,and(pk($0),older(4194306)),and(pk($1),older(4194310)),pk($2))",
+      "prompt": "Alex, Blair and Casey manage this reserve, and any two must sign to spend. Alex's signature can count only after a relative time lock of at least 1024 seconds, and Blair's after at least 3072 seconds. These are two and six 512-second units on Bitcoin's relative-lock clock. Casey's signature has no time condition. Please write the Bitcoin script.",
+      "teaching_point": "Use relative-time units, not blocks, and retain each signer's own minimum."
+    },
+    {
+      "id": "composed-train-approval-five-votes-2",
+      "group": "composed-train-approval-five-votes",
+      "kind": "write",
+      "context": "segwitv0",
+      "choose_context": true,
+      "keys": [
+        "Founder",
+        "Treasurer",
+        "North1",
+        "North2",
+        "South1",
+        "South2",
+        "Trustee"
+      ],
+      "tier": "hard",
+      "stage": 4,
+      "policy": "thresh(2,pk($0),pk($1),and(pk($2),pk($3)),and(pk($4),pk($5)),and(pk($6),older(432)))",
+      "prompt": "Our reserve has five votes: the founder, the treasurer, the North team, the South team, and the trustee. Each team has two members who must both sign to cast its one vote. The founder and treasurer each use one signature. The trustee's signature counts only once the output is at least 432 blocks old. A withdrawal needs at least 2 of the five votes. Please write the Bitcoin script. Extra votes are fine, but extra members of one team do not create extra votes.",
+      "teaching_point": "Change the outer vote count while keeping the groups and their conditions intact."
+    },
+    {
+      "id": "composed-train-approval-five-votes-3",
+      "group": "composed-train-approval-five-votes",
+      "kind": "write",
+      "context": "segwitv0",
+      "choose_context": true,
+      "keys": [
+        "Founder",
+        "Treasurer",
+        "North1",
+        "North2",
+        "South1",
+        "South2",
+        "Trustee"
+      ],
+      "tier": "hard",
+      "stage": 4,
+      "policy": "thresh(3,pk($0),pk($1),and(pk($2),pk($3)),and(pk($4),pk($5)),and(pk($6),older(432)))",
+      "prompt": "Our reserve has five votes: the founder, the treasurer, the North team, the South team, and the trustee. Each team has two members who must both sign to cast its one vote. The founder and treasurer each use one signature. The trustee's signature counts only once the output is at least 432 blocks old. A withdrawal needs at least 3 of the five votes. Please write the Bitcoin script. Extra votes are fine, but extra members of one team do not create extra votes.",
+      "teaching_point": "Change the outer vote count while keeping the groups and their conditions intact."
+    },
+    {
+      "id": "composed-train-approval-shared-secret",
+      "group": "composed-train-approval-shared-secret",
+      "kind": "write",
+      "context": "segwitv0",
+      "choose_context": true,
+      "keys": [
+        "Uma",
+        "Vik",
+        "Wren"
+      ],
+      "tier": "hard",
+      "stage": 4,
+      "policy": "thresh(2,and(pk($0),sha256($sha256)),and(pk($1),sha256($sha256)),and(pk($2),older(240)))",
+      "prompt": "Uma and Vik each have an approval key, and either one's approval needs their own signature plus the same 32-byte secret matching SHA-256 $sha256. Wren has a third approval: her signature can count once the output is at least 240 blocks old. Any two approvals can spend. Uma and Vik together can spend immediately if they know the secret. The secret by itself gives no votes. Please write the Bitcoin script.",
+      "teaching_point": "Sharing a secret does not merge votes or provide missing signatures."
+    }
+  ]
+}

@@ -1,0 +1,19 @@
+{
+  "training": {
+    "questions": 512,
+    "groups": 256,
+    "distinct_shapes": 512,
+    "strict_reference_passes": 512,
+    "fallback_references": 64,
+    "fixture_sha256": "1eb8842d8b11b34d8c63fcfb4639011ba271284a0f364ae487d47c6ec7cb5c91"
+  },
+  "reserved": {
+    "questions": 64,
+    "groups": 32,
+    "distinct_shapes": 64,
+    "strict_reference_passes": 64,
+    "fallback_references": 0,
+    "fixture_sha256": "df3a800da9acca5ec041f552267df6c946b087a7d8cb18dc0a5c060ce06e7274"
+  },
+  "evaluation_export_guards": "SFT and RL both reject the reserved pool"
+}

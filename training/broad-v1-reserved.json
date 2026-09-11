@@ -1,0 +1,1277 @@
+{
+  "generator": "compound-validation-v1",
+  "purpose": "validation",
+  "suite": "broad-v1-reserved",
+  "evaluation_role": "Reserved composition families; excluded from training and checkpoint selection",
+  "seed": 20260907,
+  "exclusions": {
+    "evals/human-v2.json": "1ebf73d5b9f6ae21b33a9ab3b7d72ecfb764c0fc06e0958a1d2586d789868772",
+    "evals/human-v1.json": "72e1f03e64fbf01484f7ecb8e3763aeefa6c0da1c226d45a106cd05925618d32",
+    "evals/composition-transfer-v1.json": "1e5683ffe9a56542ab5106276f7901affc600e0092b7a4db5eb27ae3f53c4ca1",
+    "training/compound-approvals-v1-samples.json": "2278c3e211c9e557c3d8d146ed4eff423b13c5145e18a422e9d600458ff582cb",
+    "training/compound-v2-validation.json": "8c13f9a05ce5d6b0f30e13efef689917e67a8490f4b7560f39f24152b096ec4a",
+    "training/compound-v3-fit-sample.json": "99c4f44d36da7ad7b1f44eacd05e1cf5e9010ecfd177754bdc7e09cb19e91994",
+    "training/compound-v3-train.json": "a8fccad73939e8ff1b03af60722b48d223a8c46bd31d2ac616e53c0f294b9c48",
+    "training/compound-v2-fit-sample.json": "0ed02c5322efe87b858e24d94fe19a97750ddcaf7e564544fd2991026c10fb20",
+    "training/compound-v3-fresh.json": "fc2be1578eab1f458c02424f5d9c6468bdc5003a28f0a5c22df5f1dfb08f07f6",
+    "training/compound-v2-train.json": "dd434efbee475d150f8739cce2aded6e5ded15e123aedb734253fedb03c272e1",
+    "datasets/composed-training-v1-source.json": "8e3b54dcccdaec6dcebb3bae71bac877c7313e3b548b842e753d3f496bc2c811",
+    "datasets/sft-train-think.jsonl": "22dd01f38fbc37705efc512542e61e5b30de4381f37709b422811d3bc7768e7f"
+  },
+  "cases": [
+    {
+      "id": "composed-val-broad-v1-three-conditioned-departments-000-write",
+      "group": "composed-val-broad-v1-three-conditioned-departments-000",
+      "family": "three-conditioned-departments",
+      "kind": "write",
+      "context": "segwitv0",
+      "choose_context": true,
+      "keys": [
+        "Cleo",
+        "Bea",
+        "Dara",
+        "Eli",
+        "Jules",
+        "Luz",
+        "Finn"
+      ],
+      "tier": "hard",
+      "policy": "thresh(2,and(and(pk($0),pk($1)),after(931646)),and(and(pk($2),pk($3)),after(978975)),and(thresh(2,pk($4),pk($5),pk($6)),older(4)))",
+      "prompt": "I need a Bitcoin script with the following spending rules.\n\nOur three departments each get one vote. Any two department votes release the funds. Their votes are defined below:\n- Department 1: at least 2 of Cleo and Bea sign, and the spending transaction has block-height locktime of at least 931646.\n- Department 2: at least 2 of Dara and Eli sign, and the spending transaction has block-height locktime of at least 978975.\n- Department 3: at least 2 of Jules, Luz, and Finn sign, and the output is at least 4 blocks old, measured from confirmation.\nSignatures inside a department do not count as extra votes.\n\nAllow every spend that meets these rules and no other route."
+    },
+    {
+      "id": "composed-val-broad-v1-three-conditioned-departments-000-tree",
+      "group": "composed-val-broad-v1-three-conditioned-departments-000",
+      "family": "three-conditioned-departments",
+      "kind": "tree",
+      "context": "tap",
+      "choose_context": false,
+      "keys": [
+        "Cleo",
+        "Bea",
+        "Dara",
+        "Eli",
+        "Jules",
+        "Luz",
+        "Finn",
+        "Inez"
+      ],
+      "tier": "hard",
+      "policy": "or(pk($7),thresh(2,and(and(pk($0),pk($1)),after(931646)),and(and(pk($2),pk($3)),after(978975)),and(thresh(2,pk($4),pk($5),pk($6)),older(4))))",
+      "prompt": "Please give me a Taproot tr() descriptor for our wallet. Inez signs to spend immediately without any other approval, secret, or waiting period. The rules in the next paragraph apply only to the alternative spending arrangement, not to Inez's route:\n\nOur three departments each get one vote. Any two department votes release the funds. Their votes are defined below:\n- Department 1: at least 2 of Cleo and Bea sign, and the spending transaction has block-height locktime of at least 931646.\n- Department 2: at least 2 of Dara and Eli sign, and the spending transaction has block-height locktime of at least 978975.\n- Department 3: at least 2 of Jules, Luz, and Finn sign, and the output is at least 4 blocks old, measured from confirmation.\nSignatures inside a department do not count as extra votes.\n\nThe alternative arrangement does not require Inez to sign. Allow all of these routes and no others. Choose the internal key and leaves to reduce the worst-case input weight."
+    },
+    {
+      "id": "composed-val-broad-v1-three-conditioned-departments-001-write",
+      "group": "composed-val-broad-v1-three-conditioned-departments-001",
+      "family": "three-conditioned-departments",
+      "kind": "write",
+      "context": "segwitv0",
+      "choose_context": true,
+      "keys": [
+        "Dara",
+        "Luz",
+        "Cleo",
+        "Inez",
+        "Eli",
+        "Finn",
+        "Ari"
+      ],
+      "tier": "hard",
+      "policy": "thresh(2,and(thresh(2,pk($0),pk($1),pk($2)),after(956837)),and(and(pk($3),pk($4)),hash160($hash160)),and(and(pk($5),pk($6)),hash160($hash160)))",
+      "prompt": "Please help me make a Bitcoin script for our shared funds.\n\nOur three departments each get one vote. Any two department votes release the funds. Their votes are defined below:\n- Department 1: at least 2 of Dara, Luz, and Cleo sign, and the spending transaction has block-height locktime of at least 956837.\n- Department 2: at least 2 of Inez and Eli sign, and the 32-byte secret matching HASH160 $hash160 is supplied.\n- Department 3: at least 2 of Finn and Ari sign, and the 32-byte secret matching HASH160 $hash160 is supplied.\nSignatures inside a department do not count as extra votes.\n\nAllow every spend that meets these rules and no other route."
+    },
+    {
+      "id": "composed-val-broad-v1-three-conditioned-departments-001-tree",
+      "group": "composed-val-broad-v1-three-conditioned-departments-001",
+      "family": "three-conditioned-departments",
+      "kind": "tree",
+      "context": "tap",
+      "choose_context": false,
+      "keys": [
+        "Dara",
+        "Luz",
+        "Cleo",
+        "Inez",
+        "Eli",
+        "Finn",
+        "Ari",
+        "Bea"
+      ],
+      "tier": "hard",
+      "policy": "or(pk($7),thresh(2,and(thresh(2,pk($0),pk($1),pk($2)),after(956837)),and(and(pk($3),pk($4)),hash160($hash160)),and(and(pk($5),pk($6)),hash160($hash160))))",
+      "prompt": "Please give me a Taproot tr() descriptor for our wallet. Bea signs to spend immediately without any other approval, secret, or waiting period. The rules in the next paragraph apply only to the alternative spending arrangement, not to Bea's route:\n\nOur three departments each get one vote. Any two department votes release the funds. Their votes are defined below:\n- Department 1: at least 2 of Dara, Luz, and Cleo sign, and the spending transaction has block-height locktime of at least 956837.\n- Department 2: at least 2 of Inez and Eli sign, and the 32-byte secret matching HASH160 $hash160 is supplied.\n- Department 3: at least 2 of Finn and Ari sign, and the 32-byte secret matching HASH160 $hash160 is supplied.\nSignatures inside a department do not count as extra votes.\n\nThe alternative arrangement does not require Bea to sign. Allow all of these routes and no others. Choose the internal key and leaves to reduce the worst-case input weight."
+    },
+    {
+      "id": "composed-val-broad-v1-three-conditioned-departments-002-write",
+      "group": "composed-val-broad-v1-three-conditioned-departments-002",
+      "family": "three-conditioned-departments",
+      "kind": "write",
+      "context": "segwitv0",
+      "choose_context": true,
+      "keys": [
+        "Ari",
+        "Finn",
+        "Inez",
+        "Dara",
+        "Kai",
+        "Hugo",
+        "Luz"
+      ],
+      "tier": "hard",
+      "policy": "thresh(2,and(and(pk($0),pk($1)),sha256($sha256)),and(and(pk($2),and(pk($3),pk($4))),after(1845124996)),and(and(pk($5),pk($6)),after(1898562521)))",
+      "prompt": "Please help me make a Bitcoin script for our shared funds.\n\nOur three departments each get one vote. Any two department votes release the funds. Their votes are defined below:\n- Department 1: at least 2 of Ari and Finn sign, and the 32-byte secret matching SHA-256 $sha256 is supplied.\n- Department 2: at least 3 of Inez, Dara, and Kai sign, and the spending transaction has time-based locktime (Unix seconds) of at least 1845124996.\n- Department 3: at least 2 of Hugo and Luz sign, and the spending transaction has time-based locktime (Unix seconds) of at least 1898562521.\nSignatures inside a department do not count as extra votes.\n\nAllow every spend that meets these rules and no other route."
+    },
+    {
+      "id": "composed-val-broad-v1-three-conditioned-departments-002-tree",
+      "group": "composed-val-broad-v1-three-conditioned-departments-002",
+      "family": "three-conditioned-departments",
+      "kind": "tree",
+      "context": "tap",
+      "choose_context": false,
+      "keys": [
+        "Ari",
+        "Finn",
+        "Inez",
+        "Dara",
+        "Kai",
+        "Hugo",
+        "Luz",
+        "Eli"
+      ],
+      "tier": "hard",
+      "policy": "or(pk($7),thresh(2,and(and(pk($0),pk($1)),sha256($sha256)),and(and(pk($2),and(pk($3),pk($4))),after(1845124996)),and(and(pk($5),pk($6)),after(1898562521))))",
+      "prompt": "Please give me a Taproot tr() descriptor for our wallet. Eli signs to spend immediately without any other approval, secret, or waiting period. The rules in the next paragraph apply only to the alternative spending arrangement, not to Eli's route:\n\nOur three departments each get one vote. Any two department votes release the funds. Their votes are defined below:\n- Department 1: at least 2 of Ari and Finn sign, and the 32-byte secret matching SHA-256 $sha256 is supplied.\n- Department 2: at least 3 of Inez, Dara, and Kai sign, and the spending transaction has time-based locktime (Unix seconds) of at least 1845124996.\n- Department 3: at least 2 of Hugo and Luz sign, and the spending transaction has time-based locktime (Unix seconds) of at least 1898562521.\nSignatures inside a department do not count as extra votes.\n\nThe alternative arrangement does not require Eli to sign. Allow all of these routes and no others. Choose the internal key and leaves to reduce the worst-case input weight."
+    },
+    {
+      "id": "composed-val-broad-v1-three-conditioned-departments-003-write",
+      "group": "composed-val-broad-v1-three-conditioned-departments-003",
+      "family": "three-conditioned-departments",
+      "kind": "write",
+      "context": "segwitv0",
+      "choose_context": true,
+      "keys": [
+        "Dara",
+        "Cleo",
+        "Inez",
+        "Ari",
+        "Gia",
+        "Bea"
+      ],
+      "tier": "hard",
+      "policy": "thresh(2,and(and(pk($0),pk($1)),older(4)),and(and(pk($2),pk($3)),hash160($hash160)),and(and(pk($4),pk($5)),hash160($hash160)))",
+      "prompt": "I need a Bitcoin script with the following spending rules.\n\nOur three departments each get one vote. Any two department votes release the funds. Their votes are defined below:\n- Department 1: at least 2 of Dara and Cleo sign, and the output is at least 4 blocks old, measured from confirmation.\n- Department 2: at least 2 of Inez and Ari sign, and the 32-byte secret matching HASH160 $hash160 is supplied.\n- Department 3: at least 2 of Gia and Bea sign, and the 32-byte secret matching HASH160 $hash160 is supplied.\nSignatures inside a department do not count as extra votes.\n\nAllow every spend that meets these rules and no other route."
+    },
+    {
+      "id": "composed-val-broad-v1-three-conditioned-departments-003-tree",
+      "group": "composed-val-broad-v1-three-conditioned-departments-003",
+      "family": "three-conditioned-departments",
+      "kind": "tree",
+      "context": "tap",
+      "choose_context": false,
+      "keys": [
+        "Dara",
+        "Cleo",
+        "Inez",
+        "Ari",
+        "Gia",
+        "Bea",
+        "Finn"
+      ],
+      "tier": "hard",
+      "policy": "or(pk($6),thresh(2,and(and(pk($0),pk($1)),older(4)),and(and(pk($2),pk($3)),hash160($hash160)),and(and(pk($4),pk($5)),hash160($hash160))))",
+      "prompt": "Please give me a Taproot tr() descriptor for our wallet. Finn signs to spend immediately without any other approval, secret, or waiting period. The rules in the next paragraph apply only to the alternative spending arrangement, not to Finn's route:\n\nOur three departments each get one vote. Any two department votes release the funds. Their votes are defined below:\n- Department 1: at least 2 of Dara and Cleo sign, and the output is at least 4 blocks old, measured from confirmation.\n- Department 2: at least 2 of Inez and Ari sign, and the 32-byte secret matching HASH160 $hash160 is supplied.\n- Department 3: at least 2 of Gia and Bea sign, and the 32-byte secret matching HASH160 $hash160 is supplied.\nSignatures inside a department do not count as extra votes.\n\nThe alternative arrangement does not require Finn to sign. Allow all of these routes and no others. Choose the internal key and leaves to reduce the worst-case input weight."
+    },
+    {
+      "id": "composed-val-broad-v1-three-conditioned-departments-004-write",
+      "group": "composed-val-broad-v1-three-conditioned-departments-004",
+      "family": "three-conditioned-departments",
+      "kind": "write",
+      "context": "segwitv0",
+      "choose_context": true,
+      "keys": [
+        "Jules",
+        "Inez",
+        "Gia",
+        "Cleo",
+        "Dara",
+        "Bea"
+      ],
+      "tier": "hard",
+      "policy": "thresh(2,and(and(pk($0),pk($1)),older(4194328)),and(and(pk($2),pk($3)),older(4194352)),and(and(pk($4),pk($5)),sha256($sha256)))",
+      "prompt": "Please help me make a Bitcoin script for our shared funds.\n\nOur three departments each get one vote. Any two department votes release the funds. Their votes are defined below:\n- Department 1: at least 2 of Jules and Inez sign, and the output meets a relative time lock of 12288 seconds, using 24 units of 512 seconds on Bitcoin's relative-lock clock.\n- Department 2: at least 2 of Gia and Cleo sign, and the output meets a relative time lock of 24576 seconds, using 48 units of 512 seconds on Bitcoin's relative-lock clock.\n- Department 3: at least 2 of Dara and Bea sign, and the 32-byte secret matching SHA-256 $sha256 is supplied.\nSignatures inside a department do not count as extra votes.\n\nAllow every spend that meets these rules and no other route."
+    },
+    {
+      "id": "composed-val-broad-v1-three-conditioned-departments-004-tree",
+      "group": "composed-val-broad-v1-three-conditioned-departments-004",
+      "family": "three-conditioned-departments",
+      "kind": "tree",
+      "context": "tap",
+      "choose_context": false,
+      "keys": [
+        "Jules",
+        "Inez",
+        "Gia",
+        "Cleo",
+        "Dara",
+        "Bea",
+        "Ari"
+      ],
+      "tier": "hard",
+      "policy": "or(pk($6),thresh(2,and(and(pk($0),pk($1)),older(4194328)),and(and(pk($2),pk($3)),older(4194352)),and(and(pk($4),pk($5)),sha256($sha256))))",
+      "prompt": "Please give me a Taproot tr() descriptor for our wallet. Ari signs to spend immediately without any other approval, secret, or waiting period. The rules in the next paragraph apply only to the alternative spending arrangement, not to Ari's route:\n\nOur three departments each get one vote. Any two department votes release the funds. Their votes are defined below:\n- Department 1: at least 2 of Jules and Inez sign, and the output meets a relative time lock of 12288 seconds, using 24 units of 512 seconds on Bitcoin's relative-lock clock.\n- Department 2: at least 2 of Gia and Cleo sign, and the output meets a relative time lock of 24576 seconds, using 48 units of 512 seconds on Bitcoin's relative-lock clock.\n- Department 3: at least 2 of Dara and Bea sign, and the 32-byte secret matching SHA-256 $sha256 is supplied.\nSignatures inside a department do not count as extra votes.\n\nThe alternative arrangement does not require Ari to sign. Allow all of these routes and no others. Choose the internal key and leaves to reduce the worst-case input weight."
+    },
+    {
+      "id": "composed-val-broad-v1-three-conditioned-departments-005-write",
+      "group": "composed-val-broad-v1-three-conditioned-departments-005",
+      "family": "three-conditioned-departments",
+      "kind": "write",
+      "context": "segwitv0",
+      "choose_context": true,
+      "keys": [
+        "Ari",
+        "Dara",
+        "Jules",
+        "Gia",
+        "Hugo",
+        "Luz"
+      ],
+      "tier": "hard",
+      "policy": "thresh(2,and(and(pk($0),pk($1)),sha256($sha256)),and(and(pk($2),pk($3)),hash160($hash160)),and(and(pk($4),pk($5)),after(965055)))",
+      "prompt": "I need a Bitcoin script with the following spending rules.\n\nOur three departments each get one vote. Any two department votes release the funds. Their votes are defined below:\n- Department 1: at least 2 of Ari and Dara sign, and the 32-byte secret matching SHA-256 $sha256 is supplied.\n- Department 2: at least 2 of Jules and Gia sign, and the 32-byte secret matching HASH160 $hash160 is supplied.\n- Department 3: at least 2 of Hugo and Luz sign, and the spending transaction has block-height locktime of at least 965055.\nSignatures inside a department do not count as extra votes.\n\nAllow every spend that meets these rules and no other route."
+    },
+    {
+      "id": "composed-val-broad-v1-three-conditioned-departments-005-tree",
+      "group": "composed-val-broad-v1-three-conditioned-departments-005",
+      "family": "three-conditioned-departments",
+      "kind": "tree",
+      "context": "tap",
+      "choose_context": false,
+      "keys": [
+        "Ari",
+        "Dara",
+        "Jules",
+        "Gia",
+        "Hugo",
+        "Luz",
+        "Cleo"
+      ],
+      "tier": "hard",
+      "policy": "or(pk($6),thresh(2,and(and(pk($0),pk($1)),sha256($sha256)),and(and(pk($2),pk($3)),hash160($hash160)),and(and(pk($4),pk($5)),after(965055))))",
+      "prompt": "Please give me a Taproot tr() descriptor for our wallet. Cleo signs to spend immediately without any other approval, secret, or waiting period. The rules in the next paragraph apply only to the alternative spending arrangement, not to Cleo's route:\n\nOur three departments each get one vote. Any two department votes release the funds. Their votes are defined below:\n- Department 1: at least 2 of Ari and Dara sign, and the 32-byte secret matching SHA-256 $sha256 is supplied.\n- Department 2: at least 2 of Jules and Gia sign, and the 32-byte secret matching HASH160 $hash160 is supplied.\n- Department 3: at least 2 of Hugo and Luz sign, and the spending transaction has block-height locktime of at least 965055.\nSignatures inside a department do not count as extra votes.\n\nThe alternative arrangement does not require Cleo to sign. Allow all of these routes and no others. Choose the internal key and leaves to reduce the worst-case input weight."
+    },
+    {
+      "id": "composed-val-broad-v1-three-conditioned-departments-006-write",
+      "group": "composed-val-broad-v1-three-conditioned-departments-006",
+      "family": "three-conditioned-departments",
+      "kind": "write",
+      "context": "segwitv0",
+      "choose_context": true,
+      "keys": [
+        "Luz",
+        "Ari",
+        "Inez",
+        "Bea",
+        "Finn",
+        "Eli",
+        "Kai"
+      ],
+      "tier": "hard",
+      "policy": "thresh(2,and(and(pk($0),pk($1)),hash160($hash160)),and(thresh(2,pk($2),pk($3),pk($4)),older(24)),and(and(pk($5),pk($6)),older(4)))",
+      "prompt": "Can you write the Bitcoin script for this reserve?\n\nOur three departments each get one vote. Any two department votes release the funds. Their votes are defined below:\n- Department 1: at least 2 of Luz and Ari sign, and the 32-byte secret matching HASH160 $hash160 is supplied.\n- Department 2: at least 2 of Inez, Bea, and Finn sign, and the output is at least 24 blocks old, measured from confirmation.\n- Department 3: at least 2 of Eli and Kai sign, and the output is at least 4 blocks old, measured from confirmation.\nSignatures inside a department do not count as extra votes.\n\nAllow every spend that meets these rules and no other route."
+    },
+    {
+      "id": "composed-val-broad-v1-three-conditioned-departments-006-tree",
+      "group": "composed-val-broad-v1-three-conditioned-departments-006",
+      "family": "three-conditioned-departments",
+      "kind": "tree",
+      "context": "tap",
+      "choose_context": false,
+      "keys": [
+        "Luz",
+        "Ari",
+        "Inez",
+        "Bea",
+        "Finn",
+        "Eli",
+        "Kai",
+        "Jules"
+      ],
+      "tier": "hard",
+      "policy": "or(pk($7),thresh(2,and(and(pk($0),pk($1)),hash160($hash160)),and(thresh(2,pk($2),pk($3),pk($4)),older(24)),and(and(pk($5),pk($6)),older(4))))",
+      "prompt": "Please give me a Taproot tr() descriptor for our wallet. Jules signs to spend immediately without any other approval, secret, or waiting period. The rules in the next paragraph apply only to the alternative spending arrangement, not to Jules's route:\n\nOur three departments each get one vote. Any two department votes release the funds. Their votes are defined below:\n- Department 1: at least 2 of Luz and Ari sign, and the 32-byte secret matching HASH160 $hash160 is supplied.\n- Department 2: at least 2 of Inez, Bea, and Finn sign, and the output is at least 24 blocks old, measured from confirmation.\n- Department 3: at least 2 of Eli and Kai sign, and the output is at least 4 blocks old, measured from confirmation.\nSignatures inside a department do not count as extra votes.\n\nThe alternative arrangement does not require Jules to sign. Allow all of these routes and no others. Choose the internal key and leaves to reduce the worst-case input weight."
+    },
+    {
+      "id": "composed-val-broad-v1-three-conditioned-departments-007-write",
+      "group": "composed-val-broad-v1-three-conditioned-departments-007",
+      "family": "three-conditioned-departments",
+      "kind": "write",
+      "context": "segwitv0",
+      "choose_context": true,
+      "keys": [
+        "Hugo",
+        "Eli",
+        "Ari",
+        "Finn",
+        "Kai",
+        "Jules",
+        "Dara"
+      ],
+      "tier": "hard",
+      "policy": "thresh(2,and(and(pk($0),pk($1)),older(4194308)),and(and(pk($2),pk($3)),sha256($sha256)),and(and(pk($4),and(pk($5),pk($6))),after(941666)))",
+      "prompt": "I need a Bitcoin script with the following spending rules.\n\nOur three departments each get one vote. Any two department votes release the funds. Their votes are defined below:\n- Department 1: at least 2 of Hugo and Eli sign, and the output meets a relative time lock of 2048 seconds, using 4 units of 512 seconds on Bitcoin's relative-lock clock.\n- Department 2: at least 2 of Ari and Finn sign, and the 32-byte secret matching SHA-256 $sha256 is supplied.\n- Department 3: at least 3 of Kai, Jules, and Dara sign, and the spending transaction has block-height locktime of at least 941666.\nSignatures inside a department do not count as extra votes.\n\nAllow every spend that meets these rules and no other route."
+    },
+    {
+      "id": "composed-val-broad-v1-three-conditioned-departments-007-tree",
+      "group": "composed-val-broad-v1-three-conditioned-departments-007",
+      "family": "three-conditioned-departments",
+      "kind": "tree",
+      "context": "tap",
+      "choose_context": false,
+      "keys": [
+        "Hugo",
+        "Eli",
+        "Ari",
+        "Finn",
+        "Kai",
+        "Jules",
+        "Dara",
+        "Luz"
+      ],
+      "tier": "hard",
+      "policy": "or(pk($7),thresh(2,and(and(pk($0),pk($1)),older(4194308)),and(and(pk($2),pk($3)),sha256($sha256)),and(and(pk($4),and(pk($5),pk($6))),after(941666))))",
+      "prompt": "Please give me a Taproot tr() descriptor for our wallet. Luz signs to spend immediately without any other approval, secret, or waiting period. The rules in the next paragraph apply only to the alternative spending arrangement, not to Luz's route:\n\nOur three departments each get one vote. Any two department votes release the funds. Their votes are defined below:\n- Department 1: at least 2 of Hugo and Eli sign, and the output meets a relative time lock of 2048 seconds, using 4 units of 512 seconds on Bitcoin's relative-lock clock.\n- Department 2: at least 2 of Ari and Finn sign, and the 32-byte secret matching SHA-256 $sha256 is supplied.\n- Department 3: at least 3 of Kai, Jules, and Dara sign, and the spending transaction has block-height locktime of at least 941666.\nSignatures inside a department do not count as extra votes.\n\nThe alternative arrangement does not require Luz to sign. Allow all of these routes and no others. Choose the internal key and leaves to reduce the worst-case input weight."
+    },
+    {
+      "id": "composed-val-broad-v1-two-locked-departments-000-write",
+      "group": "composed-val-broad-v1-two-locked-departments-000",
+      "family": "two-locked-departments",
+      "kind": "write",
+      "context": "segwitv0",
+      "choose_context": true,
+      "keys": [
+        "Cleo",
+        "Dara",
+        "Gia",
+        "Finn",
+        "Bea",
+        "Inez"
+      ],
+      "tier": "hard",
+      "policy": "and(and(and(pk($0),and(pk($1),pk($2))),older(4194352)),and(and(pk($3),and(pk($4),pk($5))),after(935112)))",
+      "prompt": "Can you write the Bitcoin script for this reserve?\n\nI need approval from two separate councils. For the first council, at least 3 of Cleo, Dara, and Gia sign, and the output meets a relative time lock of 24576 seconds, using 48 units of 512 seconds on Bitcoin's relative-lock clock. For the second, at least 3 of Finn, Bea, and Inez sign, and the spending transaction has block-height locktime of at least 935112. Both council approvals are required for the same withdrawal. Neither council can waive the other council's clock requirement.\n\nAllow every spend that meets these rules and no other route."
+    },
+    {
+      "id": "composed-val-broad-v1-two-locked-departments-000-tree",
+      "group": "composed-val-broad-v1-two-locked-departments-000",
+      "family": "two-locked-departments",
+      "kind": "tree",
+      "context": "tap",
+      "choose_context": false,
+      "keys": [
+        "Cleo",
+        "Dara",
+        "Gia",
+        "Finn",
+        "Bea",
+        "Inez",
+        "Ari"
+      ],
+      "tier": "hard",
+      "policy": "or(pk($6),and(and(and(pk($0),and(pk($1),pk($2))),older(4194352)),and(and(pk($3),and(pk($4),pk($5))),after(935112))))",
+      "prompt": "Please give me a Taproot tr() descriptor for our wallet. Ari signs to spend immediately without any other approval, secret, or waiting period. The rules in the next paragraph apply only to the alternative spending arrangement, not to Ari's route:\n\nI need approval from two separate councils. For the first council, at least 3 of Cleo, Dara, and Gia sign, and the output meets a relative time lock of 24576 seconds, using 48 units of 512 seconds on Bitcoin's relative-lock clock. For the second, at least 3 of Finn, Bea, and Inez sign, and the spending transaction has block-height locktime of at least 935112. Both council approvals are required for the same withdrawal. Neither council can waive the other council's clock requirement.\n\nThe alternative arrangement does not require Ari to sign. Allow all of these routes and no others. Choose the internal key and leaves to reduce the worst-case input weight."
+    },
+    {
+      "id": "composed-val-broad-v1-two-locked-departments-001-write",
+      "group": "composed-val-broad-v1-two-locked-departments-001",
+      "family": "two-locked-departments",
+      "kind": "write",
+      "context": "segwitv0",
+      "choose_context": true,
+      "keys": [
+        "Cleo",
+        "Luz",
+        "Hugo",
+        "Kai",
+        "Dara",
+        "Jules",
+        "Eli"
+      ],
+      "tier": "hard",
+      "policy": "and(and(and(pk($0),and(pk($1),and(pk($2),pk($3)))),older(4194328)),and(and(pk($4),and(pk($5),pk($6))),after(935270)))",
+      "prompt": "I need a Bitcoin script with the following spending rules.\n\nI need approval from two separate councils. For the first council, at least 4 of Cleo, Luz, Hugo, and Kai sign, and the output meets a relative time lock of 12288 seconds, using 24 units of 512 seconds on Bitcoin's relative-lock clock. For the second, at least 3 of Dara, Jules, and Eli sign, and the spending transaction has block-height locktime of at least 935270. Both council approvals are required for the same withdrawal. Neither council can waive the other council's clock requirement.\n\nAllow every spend that meets these rules and no other route."
+    },
+    {
+      "id": "composed-val-broad-v1-two-locked-departments-001-tree",
+      "group": "composed-val-broad-v1-two-locked-departments-001",
+      "family": "two-locked-departments",
+      "kind": "tree",
+      "context": "tap",
+      "choose_context": false,
+      "keys": [
+        "Cleo",
+        "Luz",
+        "Hugo",
+        "Kai",
+        "Dara",
+        "Jules",
+        "Eli",
+        "Finn"
+      ],
+      "tier": "hard",
+      "policy": "or(pk($7),and(and(and(pk($0),and(pk($1),and(pk($2),pk($3)))),older(4194328)),and(and(pk($4),and(pk($5),pk($6))),after(935270))))",
+      "prompt": "Please give me a Taproot tr() descriptor for our wallet. Finn signs to spend immediately without any other approval, secret, or waiting period. The rules in the next paragraph apply only to the alternative spending arrangement, not to Finn's route:\n\nI need approval from two separate councils. For the first council, at least 4 of Cleo, Luz, Hugo, and Kai sign, and the output meets a relative time lock of 12288 seconds, using 24 units of 512 seconds on Bitcoin's relative-lock clock. For the second, at least 3 of Dara, Jules, and Eli sign, and the spending transaction has block-height locktime of at least 935270. Both council approvals are required for the same withdrawal. Neither council can waive the other council's clock requirement.\n\nThe alternative arrangement does not require Finn to sign. Allow all of these routes and no others. Choose the internal key and leaves to reduce the worst-case input weight."
+    },
+    {
+      "id": "composed-val-broad-v1-two-locked-departments-002-write",
+      "group": "composed-val-broad-v1-two-locked-departments-002",
+      "family": "two-locked-departments",
+      "kind": "write",
+      "context": "segwitv0",
+      "choose_context": true,
+      "keys": [
+        "Ari",
+        "Eli",
+        "Bea",
+        "Kai",
+        "Inez",
+        "Luz"
+      ],
+      "tier": "hard",
+      "policy": "and(and(and(pk($0),and(pk($1),and(pk($2),pk($3)))),older(12)),and(and(pk($4),pk($5)),after(1853098244)))",
+      "prompt": "Please help me make a Bitcoin script for our shared funds.\n\nI need approval from two separate councils. For the first council, at least 4 of Ari, Eli, Bea, and Kai sign, and the output is at least 12 blocks old, measured from confirmation. For the second, at least 2 of Inez and Luz sign, and the spending transaction has time-based locktime (Unix seconds) of at least 1853098244. Both council approvals are required for the same withdrawal. Neither council can waive the other council's clock requirement.\n\nAllow every spend that meets these rules and no other route."
+    },
+    {
+      "id": "composed-val-broad-v1-two-locked-departments-002-tree",
+      "group": "composed-val-broad-v1-two-locked-departments-002",
+      "family": "two-locked-departments",
+      "kind": "tree",
+      "context": "tap",
+      "choose_context": false,
+      "keys": [
+        "Ari",
+        "Eli",
+        "Bea",
+        "Kai",
+        "Inez",
+        "Luz",
+        "Hugo"
+      ],
+      "tier": "hard",
+      "policy": "or(pk($6),and(and(and(pk($0),and(pk($1),and(pk($2),pk($3)))),older(12)),and(and(pk($4),pk($5)),after(1853098244))))",
+      "prompt": "Please give me a Taproot tr() descriptor for our wallet. Hugo signs to spend immediately without any other approval, secret, or waiting period. The rules in the next paragraph apply only to the alternative spending arrangement, not to Hugo's route:\n\nI need approval from two separate councils. For the first council, at least 4 of Ari, Eli, Bea, and Kai sign, and the output is at least 12 blocks old, measured from confirmation. For the second, at least 2 of Inez and Luz sign, and the spending transaction has time-based locktime (Unix seconds) of at least 1853098244. Both council approvals are required for the same withdrawal. Neither council can waive the other council's clock requirement.\n\nThe alternative arrangement does not require Hugo to sign. Allow all of these routes and no others. Choose the internal key and leaves to reduce the worst-case input weight."
+    },
+    {
+      "id": "composed-val-broad-v1-two-locked-departments-003-write",
+      "group": "composed-val-broad-v1-two-locked-departments-003",
+      "family": "two-locked-departments",
+      "kind": "write",
+      "context": "segwitv0",
+      "choose_context": true,
+      "keys": [
+        "Gia",
+        "Ari",
+        "Eli",
+        "Finn",
+        "Luz",
+        "Jules"
+      ],
+      "tier": "hard",
+      "policy": "and(and(thresh(3,pk($0),pk($1),pk($2),pk($3)),older(12)),and(and(pk($4),pk($5)),after(1807604323)))",
+      "prompt": "Please help me make a Bitcoin script for our shared funds.\n\nI need approval from two separate councils. For the first council, at least 3 of Gia, Ari, Eli, and Finn sign, and the output is at least 12 blocks old, measured from confirmation. For the second, at least 2 of Luz and Jules sign, and the spending transaction has time-based locktime (Unix seconds) of at least 1807604323. Both council approvals are required for the same withdrawal. Neither council can waive the other council's clock requirement.\n\nAllow every spend that meets these rules and no other route."
+    },
+    {
+      "id": "composed-val-broad-v1-two-locked-departments-003-tree",
+      "group": "composed-val-broad-v1-two-locked-departments-003",
+      "family": "two-locked-departments",
+      "kind": "tree",
+      "context": "tap",
+      "choose_context": false,
+      "keys": [
+        "Gia",
+        "Ari",
+        "Eli",
+        "Finn",
+        "Luz",
+        "Jules",
+        "Dara"
+      ],
+      "tier": "hard",
+      "policy": "or(pk($6),and(and(thresh(3,pk($0),pk($1),pk($2),pk($3)),older(12)),and(and(pk($4),pk($5)),after(1807604323))))",
+      "prompt": "Please give me a Taproot tr() descriptor for our wallet. Dara signs to spend immediately without any other approval, secret, or waiting period. The rules in the next paragraph apply only to the alternative spending arrangement, not to Dara's route:\n\nI need approval from two separate councils. For the first council, at least 3 of Gia, Ari, Eli, and Finn sign, and the output is at least 12 blocks old, measured from confirmation. For the second, at least 2 of Luz and Jules sign, and the spending transaction has time-based locktime (Unix seconds) of at least 1807604323. Both council approvals are required for the same withdrawal. Neither council can waive the other council's clock requirement.\n\nThe alternative arrangement does not require Dara to sign. Allow all of these routes and no others. Choose the internal key and leaves to reduce the worst-case input weight."
+    },
+    {
+      "id": "composed-val-broad-v1-two-locked-departments-004-write",
+      "group": "composed-val-broad-v1-two-locked-departments-004",
+      "family": "two-locked-departments",
+      "kind": "write",
+      "context": "segwitv0",
+      "choose_context": true,
+      "keys": [
+        "Finn",
+        "Ari",
+        "Inez",
+        "Bea",
+        "Luz",
+        "Cleo"
+      ],
+      "tier": "hard",
+      "policy": "and(and(and(pk($0),and(pk($1),pk($2))),older(48)),and(thresh(2,pk($3),pk($4),pk($5)),after(1836081886)))",
+      "prompt": "Can you write the Bitcoin script for this reserve?\n\nI need approval from two separate councils. For the first council, at least 3 of Finn, Ari, and Inez sign, and the output is at least 48 blocks old, measured from confirmation. For the second, at least 2 of Bea, Luz, and Cleo sign, and the spending transaction has time-based locktime (Unix seconds) of at least 1836081886. Both council approvals are required for the same withdrawal. Neither council can waive the other council's clock requirement.\n\nAllow every spend that meets these rules and no other route."
+    },
+    {
+      "id": "composed-val-broad-v1-two-locked-departments-004-tree",
+      "group": "composed-val-broad-v1-two-locked-departments-004",
+      "family": "two-locked-departments",
+      "kind": "tree",
+      "context": "tap",
+      "choose_context": false,
+      "keys": [
+        "Finn",
+        "Ari",
+        "Inez",
+        "Bea",
+        "Luz",
+        "Cleo",
+        "Kai"
+      ],
+      "tier": "hard",
+      "policy": "or(pk($6),and(and(and(pk($0),and(pk($1),pk($2))),older(48)),and(thresh(2,pk($3),pk($4),pk($5)),after(1836081886))))",
+      "prompt": "Please give me a Taproot tr() descriptor for our wallet. Kai signs to spend immediately without any other approval, secret, or waiting period. The rules in the next paragraph apply only to the alternative spending arrangement, not to Kai's route:\n\nI need approval from two separate councils. For the first council, at least 3 of Finn, Ari, and Inez sign, and the output is at least 48 blocks old, measured from confirmation. For the second, at least 2 of Bea, Luz, and Cleo sign, and the spending transaction has time-based locktime (Unix seconds) of at least 1836081886. Both council approvals are required for the same withdrawal. Neither council can waive the other council's clock requirement.\n\nThe alternative arrangement does not require Kai to sign. Allow all of these routes and no others. Choose the internal key and leaves to reduce the worst-case input weight."
+    },
+    {
+      "id": "composed-val-broad-v1-two-locked-departments-005-write",
+      "group": "composed-val-broad-v1-two-locked-departments-005",
+      "family": "two-locked-departments",
+      "kind": "write",
+      "context": "segwitv0",
+      "choose_context": true,
+      "keys": [
+        "Hugo",
+        "Gia",
+        "Ari",
+        "Luz",
+        "Bea"
+      ],
+      "tier": "hard",
+      "policy": "and(and(thresh(2,pk($0),pk($1),pk($2)),older(4)),and(and(pk($3),pk($4)),after(973840)))",
+      "prompt": "I need a Bitcoin script with the following spending rules.\n\nI need approval from two separate councils. For the first council, at least 2 of Hugo, Gia, and Ari sign, and the output is at least 4 blocks old, measured from confirmation. For the second, at least 2 of Luz and Bea sign, and the spending transaction has block-height locktime of at least 973840. Both council approvals are required for the same withdrawal. Neither council can waive the other council's clock requirement.\n\nAllow every spend that meets these rules and no other route."
+    },
+    {
+      "id": "composed-val-broad-v1-two-locked-departments-005-tree",
+      "group": "composed-val-broad-v1-two-locked-departments-005",
+      "family": "two-locked-departments",
+      "kind": "tree",
+      "context": "tap",
+      "choose_context": false,
+      "keys": [
+        "Hugo",
+        "Gia",
+        "Ari",
+        "Luz",
+        "Bea",
+        "Cleo"
+      ],
+      "tier": "hard",
+      "policy": "or(pk($5),and(and(thresh(2,pk($0),pk($1),pk($2)),older(4)),and(and(pk($3),pk($4)),after(973840))))",
+      "prompt": "Please give me a Taproot tr() descriptor for our wallet. Cleo signs to spend immediately without any other approval, secret, or waiting period. The rules in the next paragraph apply only to the alternative spending arrangement, not to Cleo's route:\n\nI need approval from two separate councils. For the first council, at least 2 of Hugo, Gia, and Ari sign, and the output is at least 4 blocks old, measured from confirmation. For the second, at least 2 of Luz and Bea sign, and the spending transaction has block-height locktime of at least 973840. Both council approvals are required for the same withdrawal. Neither council can waive the other council's clock requirement.\n\nThe alternative arrangement does not require Cleo to sign. Allow all of these routes and no others. Choose the internal key and leaves to reduce the worst-case input weight."
+    },
+    {
+      "id": "composed-val-broad-v1-two-locked-departments-006-write",
+      "group": "composed-val-broad-v1-two-locked-departments-006",
+      "family": "two-locked-departments",
+      "kind": "write",
+      "context": "segwitv0",
+      "choose_context": true,
+      "keys": [
+        "Hugo",
+        "Cleo",
+        "Luz",
+        "Gia",
+        "Inez",
+        "Kai",
+        "Finn"
+      ],
+      "tier": "hard",
+      "policy": "and(and(and(pk($0),and(pk($1),pk($2))),older(4194308)),and(thresh(2,pk($3),pk($4),pk($5),pk($6)),after(971259)))",
+      "prompt": "I need a Bitcoin script with the following spending rules.\n\nI need approval from two separate councils. For the first council, at least 3 of Hugo, Cleo, and Luz sign, and the output meets a relative time lock of 2048 seconds, using 4 units of 512 seconds on Bitcoin's relative-lock clock. For the second, at least 2 of Gia, Inez, Kai, and Finn sign, and the spending transaction has block-height locktime of at least 971259. Both council approvals are required for the same withdrawal. Neither council can waive the other council's clock requirement.\n\nAllow every spend that meets these rules and no other route."
+    },
+    {
+      "id": "composed-val-broad-v1-two-locked-departments-006-tree",
+      "group": "composed-val-broad-v1-two-locked-departments-006",
+      "family": "two-locked-departments",
+      "kind": "tree",
+      "context": "tap",
+      "choose_context": false,
+      "keys": [
+        "Hugo",
+        "Cleo",
+        "Luz",
+        "Gia",
+        "Inez",
+        "Kai",
+        "Finn",
+        "Bea"
+      ],
+      "tier": "hard",
+      "policy": "or(pk($7),and(and(and(pk($0),and(pk($1),pk($2))),older(4194308)),and(thresh(2,pk($3),pk($4),pk($5),pk($6)),after(971259))))",
+      "prompt": "Please give me a Taproot tr() descriptor for our wallet. Bea signs to spend immediately without any other approval, secret, or waiting period. The rules in the next paragraph apply only to the alternative spending arrangement, not to Bea's route:\n\nI need approval from two separate councils. For the first council, at least 3 of Hugo, Cleo, and Luz sign, and the output meets a relative time lock of 2048 seconds, using 4 units of 512 seconds on Bitcoin's relative-lock clock. For the second, at least 2 of Gia, Inez, Kai, and Finn sign, and the spending transaction has block-height locktime of at least 971259. Both council approvals are required for the same withdrawal. Neither council can waive the other council's clock requirement.\n\nThe alternative arrangement does not require Bea to sign. Allow all of these routes and no others. Choose the internal key and leaves to reduce the worst-case input weight."
+    },
+    {
+      "id": "composed-val-broad-v1-two-locked-departments-007-write",
+      "group": "composed-val-broad-v1-two-locked-departments-007",
+      "family": "two-locked-departments",
+      "kind": "write",
+      "context": "segwitv0",
+      "choose_context": true,
+      "keys": [
+        "Jules",
+        "Cleo",
+        "Luz",
+        "Ari",
+        "Hugo",
+        "Kai"
+      ],
+      "tier": "hard",
+      "policy": "and(and(and(pk($0),pk($1)),older(4194308)),and(thresh(3,pk($2),pk($3),pk($4),pk($5)),after(1867782019)))",
+      "prompt": "Can you write the Bitcoin script for this reserve?\n\nI need approval from two separate councils. For the first council, at least 2 of Jules and Cleo sign, and the output meets a relative time lock of 2048 seconds, using 4 units of 512 seconds on Bitcoin's relative-lock clock. For the second, at least 3 of Luz, Ari, Hugo, and Kai sign, and the spending transaction has time-based locktime (Unix seconds) of at least 1867782019. Both council approvals are required for the same withdrawal. Neither council can waive the other council's clock requirement.\n\nAllow every spend that meets these rules and no other route."
+    },
+    {
+      "id": "composed-val-broad-v1-two-locked-departments-007-tree",
+      "group": "composed-val-broad-v1-two-locked-departments-007",
+      "family": "two-locked-departments",
+      "kind": "tree",
+      "context": "tap",
+      "choose_context": false,
+      "keys": [
+        "Jules",
+        "Cleo",
+        "Luz",
+        "Ari",
+        "Hugo",
+        "Kai",
+        "Inez"
+      ],
+      "tier": "hard",
+      "policy": "or(pk($6),and(and(and(pk($0),pk($1)),older(4194308)),and(thresh(3,pk($2),pk($3),pk($4),pk($5)),after(1867782019))))",
+      "prompt": "Please give me a Taproot tr() descriptor for our wallet. Inez signs to spend immediately without any other approval, secret, or waiting period. The rules in the next paragraph apply only to the alternative spending arrangement, not to Inez's route:\n\nI need approval from two separate councils. For the first council, at least 2 of Jules and Cleo sign, and the output meets a relative time lock of 2048 seconds, using 4 units of 512 seconds on Bitcoin's relative-lock clock. For the second, at least 3 of Luz, Ari, Hugo, and Kai sign, and the spending transaction has time-based locktime (Unix seconds) of at least 1867782019. Both council approvals are required for the same withdrawal. Neither council can waive the other council's clock requirement.\n\nThe alternative arrangement does not require Inez to sign. Allow all of these routes and no others. Choose the internal key and leaves to reduce the worst-case input weight."
+    },
+    {
+      "id": "composed-val-broad-v1-alternative-evidence-bundles-000-write",
+      "group": "composed-val-broad-v1-alternative-evidence-bundles-000",
+      "family": "alternative-evidence-bundles",
+      "kind": "write",
+      "context": "segwitv0",
+      "choose_context": true,
+      "keys": [
+        "Dara",
+        "Hugo",
+        "Eli",
+        "Kai"
+      ],
+      "tier": "hard",
+      "policy": "and(and(pk($0),pk($1)),or(and(pk($2),and(sha256($sha256),older(24))),and(pk($3),and(hash160($hash160),after(1853901559)))))",
+      "prompt": "I need a Bitcoin script with the following spending rules.\n\nThe signers must satisfy this rule: at least 2 of Dara and Hugo sign. They must also supply one complete evidence bundle. Bundle one requires that Eli signs, the 32-byte secret matching SHA-256 $sha256 is supplied, and the output is at least 24 blocks old, measured from confirmation. Bundle two requires that Kai signs, the 32-byte secret matching HASH160 $hash160 is supplied, and the spending transaction has time-based locktime (Unix seconds) of at least 1853901559. Either complete bundle works; do not mix the signature or secret from one with the clock from the other.\n\nAllow every spend that meets these rules and no other route."
+    },
+    {
+      "id": "composed-val-broad-v1-alternative-evidence-bundles-000-tree",
+      "group": "composed-val-broad-v1-alternative-evidence-bundles-000",
+      "family": "alternative-evidence-bundles",
+      "kind": "tree",
+      "context": "tap",
+      "choose_context": false,
+      "keys": [
+        "Dara",
+        "Hugo",
+        "Eli",
+        "Kai",
+        "Gia"
+      ],
+      "tier": "hard",
+      "policy": "or(pk($4),and(and(pk($0),pk($1)),or(and(pk($2),and(sha256($sha256),older(24))),and(pk($3),and(hash160($hash160),after(1853901559))))))",
+      "prompt": "Please give me a Taproot tr() descriptor for our wallet. Gia signs to spend immediately without any other approval, secret, or waiting period. The rules in the next paragraph apply only to the alternative spending arrangement, not to Gia's route:\n\nThe signers must satisfy this rule: at least 2 of Dara and Hugo sign. They must also supply one complete evidence bundle. Bundle one requires that Eli signs, the 32-byte secret matching SHA-256 $sha256 is supplied, and the output is at least 24 blocks old, measured from confirmation. Bundle two requires that Kai signs, the 32-byte secret matching HASH160 $hash160 is supplied, and the spending transaction has time-based locktime (Unix seconds) of at least 1853901559. Either complete bundle works; do not mix the signature or secret from one with the clock from the other.\n\nThe alternative arrangement does not require Gia to sign. Allow all of these routes and no others. Choose the internal key and leaves to reduce the worst-case input weight."
+    },
+    {
+      "id": "composed-val-broad-v1-alternative-evidence-bundles-001-write",
+      "group": "composed-val-broad-v1-alternative-evidence-bundles-001",
+      "family": "alternative-evidence-bundles",
+      "kind": "write",
+      "context": "segwitv0",
+      "choose_context": true,
+      "keys": [
+        "Inez",
+        "Gia",
+        "Ari",
+        "Finn",
+        "Dara"
+      ],
+      "tier": "hard",
+      "policy": "and(thresh(2,pk($0),pk($1),pk($2)),or(and(pk($3),and(sha256($sha256),older(24))),and(pk($4),and(hash160($hash160),after(1872265528)))))",
+      "prompt": "I need a Bitcoin script with the following spending rules.\n\nThe signers must satisfy this rule: at least 2 of Inez, Gia, and Ari sign. They must also supply one complete evidence bundle. Bundle one requires that Finn signs, the 32-byte secret matching SHA-256 $sha256 is supplied, and the output is at least 24 blocks old, measured from confirmation. Bundle two requires that Dara signs, the 32-byte secret matching HASH160 $hash160 is supplied, and the spending transaction has time-based locktime (Unix seconds) of at least 1872265528. Either complete bundle works; do not mix the signature or secret from one with the clock from the other.\n\nAllow every spend that meets these rules and no other route."
+    },
+    {
+      "id": "composed-val-broad-v1-alternative-evidence-bundles-001-tree",
+      "group": "composed-val-broad-v1-alternative-evidence-bundles-001",
+      "family": "alternative-evidence-bundles",
+      "kind": "tree",
+      "context": "tap",
+      "choose_context": false,
+      "keys": [
+        "Inez",
+        "Gia",
+        "Ari",
+        "Finn",
+        "Dara",
+        "Hugo"
+      ],
+      "tier": "hard",
+      "policy": "or(pk($5),and(thresh(2,pk($0),pk($1),pk($2)),or(and(pk($3),and(sha256($sha256),older(24))),and(pk($4),and(hash160($hash160),after(1872265528))))))",
+      "prompt": "Please give me a Taproot tr() descriptor for our wallet. Hugo signs to spend immediately without any other approval, secret, or waiting period. The rules in the next paragraph apply only to the alternative spending arrangement, not to Hugo's route:\n\nThe signers must satisfy this rule: at least 2 of Inez, Gia, and Ari sign. They must also supply one complete evidence bundle. Bundle one requires that Finn signs, the 32-byte secret matching SHA-256 $sha256 is supplied, and the output is at least 24 blocks old, measured from confirmation. Bundle two requires that Dara signs, the 32-byte secret matching HASH160 $hash160 is supplied, and the spending transaction has time-based locktime (Unix seconds) of at least 1872265528. Either complete bundle works; do not mix the signature or secret from one with the clock from the other.\n\nThe alternative arrangement does not require Hugo to sign. Allow all of these routes and no others. Choose the internal key and leaves to reduce the worst-case input weight."
+    },
+    {
+      "id": "composed-val-broad-v1-alternative-evidence-bundles-002-write",
+      "group": "composed-val-broad-v1-alternative-evidence-bundles-002",
+      "family": "alternative-evidence-bundles",
+      "kind": "write",
+      "context": "segwitv0",
+      "choose_context": true,
+      "keys": [
+        "Luz",
+        "Finn",
+        "Dara",
+        "Bea",
+        "Jules",
+        "Eli"
+      ],
+      "tier": "hard",
+      "policy": "and(thresh(3,pk($0),pk($1),pk($2),pk($3)),or(and(pk($4),and(sha256($sha256),older(4194352))),and(pk($5),and(hash160($hash160),after(971559)))))",
+      "prompt": "Please help me make a Bitcoin script for our shared funds.\n\nThe signers must satisfy this rule: at least 3 of Luz, Finn, Dara, and Bea sign. They must also supply one complete evidence bundle. Bundle one requires that Jules signs, the 32-byte secret matching SHA-256 $sha256 is supplied, and the output meets a relative time lock of 24576 seconds, using 48 units of 512 seconds on Bitcoin's relative-lock clock. Bundle two requires that Eli signs, the 32-byte secret matching HASH160 $hash160 is supplied, and the spending transaction has block-height locktime of at least 971559. Either complete bundle works; do not mix the signature or secret from one with the clock from the other.\n\nAllow every spend that meets these rules and no other route."
+    },
+    {
+      "id": "composed-val-broad-v1-alternative-evidence-bundles-002-tree",
+      "group": "composed-val-broad-v1-alternative-evidence-bundles-002",
+      "family": "alternative-evidence-bundles",
+      "kind": "tree",
+      "context": "tap",
+      "choose_context": false,
+      "keys": [
+        "Luz",
+        "Finn",
+        "Dara",
+        "Bea",
+        "Jules",
+        "Eli",
+        "Cleo"
+      ],
+      "tier": "hard",
+      "policy": "or(pk($6),and(thresh(3,pk($0),pk($1),pk($2),pk($3)),or(and(pk($4),and(sha256($sha256),older(4194352))),and(pk($5),and(hash160($hash160),after(971559))))))",
+      "prompt": "Please give me a Taproot tr() descriptor for our wallet. Cleo signs to spend immediately without any other approval, secret, or waiting period. The rules in the next paragraph apply only to the alternative spending arrangement, not to Cleo's route:\n\nThe signers must satisfy this rule: at least 3 of Luz, Finn, Dara, and Bea sign. They must also supply one complete evidence bundle. Bundle one requires that Jules signs, the 32-byte secret matching SHA-256 $sha256 is supplied, and the output meets a relative time lock of 24576 seconds, using 48 units of 512 seconds on Bitcoin's relative-lock clock. Bundle two requires that Eli signs, the 32-byte secret matching HASH160 $hash160 is supplied, and the spending transaction has block-height locktime of at least 971559. Either complete bundle works; do not mix the signature or secret from one with the clock from the other.\n\nThe alternative arrangement does not require Cleo to sign. Allow all of these routes and no others. Choose the internal key and leaves to reduce the worst-case input weight."
+    },
+    {
+      "id": "composed-val-broad-v1-alternative-evidence-bundles-003-write",
+      "group": "composed-val-broad-v1-alternative-evidence-bundles-003",
+      "family": "alternative-evidence-bundles",
+      "kind": "write",
+      "context": "segwitv0",
+      "choose_context": true,
+      "keys": [
+        "Inez",
+        "Luz",
+        "Kai",
+        "Finn",
+        "Jules",
+        "Cleo",
+        "Dara"
+      ],
+      "tier": "hard",
+      "policy": "and(thresh(3,pk($0),pk($1),pk($2),pk($3),pk($4)),or(and(pk($5),and(sha256($sha256),older(12))),and(pk($6),and(hash160($hash160),after(980082)))))",
+      "prompt": "I need a Bitcoin script with the following spending rules.\n\nThe signers must satisfy this rule: at least 3 of Inez, Luz, Kai, Finn, and Jules sign. They must also supply one complete evidence bundle. Bundle one requires that Cleo signs, the 32-byte secret matching SHA-256 $sha256 is supplied, and the output is at least 12 blocks old, measured from confirmation. Bundle two requires that Dara signs, the 32-byte secret matching HASH160 $hash160 is supplied, and the spending transaction has block-height locktime of at least 980082. Either complete bundle works; do not mix the signature or secret from one with the clock from the other.\n\nAllow every spend that meets these rules and no other route."
+    },
+    {
+      "id": "composed-val-broad-v1-alternative-evidence-bundles-003-tree",
+      "group": "composed-val-broad-v1-alternative-evidence-bundles-003",
+      "family": "alternative-evidence-bundles",
+      "kind": "tree",
+      "context": "tap",
+      "choose_context": false,
+      "keys": [
+        "Inez",
+        "Luz",
+        "Kai",
+        "Finn",
+        "Jules",
+        "Cleo",
+        "Dara",
+        "Ari"
+      ],
+      "tier": "hard",
+      "policy": "or(pk($7),and(thresh(3,pk($0),pk($1),pk($2),pk($3),pk($4)),or(and(pk($5),and(sha256($sha256),older(12))),and(pk($6),and(hash160($hash160),after(980082))))))",
+      "prompt": "Please give me a Taproot tr() descriptor for our wallet. Ari signs to spend immediately without any other approval, secret, or waiting period. The rules in the next paragraph apply only to the alternative spending arrangement, not to Ari's route:\n\nThe signers must satisfy this rule: at least 3 of Inez, Luz, Kai, Finn, and Jules sign. They must also supply one complete evidence bundle. Bundle one requires that Cleo signs, the 32-byte secret matching SHA-256 $sha256 is supplied, and the output is at least 12 blocks old, measured from confirmation. Bundle two requires that Dara signs, the 32-byte secret matching HASH160 $hash160 is supplied, and the spending transaction has block-height locktime of at least 980082. Either complete bundle works; do not mix the signature or secret from one with the clock from the other.\n\nThe alternative arrangement does not require Ari to sign. Allow all of these routes and no others. Choose the internal key and leaves to reduce the worst-case input weight."
+    },
+    {
+      "id": "composed-val-broad-v1-alternative-evidence-bundles-004-write",
+      "group": "composed-val-broad-v1-alternative-evidence-bundles-004",
+      "family": "alternative-evidence-bundles",
+      "kind": "write",
+      "context": "segwitv0",
+      "choose_context": true,
+      "keys": [
+        "Bea",
+        "Ari",
+        "Jules",
+        "Kai",
+        "Cleo",
+        "Finn",
+        "Hugo"
+      ],
+      "tier": "hard",
+      "policy": "and(thresh(4,pk($0),pk($1),pk($2),pk($3),pk($4)),or(and(pk($5),and(sha256($sha256),older(24))),and(pk($6),and(hash160($hash160),after(1899400057)))))",
+      "prompt": "Please help me make a Bitcoin script for our shared funds.\n\nThe signers must satisfy this rule: at least 4 of Bea, Ari, Jules, Kai, and Cleo sign. They must also supply one complete evidence bundle. Bundle one requires that Finn signs, the 32-byte secret matching SHA-256 $sha256 is supplied, and the output is at least 24 blocks old, measured from confirmation. Bundle two requires that Hugo signs, the 32-byte secret matching HASH160 $hash160 is supplied, and the spending transaction has time-based locktime (Unix seconds) of at least 1899400057. Either complete bundle works; do not mix the signature or secret from one with the clock from the other.\n\nAllow every spend that meets these rules and no other route."
+    },
+    {
+      "id": "composed-val-broad-v1-alternative-evidence-bundles-004-tree",
+      "group": "composed-val-broad-v1-alternative-evidence-bundles-004",
+      "family": "alternative-evidence-bundles",
+      "kind": "tree",
+      "context": "tap",
+      "choose_context": false,
+      "keys": [
+        "Bea",
+        "Ari",
+        "Jules",
+        "Kai",
+        "Cleo",
+        "Finn",
+        "Hugo",
+        "Dara"
+      ],
+      "tier": "hard",
+      "policy": "or(pk($7),and(thresh(4,pk($0),pk($1),pk($2),pk($3),pk($4)),or(and(pk($5),and(sha256($sha256),older(24))),and(pk($6),and(hash160($hash160),after(1899400057))))))",
+      "prompt": "Please give me a Taproot tr() descriptor for our wallet. Dara signs to spend immediately without any other approval, secret, or waiting period. The rules in the next paragraph apply only to the alternative spending arrangement, not to Dara's route:\n\nThe signers must satisfy this rule: at least 4 of Bea, Ari, Jules, Kai, and Cleo sign. They must also supply one complete evidence bundle. Bundle one requires that Finn signs, the 32-byte secret matching SHA-256 $sha256 is supplied, and the output is at least 24 blocks old, measured from confirmation. Bundle two requires that Hugo signs, the 32-byte secret matching HASH160 $hash160 is supplied, and the spending transaction has time-based locktime (Unix seconds) of at least 1899400057. Either complete bundle works; do not mix the signature or secret from one with the clock from the other.\n\nThe alternative arrangement does not require Dara to sign. Allow all of these routes and no others. Choose the internal key and leaves to reduce the worst-case input weight."
+    },
+    {
+      "id": "composed-val-broad-v1-alternative-evidence-bundles-005-write",
+      "group": "composed-val-broad-v1-alternative-evidence-bundles-005",
+      "family": "alternative-evidence-bundles",
+      "kind": "write",
+      "context": "segwitv0",
+      "choose_context": true,
+      "keys": [
+        "Hugo",
+        "Kai",
+        "Bea",
+        "Jules",
+        "Luz"
+      ],
+      "tier": "hard",
+      "policy": "and(thresh(2,pk($0),pk($1),pk($2)),or(and(pk($3),and(sha256($sha256),older(144))),and(pk($4),and(hash160($hash160),after(934420)))))",
+      "prompt": "I need a Bitcoin script with the following spending rules.\n\nThe signers must satisfy this rule: at least 2 of Hugo, Kai, and Bea sign. They must also supply one complete evidence bundle. Bundle one requires that Jules signs, the 32-byte secret matching SHA-256 $sha256 is supplied, and the output is at least 144 blocks old, measured from confirmation. Bundle two requires that Luz signs, the 32-byte secret matching HASH160 $hash160 is supplied, and the spending transaction has block-height locktime of at least 934420. Either complete bundle works; do not mix the signature or secret from one with the clock from the other.\n\nAllow every spend that meets these rules and no other route."
+    },
+    {
+      "id": "composed-val-broad-v1-alternative-evidence-bundles-005-tree",
+      "group": "composed-val-broad-v1-alternative-evidence-bundles-005",
+      "family": "alternative-evidence-bundles",
+      "kind": "tree",
+      "context": "tap",
+      "choose_context": false,
+      "keys": [
+        "Hugo",
+        "Kai",
+        "Bea",
+        "Jules",
+        "Luz",
+        "Dara"
+      ],
+      "tier": "hard",
+      "policy": "or(pk($5),and(thresh(2,pk($0),pk($1),pk($2)),or(and(pk($3),and(sha256($sha256),older(144))),and(pk($4),and(hash160($hash160),after(934420))))))",
+      "prompt": "Please give me a Taproot tr() descriptor for our wallet. Dara signs to spend immediately without any other approval, secret, or waiting period. The rules in the next paragraph apply only to the alternative spending arrangement, not to Dara's route:\n\nThe signers must satisfy this rule: at least 2 of Hugo, Kai, and Bea sign. They must also supply one complete evidence bundle. Bundle one requires that Jules signs, the 32-byte secret matching SHA-256 $sha256 is supplied, and the output is at least 144 blocks old, measured from confirmation. Bundle two requires that Luz signs, the 32-byte secret matching HASH160 $hash160 is supplied, and the spending transaction has block-height locktime of at least 934420. Either complete bundle works; do not mix the signature or secret from one with the clock from the other.\n\nThe alternative arrangement does not require Dara to sign. Allow all of these routes and no others. Choose the internal key and leaves to reduce the worst-case input weight."
+    },
+    {
+      "id": "composed-val-broad-v1-alternative-evidence-bundles-006-write",
+      "group": "composed-val-broad-v1-alternative-evidence-bundles-006",
+      "family": "alternative-evidence-bundles",
+      "kind": "write",
+      "context": "segwitv0",
+      "choose_context": true,
+      "keys": [
+        "Kai",
+        "Hugo",
+        "Dara",
+        "Eli",
+        "Cleo",
+        "Finn"
+      ],
+      "tier": "hard",
+      "policy": "and(thresh(3,pk($0),pk($1),pk($2),pk($3)),or(and(pk($4),and(sha256($sha256),older(4))),and(pk($5),and(hash160($hash160),after(960220)))))",
+      "prompt": "Can you write the Bitcoin script for this reserve?\n\nThe signers must satisfy this rule: at least 3 of Kai, Hugo, Dara, and Eli sign. They must also supply one complete evidence bundle. Bundle one requires that Cleo signs, the 32-byte secret matching SHA-256 $sha256 is supplied, and the output is at least 4 blocks old, measured from confirmation. Bundle two requires that Finn signs, the 32-byte secret matching HASH160 $hash160 is supplied, and the spending transaction has block-height locktime of at least 960220. Either complete bundle works; do not mix the signature or secret from one with the clock from the other.\n\nAllow every spend that meets these rules and no other route."
+    },
+    {
+      "id": "composed-val-broad-v1-alternative-evidence-bundles-006-tree",
+      "group": "composed-val-broad-v1-alternative-evidence-bundles-006",
+      "family": "alternative-evidence-bundles",
+      "kind": "tree",
+      "context": "tap",
+      "choose_context": false,
+      "keys": [
+        "Kai",
+        "Hugo",
+        "Dara",
+        "Eli",
+        "Cleo",
+        "Finn",
+        "Gia"
+      ],
+      "tier": "hard",
+      "policy": "or(pk($6),and(thresh(3,pk($0),pk($1),pk($2),pk($3)),or(and(pk($4),and(sha256($sha256),older(4))),and(pk($5),and(hash160($hash160),after(960220))))))",
+      "prompt": "Please give me a Taproot tr() descriptor for our wallet. Gia signs to spend immediately without any other approval, secret, or waiting period. The rules in the next paragraph apply only to the alternative spending arrangement, not to Gia's route:\n\nThe signers must satisfy this rule: at least 3 of Kai, Hugo, Dara, and Eli sign. They must also supply one complete evidence bundle. Bundle one requires that Cleo signs, the 32-byte secret matching SHA-256 $sha256 is supplied, and the output is at least 4 blocks old, measured from confirmation. Bundle two requires that Finn signs, the 32-byte secret matching HASH160 $hash160 is supplied, and the spending transaction has block-height locktime of at least 960220. Either complete bundle works; do not mix the signature or secret from one with the clock from the other.\n\nThe alternative arrangement does not require Gia to sign. Allow all of these routes and no others. Choose the internal key and leaves to reduce the worst-case input weight."
+    },
+    {
+      "id": "composed-val-broad-v1-alternative-evidence-bundles-007-write",
+      "group": "composed-val-broad-v1-alternative-evidence-bundles-007",
+      "family": "alternative-evidence-bundles",
+      "kind": "write",
+      "context": "segwitv0",
+      "choose_context": true,
+      "keys": [
+        "Kai",
+        "Finn",
+        "Hugo",
+        "Luz",
+        "Inez"
+      ],
+      "tier": "hard",
+      "policy": "and(and(pk($0),and(pk($1),pk($2))),or(and(pk($3),and(sha256($sha256),older(4194448))),and(pk($4),and(hash160($hash160),after(1818041218)))))",
+      "prompt": "I need a Bitcoin script with the following spending rules.\n\nThe signers must satisfy this rule: at least 3 of Kai, Finn, and Hugo sign. They must also supply one complete evidence bundle. Bundle one requires that Luz signs, the 32-byte secret matching SHA-256 $sha256 is supplied, and the output meets a relative time lock of 73728 seconds, using 144 units of 512 seconds on Bitcoin's relative-lock clock. Bundle two requires that Inez signs, the 32-byte secret matching HASH160 $hash160 is supplied, and the spending transaction has time-based locktime (Unix seconds) of at least 1818041218. Either complete bundle works; do not mix the signature or secret from one with the clock from the other.\n\nAllow every spend that meets these rules and no other route."
+    },
+    {
+      "id": "composed-val-broad-v1-alternative-evidence-bundles-007-tree",
+      "group": "composed-val-broad-v1-alternative-evidence-bundles-007",
+      "family": "alternative-evidence-bundles",
+      "kind": "tree",
+      "context": "tap",
+      "choose_context": false,
+      "keys": [
+        "Kai",
+        "Finn",
+        "Hugo",
+        "Luz",
+        "Inez",
+        "Ari"
+      ],
+      "tier": "hard",
+      "policy": "or(pk($5),and(and(pk($0),and(pk($1),pk($2))),or(and(pk($3),and(sha256($sha256),older(4194448))),and(pk($4),and(hash160($hash160),after(1818041218))))))",
+      "prompt": "Please give me a Taproot tr() descriptor for our wallet. Ari signs to spend immediately without any other approval, secret, or waiting period. The rules in the next paragraph apply only to the alternative spending arrangement, not to Ari's route:\n\nThe signers must satisfy this rule: at least 3 of Kai, Finn, and Hugo sign. They must also supply one complete evidence bundle. Bundle one requires that Luz signs, the 32-byte secret matching SHA-256 $sha256 is supplied, and the output meets a relative time lock of 73728 seconds, using 144 units of 512 seconds on Bitcoin's relative-lock clock. Bundle two requires that Inez signs, the 32-byte secret matching HASH160 $hash160 is supplied, and the spending transaction has time-based locktime (Unix seconds) of at least 1818041218. Either complete bundle works; do not mix the signature or secret from one with the clock from the other.\n\nThe alternative arrangement does not require Ari to sign. Allow all of these routes and no others. Choose the internal key and leaves to reduce the worst-case input weight."
+    },
+    {
+      "id": "composed-val-broad-v1-two-secrets-and-clock-vote-000-write",
+      "group": "composed-val-broad-v1-two-secrets-and-clock-vote-000",
+      "family": "two-secrets-and-clock-vote",
+      "kind": "write",
+      "context": "segwitv0",
+      "choose_context": true,
+      "keys": [
+        "Eli",
+        "Hugo",
+        "Cleo",
+        "Jules",
+        "Kai",
+        "Finn"
+      ],
+      "tier": "hard",
+      "policy": "thresh(2,and(and(pk($0),pk($1)),sha256($sha256)),and(and(pk($2),and(pk($3),pk($4))),hash160($hash160)),and(pk($5),and(older(4),after(961695))))",
+      "prompt": "I need a Bitcoin script with the following spending rules.\n\nA withdrawal needs any two of these three approvals:\n- at least 2 of Eli and Hugo sign, and the 32-byte secret matching SHA-256 $sha256 is supplied.\n- at least 3 of Cleo, Jules, and Kai sign, and the 32-byte secret matching HASH160 $hash160 is supplied.\n- Finn signs, but only when the output is at least 4 blocks old, measured from confirmation and the spending transaction has block-height locktime of at least 961695.\nEach bullet counts once, regardless of how many people sign it.\n\nAllow every spend that meets these rules and no other route."
+    },
+    {
+      "id": "composed-val-broad-v1-two-secrets-and-clock-vote-000-tree",
+      "group": "composed-val-broad-v1-two-secrets-and-clock-vote-000",
+      "family": "two-secrets-and-clock-vote",
+      "kind": "tree",
+      "context": "tap",
+      "choose_context": false,
+      "keys": [
+        "Eli",
+        "Hugo",
+        "Cleo",
+        "Jules",
+        "Kai",
+        "Finn",
+        "Ari"
+      ],
+      "tier": "hard",
+      "policy": "or(pk($6),thresh(2,and(and(pk($0),pk($1)),sha256($sha256)),and(and(pk($2),and(pk($3),pk($4))),hash160($hash160)),and(pk($5),and(older(4),after(961695)))))",
+      "prompt": "Please give me a Taproot tr() descriptor for our wallet. Ari signs to spend immediately without any other approval, secret, or waiting period. The rules in the next paragraph apply only to the alternative spending arrangement, not to Ari's route:\n\nA withdrawal needs any two of these three approvals:\n- at least 2 of Eli and Hugo sign, and the 32-byte secret matching SHA-256 $sha256 is supplied.\n- at least 3 of Cleo, Jules, and Kai sign, and the 32-byte secret matching HASH160 $hash160 is supplied.\n- Finn signs, but only when the output is at least 4 blocks old, measured from confirmation and the spending transaction has block-height locktime of at least 961695.\nEach bullet counts once, regardless of how many people sign it.\n\nThe alternative arrangement does not require Ari to sign. Allow all of these routes and no others. Choose the internal key and leaves to reduce the worst-case input weight."
+    },
+    {
+      "id": "composed-val-broad-v1-two-secrets-and-clock-vote-001-write",
+      "group": "composed-val-broad-v1-two-secrets-and-clock-vote-001",
+      "family": "two-secrets-and-clock-vote",
+      "kind": "write",
+      "context": "segwitv0",
+      "choose_context": true,
+      "keys": [
+        "Finn",
+        "Kai",
+        "Jules",
+        "Dara",
+        "Hugo"
+      ],
+      "tier": "hard",
+      "policy": "thresh(2,and(and(pk($0),pk($1)),sha256($sha256)),and(and(pk($2),pk($3)),hash160($hash160)),and(pk($4),and(older(4194328),after(986729))))",
+      "prompt": "I need a Bitcoin script with the following spending rules.\n\nA withdrawal needs any two of these three approvals:\n- at least 2 of Finn and Kai sign, and the 32-byte secret matching SHA-256 $sha256 is supplied.\n- at least 2 of Jules and Dara sign, and the 32-byte secret matching HASH160 $hash160 is supplied.\n- Hugo signs, but only when the output meets a relative time lock of 12288 seconds, using 24 units of 512 seconds on Bitcoin's relative-lock clock and the spending transaction has block-height locktime of at least 986729.\nEach bullet counts once, regardless of how many people sign it.\n\nAllow every spend that meets these rules and no other route."
+    },
+    {
+      "id": "composed-val-broad-v1-two-secrets-and-clock-vote-001-tree",
+      "group": "composed-val-broad-v1-two-secrets-and-clock-vote-001",
+      "family": "two-secrets-and-clock-vote",
+      "kind": "tree",
+      "context": "tap",
+      "choose_context": false,
+      "keys": [
+        "Finn",
+        "Kai",
+        "Jules",
+        "Dara",
+        "Hugo",
+        "Ari"
+      ],
+      "tier": "hard",
+      "policy": "or(pk($5),thresh(2,and(and(pk($0),pk($1)),sha256($sha256)),and(and(pk($2),pk($3)),hash160($hash160)),and(pk($4),and(older(4194328),after(986729)))))",
+      "prompt": "Please give me a Taproot tr() descriptor for our wallet. Ari signs to spend immediately without any other approval, secret, or waiting period. The rules in the next paragraph apply only to the alternative spending arrangement, not to Ari's route:\n\nA withdrawal needs any two of these three approvals:\n- at least 2 of Finn and Kai sign, and the 32-byte secret matching SHA-256 $sha256 is supplied.\n- at least 2 of Jules and Dara sign, and the 32-byte secret matching HASH160 $hash160 is supplied.\n- Hugo signs, but only when the output meets a relative time lock of 12288 seconds, using 24 units of 512 seconds on Bitcoin's relative-lock clock and the spending transaction has block-height locktime of at least 986729.\nEach bullet counts once, regardless of how many people sign it.\n\nThe alternative arrangement does not require Ari to sign. Allow all of these routes and no others. Choose the internal key and leaves to reduce the worst-case input weight."
+    },
+    {
+      "id": "composed-val-broad-v1-two-secrets-and-clock-vote-002-write",
+      "group": "composed-val-broad-v1-two-secrets-and-clock-vote-002",
+      "family": "two-secrets-and-clock-vote",
+      "kind": "write",
+      "context": "segwitv0",
+      "choose_context": true,
+      "keys": [
+        "Finn",
+        "Kai",
+        "Luz",
+        "Inez",
+        "Dara",
+        "Ari",
+        "Hugo"
+      ],
+      "tier": "hard",
+      "policy": "thresh(2,and(thresh(2,pk($0),pk($1),pk($2)),sha256($sha256)),and(thresh(2,pk($3),pk($4),pk($5)),hash160($hash160)),and(pk($6),and(older(288),after(1876368890))))",
+      "prompt": "I need a Bitcoin script with the following spending rules.\n\nA withdrawal needs any two of these three approvals:\n- at least 2 of Finn, Kai, and Luz sign, and the 32-byte secret matching SHA-256 $sha256 is supplied.\n- at least 2 of Inez, Dara, and Ari sign, and the 32-byte secret matching HASH160 $hash160 is supplied.\n- Hugo signs, but only when the output is at least 288 blocks old, measured from confirmation and the spending transaction has time-based locktime (Unix seconds) of at least 1876368890.\nEach bullet counts once, regardless of how many people sign it.\n\nAllow every spend that meets these rules and no other route."
+    },
+    {
+      "id": "composed-val-broad-v1-two-secrets-and-clock-vote-002-tree",
+      "group": "composed-val-broad-v1-two-secrets-and-clock-vote-002",
+      "family": "two-secrets-and-clock-vote",
+      "kind": "tree",
+      "context": "tap",
+      "choose_context": false,
+      "keys": [
+        "Finn",
+        "Kai",
+        "Luz",
+        "Inez",
+        "Dara",
+        "Ari",
+        "Hugo",
+        "Jules"
+      ],
+      "tier": "hard",
+      "policy": "or(pk($7),thresh(2,and(thresh(2,pk($0),pk($1),pk($2)),sha256($sha256)),and(thresh(2,pk($3),pk($4),pk($5)),hash160($hash160)),and(pk($6),and(older(288),after(1876368890)))))",
+      "prompt": "Please give me a Taproot tr() descriptor for our wallet. Jules signs to spend immediately without any other approval, secret, or waiting period. The rules in the next paragraph apply only to the alternative spending arrangement, not to Jules's route:\n\nA withdrawal needs any two of these three approvals:\n- at least 2 of Finn, Kai, and Luz sign, and the 32-byte secret matching SHA-256 $sha256 is supplied.\n- at least 2 of Inez, Dara, and Ari sign, and the 32-byte secret matching HASH160 $hash160 is supplied.\n- Hugo signs, but only when the output is at least 288 blocks old, measured from confirmation and the spending transaction has time-based locktime (Unix seconds) of at least 1876368890.\nEach bullet counts once, regardless of how many people sign it.\n\nThe alternative arrangement does not require Jules to sign. Allow all of these routes and no others. Choose the internal key and leaves to reduce the worst-case input weight."
+    },
+    {
+      "id": "composed-val-broad-v1-two-secrets-and-clock-vote-003-write",
+      "group": "composed-val-broad-v1-two-secrets-and-clock-vote-003",
+      "family": "two-secrets-and-clock-vote",
+      "kind": "write",
+      "context": "segwitv0",
+      "choose_context": true,
+      "keys": [
+        "Gia",
+        "Ari",
+        "Cleo",
+        "Jules",
+        "Hugo",
+        "Eli"
+      ],
+      "tier": "hard",
+      "policy": "thresh(2,and(and(pk($0),pk($1)),sha256($sha256)),and(and(pk($2),and(pk($3),pk($4))),hash160($hash160)),and(pk($5),and(older(288),after(1823769706))))",
+      "prompt": "Please help me make a Bitcoin script for our shared funds.\n\nA withdrawal needs any two of these three approvals:\n- at least 2 of Gia and Ari sign, and the 32-byte secret matching SHA-256 $sha256 is supplied.\n- at least 3 of Cleo, Jules, and Hugo sign, and the 32-byte secret matching HASH160 $hash160 is supplied.\n- Eli signs, but only when the output is at least 288 blocks old, measured from confirmation and the spending transaction has time-based locktime (Unix seconds) of at least 1823769706.\nEach bullet counts once, regardless of how many people sign it.\n\nAllow every spend that meets these rules and no other route."
+    },
+    {
+      "id": "composed-val-broad-v1-two-secrets-and-clock-vote-003-tree",
+      "group": "composed-val-broad-v1-two-secrets-and-clock-vote-003",
+      "family": "two-secrets-and-clock-vote",
+      "kind": "tree",
+      "context": "tap",
+      "choose_context": false,
+      "keys": [
+        "Gia",
+        "Ari",
+        "Cleo",
+        "Jules",
+        "Hugo",
+        "Eli",
+        "Dara"
+      ],
+      "tier": "hard",
+      "policy": "or(pk($6),thresh(2,and(and(pk($0),pk($1)),sha256($sha256)),and(and(pk($2),and(pk($3),pk($4))),hash160($hash160)),and(pk($5),and(older(288),after(1823769706)))))",
+      "prompt": "Please give me a Taproot tr() descriptor for our wallet. Dara signs to spend immediately without any other approval, secret, or waiting period. The rules in the next paragraph apply only to the alternative spending arrangement, not to Dara's route:\n\nA withdrawal needs any two of these three approvals:\n- at least 2 of Gia and Ari sign, and the 32-byte secret matching SHA-256 $sha256 is supplied.\n- at least 3 of Cleo, Jules, and Hugo sign, and the 32-byte secret matching HASH160 $hash160 is supplied.\n- Eli signs, but only when the output is at least 288 blocks old, measured from confirmation and the spending transaction has time-based locktime (Unix seconds) of at least 1823769706.\nEach bullet counts once, regardless of how many people sign it.\n\nThe alternative arrangement does not require Dara to sign. Allow all of these routes and no others. Choose the internal key and leaves to reduce the worst-case input weight."
+    },
+    {
+      "id": "composed-val-broad-v1-two-secrets-and-clock-vote-004-write",
+      "group": "composed-val-broad-v1-two-secrets-and-clock-vote-004",
+      "family": "two-secrets-and-clock-vote",
+      "kind": "write",
+      "context": "segwitv0",
+      "choose_context": true,
+      "keys": [
+        "Bea",
+        "Hugo",
+        "Eli",
+        "Dara",
+        "Ari",
+        "Finn"
+      ],
+      "tier": "hard",
+      "policy": "thresh(2,and(and(pk($0),pk($1)),sha256($sha256)),and(thresh(2,pk($2),pk($3),pk($4)),hash160($hash160)),and(pk($5),and(older(12),after(957493))))",
+      "prompt": "Can you write the Bitcoin script for this reserve?\n\nA withdrawal needs any two of these three approvals:\n- at least 2 of Bea and Hugo sign, and the 32-byte secret matching SHA-256 $sha256 is supplied.\n- at least 2 of Eli, Dara, and Ari sign, and the 32-byte secret matching HASH160 $hash160 is supplied.\n- Finn signs, but only when the output is at least 12 blocks old, measured from confirmation and the spending transaction has block-height locktime of at least 957493.\nEach bullet counts once, regardless of how many people sign it.\n\nAllow every spend that meets these rules and no other route."
+    },
+    {
+      "id": "composed-val-broad-v1-two-secrets-and-clock-vote-004-tree",
+      "group": "composed-val-broad-v1-two-secrets-and-clock-vote-004",
+      "family": "two-secrets-and-clock-vote",
+      "kind": "tree",
+      "context": "tap",
+      "choose_context": false,
+      "keys": [
+        "Bea",
+        "Hugo",
+        "Eli",
+        "Dara",
+        "Ari",
+        "Finn",
+        "Inez"
+      ],
+      "tier": "hard",
+      "policy": "or(pk($6),thresh(2,and(and(pk($0),pk($1)),sha256($sha256)),and(thresh(2,pk($2),pk($3),pk($4)),hash160($hash160)),and(pk($5),and(older(12),after(957493)))))",
+      "prompt": "Please give me a Taproot tr() descriptor for our wallet. Inez signs to spend immediately without any other approval, secret, or waiting period. The rules in the next paragraph apply only to the alternative spending arrangement, not to Inez's route:\n\nA withdrawal needs any two of these three approvals:\n- at least 2 of Bea and Hugo sign, and the 32-byte secret matching SHA-256 $sha256 is supplied.\n- at least 2 of Eli, Dara, and Ari sign, and the 32-byte secret matching HASH160 $hash160 is supplied.\n- Finn signs, but only when the output is at least 12 blocks old, measured from confirmation and the spending transaction has block-height locktime of at least 957493.\nEach bullet counts once, regardless of how many people sign it.\n\nThe alternative arrangement does not require Inez to sign. Allow all of these routes and no others. Choose the internal key and leaves to reduce the worst-case input weight."
+    },
+    {
+      "id": "composed-val-broad-v1-two-secrets-and-clock-vote-005-write",
+      "group": "composed-val-broad-v1-two-secrets-and-clock-vote-005",
+      "family": "two-secrets-and-clock-vote",
+      "kind": "write",
+      "context": "segwitv0",
+      "choose_context": true,
+      "keys": [
+        "Kai",
+        "Dara",
+        "Gia",
+        "Bea",
+        "Cleo",
+        "Eli"
+      ],
+      "tier": "hard",
+      "policy": "thresh(2,and(thresh(2,pk($0),pk($1),pk($2)),sha256($sha256)),and(and(pk($3),pk($4)),hash160($hash160)),and(pk($5),and(older(4194448),after(1813444875))))",
+      "prompt": "Can you write the Bitcoin script for this reserve?\n\nA withdrawal needs any two of these three approvals:\n- at least 2 of Kai, Dara, and Gia sign, and the 32-byte secret matching SHA-256 $sha256 is supplied.\n- at least 2 of Bea and Cleo sign, and the 32-byte secret matching HASH160 $hash160 is supplied.\n- Eli signs, but only when the output meets a relative time lock of 73728 seconds, using 144 units of 512 seconds on Bitcoin's relative-lock clock and the spending transaction has time-based locktime (Unix seconds) of at least 1813444875.\nEach bullet counts once, regardless of how many people sign it.\n\nAllow every spend that meets these rules and no other route."
+    },
+    {
+      "id": "composed-val-broad-v1-two-secrets-and-clock-vote-005-tree",
+      "group": "composed-val-broad-v1-two-secrets-and-clock-vote-005",
+      "family": "two-secrets-and-clock-vote",
+      "kind": "tree",
+      "context": "tap",
+      "choose_context": false,
+      "keys": [
+        "Kai",
+        "Dara",
+        "Gia",
+        "Bea",
+        "Cleo",
+        "Eli",
+        "Finn"
+      ],
+      "tier": "hard",
+      "policy": "or(pk($6),thresh(2,and(thresh(2,pk($0),pk($1),pk($2)),sha256($sha256)),and(and(pk($3),pk($4)),hash160($hash160)),and(pk($5),and(older(4194448),after(1813444875)))))",
+      "prompt": "Please give me a Taproot tr() descriptor for our wallet. Finn signs to spend immediately without any other approval, secret, or waiting period. The rules in the next paragraph apply only to the alternative spending arrangement, not to Finn's route:\n\nA withdrawal needs any two of these three approvals:\n- at least 2 of Kai, Dara, and Gia sign, and the 32-byte secret matching SHA-256 $sha256 is supplied.\n- at least 2 of Bea and Cleo sign, and the 32-byte secret matching HASH160 $hash160 is supplied.\n- Eli signs, but only when the output meets a relative time lock of 73728 seconds, using 144 units of 512 seconds on Bitcoin's relative-lock clock and the spending transaction has time-based locktime (Unix seconds) of at least 1813444875.\nEach bullet counts once, regardless of how many people sign it.\n\nThe alternative arrangement does not require Finn to sign. Allow all of these routes and no others. Choose the internal key and leaves to reduce the worst-case input weight."
+    },
+    {
+      "id": "composed-val-broad-v1-two-secrets-and-clock-vote-006-write",
+      "group": "composed-val-broad-v1-two-secrets-and-clock-vote-006",
+      "family": "two-secrets-and-clock-vote",
+      "kind": "write",
+      "context": "segwitv0",
+      "choose_context": true,
+      "keys": [
+        "Dara",
+        "Bea",
+        "Finn",
+        "Inez",
+        "Ari",
+        "Kai"
+      ],
+      "tier": "hard",
+      "policy": "thresh(2,and(and(pk($0),pk($1)),sha256($sha256)),and(thresh(2,pk($2),pk($3),pk($4)),hash160($hash160)),and(pk($5),and(older(4194316),after(1819864493))))",
+      "prompt": "Can you write the Bitcoin script for this reserve?\n\nA withdrawal needs any two of these three approvals:\n- at least 2 of Dara and Bea sign, and the 32-byte secret matching SHA-256 $sha256 is supplied.\n- at least 2 of Finn, Inez, and Ari sign, and the 32-byte secret matching HASH160 $hash160 is supplied.\n- Kai signs, but only when the output meets a relative time lock of 6144 seconds, using 12 units of 512 seconds on Bitcoin's relative-lock clock and the spending transaction has time-based locktime (Unix seconds) of at least 1819864493.\nEach bullet counts once, regardless of how many people sign it.\n\nAllow every spend that meets these rules and no other route."
+    },
+    {
+      "id": "composed-val-broad-v1-two-secrets-and-clock-vote-006-tree",
+      "group": "composed-val-broad-v1-two-secrets-and-clock-vote-006",
+      "family": "two-secrets-and-clock-vote",
+      "kind": "tree",
+      "context": "tap",
+      "choose_context": false,
+      "keys": [
+        "Dara",
+        "Bea",
+        "Finn",
+        "Inez",
+        "Ari",
+        "Kai",
+        "Eli"
+      ],
+      "tier": "hard",
+      "policy": "or(pk($6),thresh(2,and(and(pk($0),pk($1)),sha256($sha256)),and(thresh(2,pk($2),pk($3),pk($4)),hash160($hash160)),and(pk($5),and(older(4194316),after(1819864493)))))",
+      "prompt": "Please give me a Taproot tr() descriptor for our wallet. Eli signs to spend immediately without any other approval, secret, or waiting period. The rules in the next paragraph apply only to the alternative spending arrangement, not to Eli's route:\n\nA withdrawal needs any two of these three approvals:\n- at least 2 of Dara and Bea sign, and the 32-byte secret matching SHA-256 $sha256 is supplied.\n- at least 2 of Finn, Inez, and Ari sign, and the 32-byte secret matching HASH160 $hash160 is supplied.\n- Kai signs, but only when the output meets a relative time lock of 6144 seconds, using 12 units of 512 seconds on Bitcoin's relative-lock clock and the spending transaction has time-based locktime (Unix seconds) of at least 1819864493.\nEach bullet counts once, regardless of how many people sign it.\n\nThe alternative arrangement does not require Eli to sign. Allow all of these routes and no others. Choose the internal key and leaves to reduce the worst-case input weight."
+    },
+    {
+      "id": "composed-val-broad-v1-two-secrets-and-clock-vote-007-write",
+      "group": "composed-val-broad-v1-two-secrets-and-clock-vote-007",
+      "family": "two-secrets-and-clock-vote",
+      "kind": "write",
+      "context": "segwitv0",
+      "choose_context": true,
+      "keys": [
+        "Eli",
+        "Jules",
+        "Ari",
+        "Kai",
+        "Finn",
+        "Dara"
+      ],
+      "tier": "hard",
+      "policy": "thresh(2,and(thresh(2,pk($0),pk($1),pk($2)),sha256($sha256)),and(and(pk($3),pk($4)),hash160($hash160)),and(pk($5),and(older(12),after(931105))))",
+      "prompt": "I need a Bitcoin script with the following spending rules.\n\nA withdrawal needs any two of these three approvals:\n- at least 2 of Eli, Jules, and Ari sign, and the 32-byte secret matching SHA-256 $sha256 is supplied.\n- at least 2 of Kai and Finn sign, and the 32-byte secret matching HASH160 $hash160 is supplied.\n- Dara signs, but only when the output is at least 12 blocks old, measured from confirmation and the spending transaction has block-height locktime of at least 931105.\nEach bullet counts once, regardless of how many people sign it.\n\nAllow every spend that meets these rules and no other route."
+    },
+    {
+      "id": "composed-val-broad-v1-two-secrets-and-clock-vote-007-tree",
+      "group": "composed-val-broad-v1-two-secrets-and-clock-vote-007",
+      "family": "two-secrets-and-clock-vote",
+      "kind": "tree",
+      "context": "tap",
+      "choose_context": false,
+      "keys": [
+        "Eli",
+        "Jules",
+        "Ari",
+        "Kai",
+        "Finn",
+        "Dara",
+        "Hugo"
+      ],
+      "tier": "hard",
+      "policy": "or(pk($6),thresh(2,and(thresh(2,pk($0),pk($1),pk($2)),sha256($sha256)),and(and(pk($3),pk($4)),hash160($hash160)),and(pk($5),and(older(12),after(931105)))))",
+      "prompt": "Please give me a Taproot tr() descriptor for our wallet. Hugo signs to spend immediately without any other approval, secret, or waiting period. The rules in the next paragraph apply only to the alternative spending arrangement, not to Hugo's route:\n\nA withdrawal needs any two of these three approvals:\n- at least 2 of Eli, Jules, and Ari sign, and the 32-byte secret matching SHA-256 $sha256 is supplied.\n- at least 2 of Kai and Finn sign, and the 32-byte secret matching HASH160 $hash160 is supplied.\n- Dara signs, but only when the output is at least 12 blocks old, measured from confirmation and the spending transaction has block-height locktime of at least 931105.\nEach bullet counts once, regardless of how many people sign it.\n\nThe alternative arrangement does not require Hugo to sign. Allow all of these routes and no others. Choose the internal key and leaves to reduce the worst-case input weight."
+    }
+  ]
+}

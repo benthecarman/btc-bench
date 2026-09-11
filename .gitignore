@@ -1,5 +1,5 @@
 /target/
-/runs/
+/runs
 /models.toml
 datasets/
 __pycache__/

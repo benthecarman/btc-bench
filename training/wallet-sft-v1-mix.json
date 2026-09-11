@@ -1,0 +1,6180 @@
+{
+  "data": "datasets/sft-wallet-v1-mixed.jsonl",
+  "data_sha256": "8b49e1971d810ef91c5595243368ec444a3b4278c9c556e60f736b25110a1c22",
+  "rows": 1024,
+  "new_wallet_scenarios": 128,
+  "wallet_rows": 512,
+  "replay_rows": 512,
+  "max_tokens": 3267,
+  "mean_tokens": 1393.3408203125,
+  "counts": {
+    "compound_replay/write/submit": 64,
+    "wallet/concrete/chat": 128,
+    "compound_replay/write/chat": 64,
+    "wallet/concrete/submit": 128,
+    "wallet/template/chat": 128,
+    "wallet/template/submit": 128,
+    "original_replay/tree/submit": 16,
+    "broad/write/submit": 64,
+    "broad/write/chat": 64,
+    "broad/tree/chat": 64,
+    "original_replay/tree/chat": 16,
+    "broad/tree/submit": 64,
+    "original_replay/script/submit": 32,
+    "original_replay/identify/submit": 16,
+    "original_replay/identify/chat": 16,
+    "original_replay/script/chat": 32
+  },
+  "seed": 202609071,
+  "rejected": {
+    "reserved structure in replay": 1
+  },
+  "reserved_new_composition_shape_matches": 0,
+  "split_limit": "New-composition exclusion applies to this run, not all historical parent training. Familiar test structures intentionally overlap.",
+  "row_provenance": [
+    {
+      "source": "compound_replay",
+      "source_index": 236,
+      "kind": "write",
+      "interface": "submit"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-recovery-delay-04-concrete",
+      "interface": "chat",
+      "kind": "concrete"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-joint-height-05-concrete",
+      "interface": "chat",
+      "kind": "concrete"
+    },
+    {
+      "source": "compound_replay",
+      "source_index": 249,
+      "kind": "write",
+      "interface": "chat"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-delayed-team-02-concrete",
+      "interface": "submit",
+      "kind": "concrete"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-height-team-05-template",
+      "interface": "chat",
+      "kind": "template"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-time-team-02-template",
+      "interface": "submit",
+      "kind": "template"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-joint-approval-05-concrete",
+      "interface": "chat",
+      "kind": "concrete"
+    },
+    {
+      "source": "original_replay",
+      "source_index": 286,
+      "kind": "tree",
+      "interface": "submit"
+    },
+    {
+      "source": "broad",
+      "source_index": 14,
+      "kind": "write",
+      "interface": "submit"
+    },
+    {
+      "source": "compound_replay",
+      "source_index": 54,
+      "kind": "write",
+      "interface": "chat"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-joint-approval-00-concrete",
+      "interface": "chat",
+      "kind": "concrete"
+    },
+    {
+      "source": "broad",
+      "source_index": 202,
+      "kind": "write",
+      "interface": "chat"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-joint-height-04-concrete",
+      "interface": "chat",
+      "kind": "concrete"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-joint-delay-02-template",
+      "interface": "chat",
+      "kind": "template"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-native-single-03-concrete",
+      "interface": "submit",
+      "kind": "concrete"
+    },
+    {
+      "source": "compound_replay",
+      "source_index": 262,
+      "kind": "write",
+      "interface": "submit"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-joint-councils-05-template",
+      "interface": "chat",
+      "kind": "template"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-native-single-04-concrete",
+      "interface": "submit",
+      "kind": "concrete"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-taproot-single-01-template",
+      "interface": "chat",
+      "kind": "template"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-immediate-team-00-template",
+      "interface": "chat",
+      "kind": "template"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-immediate-team-04-template",
+      "interface": "chat",
+      "kind": "template"
+    },
+    {
+      "source": "broad",
+      "source_index": 49,
+      "kind": "tree",
+      "interface": "chat"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-native-quorum-01-template",
+      "interface": "submit",
+      "kind": "template"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-immediate-team-00-concrete",
+      "interface": "submit",
+      "kind": "concrete"
+    },
+    {
+      "source": "broad",
+      "source_index": 0,
+      "kind": "write",
+      "interface": "chat"
+    },
+    {
+      "source": "compound_replay",
+      "source_index": 192,
+      "kind": "write",
+      "interface": "chat"
+    },
+    {
+      "source": "compound_replay",
+      "source_index": 71,
+      "kind": "write",
+      "interface": "submit"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-native-quorum-03-template",
+      "interface": "submit",
+      "kind": "template"
+    },
+    {
+      "source": "compound_replay",
+      "source_index": 86,
+      "kind": "write",
+      "interface": "chat"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-native-quorum-03-concrete",
+      "interface": "chat",
+      "kind": "concrete"
+    },
+    {
+      "source": "original_replay",
+      "source_index": 10307,
+      "kind": "tree",
+      "interface": "chat"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-height-team-05-concrete",
+      "interface": "chat",
+      "kind": "concrete"
+    },
+    {
+      "source": "broad",
+      "source_index": 74,
+      "kind": "write",
+      "interface": "submit"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-delayed-team-06-concrete",
+      "interface": "submit",
+      "kind": "concrete"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-recovery-delay-04-template",
+      "interface": "submit",
+      "kind": "template"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-immediate-team-00-concrete",
+      "interface": "chat",
+      "kind": "concrete"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-taproot-single-02-concrete",
+      "interface": "chat",
+      "kind": "concrete"
+    },
+    {
+      "source": "compound_replay",
+      "source_index": 132,
+      "kind": "write",
+      "interface": "submit"
+    },
+    {
+      "source": "broad",
+      "source_index": 24,
+      "kind": "write",
+      "interface": "chat"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-joint-time-00-concrete",
+      "interface": "submit",
+      "kind": "concrete"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-recovery-height-01-concrete",
+      "interface": "submit",
+      "kind": "concrete"
+    },
+    {
+      "source": "compound_replay",
+      "source_index": 229,
+      "kind": "write",
+      "interface": "chat"
+    },
+    {
+      "source": "broad",
+      "source_index": 33,
+      "kind": "tree",
+      "interface": "submit"
+    },
+    {
+      "source": "compound_replay",
+      "source_index": 229,
+      "kind": "write",
+      "interface": "submit"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-immediate-team-05-template",
+      "interface": "submit",
+      "kind": "template"
+    },
+    {
+      "source": "broad",
+      "source_index": 467,
+      "kind": "tree",
+      "interface": "chat"
+    },
+    {
+      "source": "original_replay",
+      "source_index": 424,
+      "kind": "tree",
+      "interface": "chat"
+    },
+    {
+      "source": "compound_replay",
+      "source_index": 55,
+      "kind": "write",
+      "interface": "submit"
+    },
+    {
+      "source": "broad",
+      "source_index": 53,
+      "kind": "tree",
+      "interface": "chat"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-joint-time-06-concrete",
+      "interface": "submit",
+      "kind": "concrete"
+    },
+    {
+      "source": "broad",
+      "source_index": 192,
+      "kind": "write",
+      "interface": "submit"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-joint-time-03-template",
+      "interface": "chat",
+      "kind": "template"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-joint-approval-02-concrete",
+      "interface": "submit",
+      "kind": "concrete"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-time-team-07-concrete",
+      "interface": "submit",
+      "kind": "concrete"
+    },
+    {
+      "source": "original_replay",
+      "source_index": 3797,
+      "kind": "script",
+      "interface": "submit"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-joint-delay-00-template",
+      "interface": "chat",
+      "kind": "template"
+    },
+    {
+      "source": "compound_replay",
+      "source_index": 237,
+      "kind": "write",
+      "interface": "chat"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-native-quorum-06-concrete",
+      "interface": "submit",
+      "kind": "concrete"
+    },
+    {
+      "source": "original_replay",
+      "source_index": 16169,
+      "kind": "script",
+      "interface": "submit"
+    },
+    {
+      "source": "broad",
+      "source_index": 295,
+      "kind": "tree",
+      "interface": "chat"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-time-team-05-template",
+      "interface": "submit",
+      "kind": "template"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-joint-height-04-template",
+      "interface": "chat",
+      "kind": "template"
+    },
+    {
+      "source": "broad",
+      "source_index": 34,
+      "kind": "write",
+      "interface": "chat"
+    },
+    {
+      "source": "broad",
+      "source_index": 35,
+      "kind": "tree",
+      "interface": "submit"
+    },
+    {
+      "source": "compound_replay",
+      "source_index": 277,
+      "kind": "write",
+      "interface": "submit"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-joint-delay-01-template",
+      "interface": "chat",
+      "kind": "template"
+    },
+    {
+      "source": "original_replay",
+      "source_index": 14267,
+      "kind": "identify",
+      "interface": "submit"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-alternative-recovery-00-template",
+      "interface": "chat",
+      "kind": "template"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-joint-time-02-template",
+      "interface": "submit",
+      "kind": "template"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-recovery-height-00-template",
+      "interface": "submit",
+      "kind": "template"
+    },
+    {
+      "source": "broad",
+      "source_index": 13,
+      "kind": "tree",
+      "interface": "chat"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-alternative-recovery-07-concrete",
+      "interface": "chat",
+      "kind": "concrete"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-taproot-single-03-template",
+      "interface": "submit",
+      "kind": "template"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-recovery-delay-00-template",
+      "interface": "chat",
+      "kind": "template"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-native-quorum-00-concrete",
+      "interface": "submit",
+      "kind": "concrete"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-recovery-delay-07-template",
+      "interface": "chat",
+      "kind": "template"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-height-team-03-concrete",
+      "interface": "submit",
+      "kind": "concrete"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-height-team-01-concrete",
+      "interface": "chat",
+      "kind": "concrete"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-recovery-delay-07-template",
+      "interface": "submit",
+      "kind": "template"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-time-team-04-template",
+      "interface": "submit",
+      "kind": "template"
+    },
+    {
+      "source": "compound_replay",
+      "source_index": 25,
+      "kind": "write",
+      "interface": "chat"
+    },
+    {
+      "source": "original_replay",
+      "source_index": 5539,
+      "kind": "identify",
+      "interface": "chat"
+    },
+    {
+      "source": "broad",
+      "source_index": 321,
+      "kind": "tree",
+      "interface": "submit"
+    },
+    {
+      "source": "broad",
+      "source_index": 263,
+      "kind": "tree",
+      "interface": "submit"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-joint-height-01-concrete",
+      "interface": "chat",
+      "kind": "concrete"
+    },
+    {
+      "source": "compound_replay",
+      "source_index": 223,
+      "kind": "write",
+      "interface": "submit"
+    },
+    {
+      "source": "compound_replay",
+      "source_index": 204,
+      "kind": "write",
+      "interface": "submit"
+    },
+    {
+      "source": "compound_replay",
+      "source_index": 3,
+      "kind": "write",
+      "interface": "submit"
+    },
+    {
+      "source": "compound_replay",
+      "source_index": 226,
+      "kind": "write",
+      "interface": "chat"
+    },
+    {
+      "source": "compound_replay",
+      "source_index": 30,
+      "kind": "write",
+      "interface": "submit"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-joint-height-03-template",
+      "interface": "chat",
+      "kind": "template"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-delayed-team-07-concrete",
+      "interface": "chat",
+      "kind": "concrete"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-joint-time-06-template",
+      "interface": "chat",
+      "kind": "template"
+    },
+    {
+      "source": "broad",
+      "source_index": 106,
+      "kind": "write",
+      "interface": "chat"
+    },
+    {
+      "source": "broad",
+      "source_index": 186,
+      "kind": "write",
+      "interface": "chat"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-joint-approval-05-concrete",
+      "interface": "submit",
+      "kind": "concrete"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-recovery-height-04-concrete",
+      "interface": "submit",
+      "kind": "concrete"
+    },
+    {
+      "source": "broad",
+      "source_index": 373,
+      "kind": "tree",
+      "interface": "chat"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-alternative-recovery-00-concrete",
+      "interface": "submit",
+      "kind": "concrete"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-taproot-single-05-concrete",
+      "interface": "submit",
+      "kind": "concrete"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-joint-councils-05-concrete",
+      "interface": "submit",
+      "kind": "concrete"
+    },
+    {
+      "source": "broad",
+      "source_index": 234,
+      "kind": "write",
+      "interface": "chat"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-immediate-team-02-template",
+      "interface": "submit",
+      "kind": "template"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-native-quorum-07-concrete",
+      "interface": "submit",
+      "kind": "concrete"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-joint-councils-02-concrete",
+      "interface": "chat",
+      "kind": "concrete"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-native-single-05-template",
+      "interface": "chat",
+      "kind": "template"
+    },
+    {
+      "source": "broad",
+      "source_index": 45,
+      "kind": "tree",
+      "interface": "chat"
+    },
+    {
+      "source": "original_replay",
+      "source_index": 3714,
+      "kind": "script",
+      "interface": "submit"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-joint-councils-06-template",
+      "interface": "submit",
+      "kind": "template"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-alternative-recovery-01-template",
+      "interface": "submit",
+      "kind": "template"
+    },
+    {
+      "source": "broad",
+      "source_index": 346,
+      "kind": "write",
+      "interface": "submit"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-immediate-team-07-concrete",
+      "interface": "chat",
+      "kind": "concrete"
+    },
+    {
+      "source": "broad",
+      "source_index": 346,
+      "kind": "write",
+      "interface": "chat"
+    },
+    {
+      "source": "broad",
+      "source_index": 307,
+      "kind": "tree",
+      "interface": "chat"
+    },
+    {
+      "source": "broad",
+      "source_index": 29,
+      "kind": "tree",
+      "interface": "submit"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-height-team-01-concrete",
+      "interface": "submit",
+      "kind": "concrete"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-delayed-team-05-concrete",
+      "interface": "chat",
+      "kind": "concrete"
+    },
+    {
+      "source": "compound_replay",
+      "source_index": 214,
+      "kind": "write",
+      "interface": "chat"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-joint-height-07-concrete",
+      "interface": "submit",
+      "kind": "concrete"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-native-quorum-05-template",
+      "interface": "submit",
+      "kind": "template"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-recovery-height-03-template",
+      "interface": "submit",
+      "kind": "template"
+    },
+    {
+      "source": "original_replay",
+      "source_index": 6105,
+      "kind": "identify",
+      "interface": "chat"
+    },
+    {
+      "source": "original_replay",
+      "source_index": 700,
+      "kind": "script",
+      "interface": "submit"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-joint-time-00-template",
+      "interface": "chat",
+      "kind": "template"
+    },
+    {
+      "source": "broad",
+      "source_index": 35,
+      "kind": "tree",
+      "interface": "chat"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-native-single-02-template",
+      "interface": "chat",
+      "kind": "template"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-native-single-03-template",
+      "interface": "submit",
+      "kind": "template"
+    },
+    {
+      "source": "original_replay",
+      "source_index": 10477,
+      "kind": "script",
+      "interface": "submit"
+    },
+    {
+      "source": "broad",
+      "source_index": 159,
+      "kind": "tree",
+      "interface": "submit"
+    },
+    {
+      "source": "original_replay",
+      "source_index": 5192,
+      "kind": "script",
+      "interface": "chat"
+    },
+    {
+      "source": "original_replay",
+      "source_index": 1240,
+      "kind": "tree",
+      "interface": "chat"
+    },
+    {
+      "source": "compound_replay",
+      "source_index": 235,
+      "kind": "write",
+      "interface": "submit"
+    },
+    {
+      "source": "broad",
+      "source_index": 167,
+      "kind": "tree",
+      "interface": "submit"
+    },
+    {
+      "source": "broad",
+      "source_index": 73,
+      "kind": "tree",
+      "interface": "chat"
+    },
+    {
+      "source": "original_replay",
+      "source_index": 3390,
+      "kind": "script",
+      "interface": "submit"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-joint-time-01-concrete",
+      "interface": "chat",
+      "kind": "concrete"
+    },
+    {
+      "source": "compound_replay",
+      "source_index": 66,
+      "kind": "write",
+      "interface": "submit"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-joint-councils-03-concrete",
+      "interface": "submit",
+      "kind": "concrete"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-alternative-recovery-01-concrete",
+      "interface": "chat",
+      "kind": "concrete"
+    },
+    {
+      "source": "compound_replay",
+      "source_index": 231,
+      "kind": "write",
+      "interface": "chat"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-recovery-height-03-template",
+      "interface": "chat",
+      "kind": "template"
+    },
+    {
+      "source": "original_replay",
+      "source_index": 3910,
+      "kind": "script",
+      "interface": "chat"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-joint-height-05-concrete",
+      "interface": "submit",
+      "kind": "concrete"
+    },
+    {
+      "source": "broad",
+      "source_index": 510,
+      "kind": "write",
+      "interface": "chat"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-native-single-05-template",
+      "interface": "submit",
+      "kind": "template"
+    },
+    {
+      "source": "compound_replay",
+      "source_index": 250,
+      "kind": "write",
+      "interface": "chat"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-joint-time-04-concrete",
+      "interface": "submit",
+      "kind": "concrete"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-recovery-delay-06-concrete",
+      "interface": "submit",
+      "kind": "concrete"
+    },
+    {
+      "source": "broad",
+      "source_index": 65,
+      "kind": "tree",
+      "interface": "chat"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-delayed-team-03-template",
+      "interface": "chat",
+      "kind": "template"
+    },
+    {
+      "source": "compound_replay",
+      "source_index": 204,
+      "kind": "write",
+      "interface": "chat"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-joint-delay-02-concrete",
+      "interface": "chat",
+      "kind": "concrete"
+    },
+    {
+      "source": "broad",
+      "source_index": 138,
+      "kind": "write",
+      "interface": "chat"
+    },
+    {
+      "source": "broad",
+      "source_index": 420,
+      "kind": "write",
+      "interface": "submit"
+    },
+    {
+      "source": "compound_replay",
+      "source_index": 15,
+      "kind": "write",
+      "interface": "submit"
+    },
+    {
+      "source": "broad",
+      "source_index": 184,
+      "kind": "write",
+      "interface": "submit"
+    },
+    {
+      "source": "broad",
+      "source_index": 479,
+      "kind": "tree",
+      "interface": "submit"
+    },
+    {
+      "source": "original_replay",
+      "source_index": 13531,
+      "kind": "script",
+      "interface": "submit"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-time-team-00-template",
+      "interface": "submit",
+      "kind": "template"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-joint-height-05-template",
+      "interface": "submit",
+      "kind": "template"
+    },
+    {
+      "source": "broad",
+      "source_index": 510,
+      "kind": "write",
+      "interface": "submit"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-joint-time-02-concrete",
+      "interface": "submit",
+      "kind": "concrete"
+    },
+    {
+      "source": "broad",
+      "source_index": 227,
+      "kind": "tree",
+      "interface": "chat"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-recovery-time-02-template",
+      "interface": "chat",
+      "kind": "template"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-joint-height-04-concrete",
+      "interface": "submit",
+      "kind": "concrete"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-recovery-delay-03-template",
+      "interface": "submit",
+      "kind": "template"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-recovery-height-07-concrete",
+      "interface": "chat",
+      "kind": "concrete"
+    },
+    {
+      "source": "broad",
+      "source_index": 87,
+      "kind": "tree",
+      "interface": "chat"
+    },
+    {
+      "source": "compound_replay",
+      "source_index": 195,
+      "kind": "write",
+      "interface": "submit"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-joint-approval-07-concrete",
+      "interface": "chat",
+      "kind": "concrete"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-immediate-team-00-template",
+      "interface": "submit",
+      "kind": "template"
+    },
+    {
+      "source": "original_replay",
+      "source_index": 15133,
+      "kind": "script",
+      "interface": "submit"
+    },
+    {
+      "source": "broad",
+      "source_index": 73,
+      "kind": "tree",
+      "interface": "submit"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-native-quorum-04-concrete",
+      "interface": "submit",
+      "kind": "concrete"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-recovery-delay-04-concrete",
+      "interface": "submit",
+      "kind": "concrete"
+    },
+    {
+      "source": "broad",
+      "source_index": 80,
+      "kind": "write",
+      "interface": "submit"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-immediate-team-02-concrete",
+      "interface": "chat",
+      "kind": "concrete"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-alternative-recovery-02-template",
+      "interface": "chat",
+      "kind": "template"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-delayed-team-06-template",
+      "interface": "submit",
+      "kind": "template"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-recovery-delay-01-concrete",
+      "interface": "submit",
+      "kind": "concrete"
+    },
+    {
+      "source": "broad",
+      "source_index": 139,
+      "kind": "tree",
+      "interface": "chat"
+    },
+    {
+      "source": "broad",
+      "source_index": 143,
+      "kind": "tree",
+      "interface": "submit"
+    },
+    {
+      "source": "original_replay",
+      "source_index": 5167,
+      "kind": "script",
+      "interface": "chat"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-delayed-team-00-concrete",
+      "interface": "chat",
+      "kind": "concrete"
+    },
+    {
+      "source": "compound_replay",
+      "source_index": 262,
+      "kind": "write",
+      "interface": "chat"
+    },
+    {
+      "source": "compound_replay",
+      "source_index": 57,
+      "kind": "write",
+      "interface": "submit"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-recovery-height-05-template",
+      "interface": "submit",
+      "kind": "template"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-joint-time-07-template",
+      "interface": "submit",
+      "kind": "template"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-joint-time-00-concrete",
+      "interface": "chat",
+      "kind": "concrete"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-joint-height-06-template",
+      "interface": "submit",
+      "kind": "template"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-recovery-height-02-concrete",
+      "interface": "chat",
+      "kind": "concrete"
+    },
+    {
+      "source": "broad",
+      "source_index": 474,
+      "kind": "write",
+      "interface": "submit"
+    },
+    {
+      "source": "original_replay",
+      "source_index": 10414,
+      "kind": "tree",
+      "interface": "chat"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-joint-height-00-concrete",
+      "interface": "chat",
+      "kind": "concrete"
+    },
+    {
+      "source": "broad",
+      "source_index": 5,
+      "kind": "tree",
+      "interface": "chat"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-joint-delay-04-template",
+      "interface": "submit",
+      "kind": "template"
+    },
+    {
+      "source": "broad",
+      "source_index": 362,
+      "kind": "write",
+      "interface": "submit"
+    },
+    {
+      "source": "compound_replay",
+      "source_index": 251,
+      "kind": "write",
+      "interface": "submit"
+    },
+    {
+      "source": "compound_replay",
+      "source_index": 266,
+      "kind": "write",
+      "interface": "submit"
+    },
+    {
+      "source": "broad",
+      "source_index": 119,
+      "kind": "tree",
+      "interface": "chat"
+    },
+    {
+      "source": "broad",
+      "source_index": 60,
+      "kind": "write",
+      "interface": "chat"
+    },
+    {
+      "source": "broad",
+      "source_index": 306,
+      "kind": "write",
+      "interface": "chat"
+    },
+    {
+      "source": "broad",
+      "source_index": 14,
+      "kind": "write",
+      "interface": "chat"
+    },
+    {
+      "source": "broad",
+      "source_index": 160,
+      "kind": "write",
+      "interface": "chat"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-native-single-02-template",
+      "interface": "submit",
+      "kind": "template"
+    },
+    {
+      "source": "compound_replay",
+      "source_index": 198,
+      "kind": "write",
+      "interface": "submit"
+    },
+    {
+      "source": "broad",
+      "source_index": 434,
+      "kind": "write",
+      "interface": "submit"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-recovery-delay-02-template",
+      "interface": "submit",
+      "kind": "template"
+    },
+    {
+      "source": "broad",
+      "source_index": 82,
+      "kind": "write",
+      "interface": "submit"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-native-single-06-concrete",
+      "interface": "submit",
+      "kind": "concrete"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-recovery-time-04-template",
+      "interface": "submit",
+      "kind": "template"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-recovery-delay-04-template",
+      "interface": "chat",
+      "kind": "template"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-joint-approval-01-template",
+      "interface": "submit",
+      "kind": "template"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-recovery-time-01-template",
+      "interface": "chat",
+      "kind": "template"
+    },
+    {
+      "source": "compound_replay",
+      "source_index": 285,
+      "kind": "write",
+      "interface": "submit"
+    },
+    {
+      "source": "broad",
+      "source_index": 29,
+      "kind": "tree",
+      "interface": "chat"
+    },
+    {
+      "source": "original_replay",
+      "source_index": 14678,
+      "kind": "tree",
+      "interface": "submit"
+    },
+    {
+      "source": "original_replay",
+      "source_index": 9299,
+      "kind": "script",
+      "interface": "chat"
+    },
+    {
+      "source": "broad",
+      "source_index": 138,
+      "kind": "write",
+      "interface": "submit"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-recovery-time-00-concrete",
+      "interface": "chat",
+      "kind": "concrete"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-recovery-height-07-concrete",
+      "interface": "submit",
+      "kind": "concrete"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-height-team-00-template",
+      "interface": "chat",
+      "kind": "template"
+    },
+    {
+      "source": "broad",
+      "source_index": 258,
+      "kind": "write",
+      "interface": "chat"
+    },
+    {
+      "source": "compound_replay",
+      "source_index": 266,
+      "kind": "write",
+      "interface": "chat"
+    },
+    {
+      "source": "compound_replay",
+      "source_index": 82,
+      "kind": "write",
+      "interface": "chat"
+    },
+    {
+      "source": "original_replay",
+      "source_index": 3195,
+      "kind": "script",
+      "interface": "chat"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-joint-delay-06-concrete",
+      "interface": "submit",
+      "kind": "concrete"
+    },
+    {
+      "source": "broad",
+      "source_index": 209,
+      "kind": "tree",
+      "interface": "submit"
+    },
+    {
+      "source": "broad",
+      "source_index": 284,
+      "kind": "write",
+      "interface": "chat"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-alternative-recovery-06-concrete",
+      "interface": "submit",
+      "kind": "concrete"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-recovery-height-01-concrete",
+      "interface": "chat",
+      "kind": "concrete"
+    },
+    {
+      "source": "broad",
+      "source_index": 402,
+      "kind": "write",
+      "interface": "submit"
+    },
+    {
+      "source": "broad",
+      "source_index": 383,
+      "kind": "tree",
+      "interface": "chat"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-joint-delay-03-template",
+      "interface": "chat",
+      "kind": "template"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-joint-councils-06-concrete",
+      "interface": "submit",
+      "kind": "concrete"
+    },
+    {
+      "source": "broad",
+      "source_index": 126,
+      "kind": "write",
+      "interface": "chat"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-recovery-height-03-concrete",
+      "interface": "submit",
+      "kind": "concrete"
+    },
+    {
+      "source": "broad",
+      "source_index": 34,
+      "kind": "write",
+      "interface": "submit"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-recovery-height-00-concrete",
+      "interface": "chat",
+      "kind": "concrete"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-joint-delay-07-template",
+      "interface": "chat",
+      "kind": "template"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-time-team-03-template",
+      "interface": "chat",
+      "kind": "template"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-joint-height-00-template",
+      "interface": "submit",
+      "kind": "template"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-immediate-team-07-template",
+      "interface": "chat",
+      "kind": "template"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-taproot-single-05-template",
+      "interface": "submit",
+      "kind": "template"
+    },
+    {
+      "source": "original_replay",
+      "source_index": 7407,
+      "kind": "script",
+      "interface": "submit"
+    },
+    {
+      "source": "compound_replay",
+      "source_index": 283,
+      "kind": "write",
+      "interface": "chat"
+    },
+    {
+      "source": "broad",
+      "source_index": 121,
+      "kind": "tree",
+      "interface": "chat"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-joint-councils-01-concrete",
+      "interface": "submit",
+      "kind": "concrete"
+    },
+    {
+      "source": "broad",
+      "source_index": 295,
+      "kind": "tree",
+      "interface": "submit"
+    },
+    {
+      "source": "broad",
+      "source_index": 193,
+      "kind": "tree",
+      "interface": "submit"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-recovery-time-03-concrete",
+      "interface": "submit",
+      "kind": "concrete"
+    },
+    {
+      "source": "compound_replay",
+      "source_index": 174,
+      "kind": "write",
+      "interface": "submit"
+    },
+    {
+      "source": "broad",
+      "source_index": 430,
+      "kind": "write",
+      "interface": "chat"
+    },
+    {
+      "source": "broad",
+      "source_index": 51,
+      "kind": "tree",
+      "interface": "chat"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-joint-height-01-template",
+      "interface": "chat",
+      "kind": "template"
+    },
+    {
+      "source": "compound_replay",
+      "source_index": 287,
+      "kind": "write",
+      "interface": "chat"
+    },
+    {
+      "source": "broad",
+      "source_index": 24,
+      "kind": "write",
+      "interface": "submit"
+    },
+    {
+      "source": "broad",
+      "source_index": 312,
+      "kind": "write",
+      "interface": "chat"
+    },
+    {
+      "source": "broad",
+      "source_index": 260,
+      "kind": "write",
+      "interface": "chat"
+    },
+    {
+      "source": "original_replay",
+      "source_index": 14848,
+      "kind": "identify",
+      "interface": "chat"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-taproot-single-02-template",
+      "interface": "chat",
+      "kind": "template"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-joint-approval-03-concrete",
+      "interface": "submit",
+      "kind": "concrete"
+    },
+    {
+      "source": "broad",
+      "source_index": 284,
+      "kind": "write",
+      "interface": "submit"
+    },
+    {
+      "source": "compound_replay",
+      "source_index": 55,
+      "kind": "write",
+      "interface": "chat"
+    },
+    {
+      "source": "original_replay",
+      "source_index": 4834,
+      "kind": "tree",
+      "interface": "submit"
+    },
+    {
+      "source": "original_replay",
+      "source_index": 4034,
+      "kind": "script",
+      "interface": "submit"
+    },
+    {
+      "source": "original_replay",
+      "source_index": 12119,
+      "kind": "script",
+      "interface": "submit"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-native-single-02-concrete",
+      "interface": "submit",
+      "kind": "concrete"
+    },
+    {
+      "source": "broad",
+      "source_index": 377,
+      "kind": "tree",
+      "interface": "submit"
+    },
+    {
+      "source": "compound_replay",
+      "source_index": 61,
+      "kind": "write",
+      "interface": "chat"
+    },
+    {
+      "source": "compound_replay",
+      "source_index": 133,
+      "kind": "write",
+      "interface": "chat"
+    },
+    {
+      "source": "compound_replay",
+      "source_index": 237,
+      "kind": "write",
+      "interface": "submit"
+    },
+    {
+      "source": "original_replay",
+      "source_index": 7274,
+      "kind": "tree",
+      "interface": "submit"
+    },
+    {
+      "source": "compound_replay",
+      "source_index": 89,
+      "kind": "write",
+      "interface": "chat"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-delayed-team-02-template",
+      "interface": "chat",
+      "kind": "template"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-native-quorum-06-template",
+      "interface": "chat",
+      "kind": "template"
+    },
+    {
+      "source": "original_replay",
+      "source_index": 7352,
+      "kind": "script",
+      "interface": "submit"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-joint-time-03-concrete",
+      "interface": "chat",
+      "kind": "concrete"
+    },
+    {
+      "source": "broad",
+      "source_index": 281,
+      "kind": "tree",
+      "interface": "chat"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-height-team-03-concrete",
+      "interface": "chat",
+      "kind": "concrete"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-delayed-team-05-template",
+      "interface": "submit",
+      "kind": "template"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-alternative-recovery-03-template",
+      "interface": "submit",
+      "kind": "template"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-alternative-recovery-04-concrete",
+      "interface": "chat",
+      "kind": "concrete"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-taproot-single-04-concrete",
+      "interface": "submit",
+      "kind": "concrete"
+    },
+    {
+      "source": "broad",
+      "source_index": 474,
+      "kind": "write",
+      "interface": "chat"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-taproot-single-07-concrete",
+      "interface": "chat",
+      "kind": "concrete"
+    },
+    {
+      "source": "compound_replay",
+      "source_index": 253,
+      "kind": "write",
+      "interface": "submit"
+    },
+    {
+      "source": "broad",
+      "source_index": 45,
+      "kind": "tree",
+      "interface": "submit"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-time-team-00-concrete",
+      "interface": "submit",
+      "kind": "concrete"
+    },
+    {
+      "source": "broad",
+      "source_index": 217,
+      "kind": "tree",
+      "interface": "chat"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-recovery-time-05-template",
+      "interface": "submit",
+      "kind": "template"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-native-quorum-00-template",
+      "interface": "submit",
+      "kind": "template"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-delayed-team-02-template",
+      "interface": "submit",
+      "kind": "template"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-joint-time-01-template",
+      "interface": "chat",
+      "kind": "template"
+    },
+    {
+      "source": "original_replay",
+      "source_index": 10477,
+      "kind": "script",
+      "interface": "chat"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-taproot-single-03-template",
+      "interface": "chat",
+      "kind": "template"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-joint-councils-05-concrete",
+      "interface": "chat",
+      "kind": "concrete"
+    },
+    {
+      "source": "broad",
+      "source_index": 2,
+      "kind": "write",
+      "interface": "submit"
+    },
+    {
+      "source": "original_replay",
+      "source_index": 2745,
+      "kind": "tree",
+      "interface": "chat"
+    },
+    {
+      "source": "compound_replay",
+      "source_index": 223,
+      "kind": "write",
+      "interface": "chat"
+    },
+    {
+      "source": "broad",
+      "source_index": 456,
+      "kind": "write",
+      "interface": "chat"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-recovery-time-07-concrete",
+      "interface": "submit",
+      "kind": "concrete"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-height-team-07-template",
+      "interface": "chat",
+      "kind": "template"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-alternative-recovery-02-template",
+      "interface": "submit",
+      "kind": "template"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-joint-time-01-concrete",
+      "interface": "submit",
+      "kind": "concrete"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-alternative-recovery-07-concrete",
+      "interface": "submit",
+      "kind": "concrete"
+    },
+    {
+      "source": "original_replay",
+      "source_index": 3631,
+      "kind": "identify",
+      "interface": "chat"
+    },
+    {
+      "source": "broad",
+      "source_index": 455,
+      "kind": "tree",
+      "interface": "chat"
+    },
+    {
+      "source": "compound_replay",
+      "source_index": 197,
+      "kind": "write",
+      "interface": "submit"
+    },
+    {
+      "source": "compound_replay",
+      "source_index": 89,
+      "kind": "write",
+      "interface": "submit"
+    },
+    {
+      "source": "broad",
+      "source_index": 310,
+      "kind": "write",
+      "interface": "chat"
+    },
+    {
+      "source": "original_replay",
+      "source_index": 10307,
+      "kind": "tree",
+      "interface": "submit"
+    },
+    {
+      "source": "original_replay",
+      "source_index": 15133,
+      "kind": "script",
+      "interface": "chat"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-native-quorum-05-concrete",
+      "interface": "chat",
+      "kind": "concrete"
+    },
+    {
+      "source": "broad",
+      "source_index": 65,
+      "kind": "tree",
+      "interface": "submit"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-recovery-height-07-template",
+      "interface": "submit",
+      "kind": "template"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-native-single-00-template",
+      "interface": "chat",
+      "kind": "template"
+    },
+    {
+      "source": "broad",
+      "source_index": 216,
+      "kind": "write",
+      "interface": "submit"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-recovery-time-07-template",
+      "interface": "chat",
+      "kind": "template"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-delayed-team-01-template",
+      "interface": "submit",
+      "kind": "template"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-native-quorum-02-template",
+      "interface": "submit",
+      "kind": "template"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-joint-height-07-template",
+      "interface": "chat",
+      "kind": "template"
+    },
+    {
+      "source": "broad",
+      "source_index": 329,
+      "kind": "tree",
+      "interface": "submit"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-recovery-height-05-concrete",
+      "interface": "submit",
+      "kind": "concrete"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-time-team-03-concrete",
+      "interface": "submit",
+      "kind": "concrete"
+    },
+    {
+      "source": "compound_replay",
+      "source_index": 284,
+      "kind": "write",
+      "interface": "chat"
+    },
+    {
+      "source": "broad",
+      "source_index": 206,
+      "kind": "write",
+      "interface": "chat"
+    },
+    {
+      "source": "compound_replay",
+      "source_index": 145,
+      "kind": "write",
+      "interface": "submit"
+    },
+    {
+      "source": "original_replay",
+      "source_index": 3506,
+      "kind": "identify",
+      "interface": "chat"
+    },
+    {
+      "source": "broad",
+      "source_index": 69,
+      "kind": "tree",
+      "interface": "submit"
+    },
+    {
+      "source": "broad",
+      "source_index": 219,
+      "kind": "tree",
+      "interface": "submit"
+    },
+    {
+      "source": "compound_replay",
+      "source_index": 285,
+      "kind": "write",
+      "interface": "chat"
+    },
+    {
+      "source": "original_replay",
+      "source_index": 11219,
+      "kind": "script",
+      "interface": "chat"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-taproot-single-00-concrete",
+      "interface": "chat",
+      "kind": "concrete"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-taproot-single-05-template",
+      "interface": "chat",
+      "kind": "template"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-recovery-time-00-template",
+      "interface": "chat",
+      "kind": "template"
+    },
+    {
+      "source": "original_replay",
+      "source_index": 7407,
+      "kind": "script",
+      "interface": "chat"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-recovery-height-06-template",
+      "interface": "chat",
+      "kind": "template"
+    },
+    {
+      "source": "original_replay",
+      "source_index": 11685,
+      "kind": "script",
+      "interface": "chat"
+    },
+    {
+      "source": "broad",
+      "source_index": 399,
+      "kind": "tree",
+      "interface": "submit"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-delayed-team-07-concrete",
+      "interface": "submit",
+      "kind": "concrete"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-recovery-delay-06-template",
+      "interface": "chat",
+      "kind": "template"
+    },
+    {
+      "source": "original_replay",
+      "source_index": 11685,
+      "kind": "script",
+      "interface": "submit"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-native-quorum-01-concrete",
+      "interface": "chat",
+      "kind": "concrete"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-time-team-07-template",
+      "interface": "submit",
+      "kind": "template"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-height-team-03-template",
+      "interface": "submit",
+      "kind": "template"
+    },
+    {
+      "source": "broad",
+      "source_index": 49,
+      "kind": "tree",
+      "interface": "submit"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-joint-height-02-template",
+      "interface": "submit",
+      "kind": "template"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-recovery-height-06-concrete",
+      "interface": "chat",
+      "kind": "concrete"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-recovery-delay-03-concrete",
+      "interface": "submit",
+      "kind": "concrete"
+    },
+    {
+      "source": "compound_replay",
+      "source_index": 254,
+      "kind": "write",
+      "interface": "submit"
+    },
+    {
+      "source": "broad",
+      "source_index": 407,
+      "kind": "tree",
+      "interface": "submit"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-native-quorum-00-template",
+      "interface": "chat",
+      "kind": "template"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-recovery-delay-01-template",
+      "interface": "chat",
+      "kind": "template"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-joint-delay-03-concrete",
+      "interface": "submit",
+      "kind": "concrete"
+    },
+    {
+      "source": "broad",
+      "source_index": 332,
+      "kind": "write",
+      "interface": "submit"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-recovery-delay-07-concrete",
+      "interface": "chat",
+      "kind": "concrete"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-taproot-single-06-concrete",
+      "interface": "submit",
+      "kind": "concrete"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-taproot-single-02-concrete",
+      "interface": "submit",
+      "kind": "concrete"
+    },
+    {
+      "source": "original_replay",
+      "source_index": 15789,
+      "kind": "identify",
+      "interface": "chat"
+    },
+    {
+      "source": "broad",
+      "source_index": 193,
+      "kind": "tree",
+      "interface": "chat"
+    },
+    {
+      "source": "original_replay",
+      "source_index": 5167,
+      "kind": "script",
+      "interface": "submit"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-immediate-team-07-concrete",
+      "interface": "submit",
+      "kind": "concrete"
+    },
+    {
+      "source": "broad",
+      "source_index": 148,
+      "kind": "write",
+      "interface": "chat"
+    },
+    {
+      "source": "broad",
+      "source_index": 63,
+      "kind": "tree",
+      "interface": "chat"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-alternative-recovery-04-template",
+      "interface": "submit",
+      "kind": "template"
+    },
+    {
+      "source": "broad",
+      "source_index": 190,
+      "kind": "write",
+      "interface": "chat"
+    },
+    {
+      "source": "broad",
+      "source_index": 128,
+      "kind": "write",
+      "interface": "chat"
+    },
+    {
+      "source": "original_replay",
+      "source_index": 8673,
+      "kind": "script",
+      "interface": "submit"
+    },
+    {
+      "source": "broad",
+      "source_index": 511,
+      "kind": "tree",
+      "interface": "chat"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-joint-delay-04-concrete",
+      "interface": "chat",
+      "kind": "concrete"
+    },
+    {
+      "source": "compound_replay",
+      "source_index": 235,
+      "kind": "write",
+      "interface": "chat"
+    },
+    {
+      "source": "compound_replay",
+      "source_index": 14,
+      "kind": "write",
+      "interface": "submit"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-joint-time-06-concrete",
+      "interface": "chat",
+      "kind": "concrete"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-height-team-02-template",
+      "interface": "chat",
+      "kind": "template"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-alternative-recovery-06-concrete",
+      "interface": "chat",
+      "kind": "concrete"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-native-quorum-02-concrete",
+      "interface": "submit",
+      "kind": "concrete"
+    },
+    {
+      "source": "broad",
+      "source_index": 467,
+      "kind": "tree",
+      "interface": "submit"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-recovery-height-05-template",
+      "interface": "chat",
+      "kind": "template"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-joint-councils-00-concrete",
+      "interface": "chat",
+      "kind": "concrete"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-recovery-time-03-template",
+      "interface": "chat",
+      "kind": "template"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-joint-approval-06-concrete",
+      "interface": "submit",
+      "kind": "concrete"
+    },
+    {
+      "source": "broad",
+      "source_index": 339,
+      "kind": "tree",
+      "interface": "submit"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-native-single-02-concrete",
+      "interface": "chat",
+      "kind": "concrete"
+    },
+    {
+      "source": "broad",
+      "source_index": 389,
+      "kind": "tree",
+      "interface": "submit"
+    },
+    {
+      "source": "compound_replay",
+      "source_index": 226,
+      "kind": "write",
+      "interface": "submit"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-taproot-single-03-concrete",
+      "interface": "submit",
+      "kind": "concrete"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-joint-delay-02-template",
+      "interface": "submit",
+      "kind": "template"
+    },
+    {
+      "source": "compound_replay",
+      "source_index": 125,
+      "kind": "write",
+      "interface": "submit"
+    },
+    {
+      "source": "broad",
+      "source_index": 54,
+      "kind": "write",
+      "interface": "submit"
+    },
+    {
+      "source": "original_replay",
+      "source_index": 1240,
+      "kind": "tree",
+      "interface": "submit"
+    },
+    {
+      "source": "original_replay",
+      "source_index": 10148,
+      "kind": "script",
+      "interface": "chat"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-delayed-team-01-template",
+      "interface": "chat",
+      "kind": "template"
+    },
+    {
+      "source": "original_replay",
+      "source_index": 8740,
+      "kind": "script",
+      "interface": "submit"
+    },
+    {
+      "source": "compound_replay",
+      "source_index": 208,
+      "kind": "write",
+      "interface": "chat"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-delayed-team-04-concrete",
+      "interface": "chat",
+      "kind": "concrete"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-native-single-06-template",
+      "interface": "submit",
+      "kind": "template"
+    },
+    {
+      "source": "broad",
+      "source_index": 125,
+      "kind": "tree",
+      "interface": "submit"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-joint-councils-00-concrete",
+      "interface": "submit",
+      "kind": "concrete"
+    },
+    {
+      "source": "original_replay",
+      "source_index": 7774,
+      "kind": "tree",
+      "interface": "submit"
+    },
+    {
+      "source": "original_replay",
+      "source_index": 12403,
+      "kind": "script",
+      "interface": "chat"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-joint-time-03-template",
+      "interface": "submit",
+      "kind": "template"
+    },
+    {
+      "source": "compound_replay",
+      "source_index": 30,
+      "kind": "write",
+      "interface": "chat"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-joint-height-04-template",
+      "interface": "submit",
+      "kind": "template"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-taproot-single-04-concrete",
+      "interface": "chat",
+      "kind": "concrete"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-immediate-team-04-template",
+      "interface": "submit",
+      "kind": "template"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-joint-approval-04-concrete",
+      "interface": "submit",
+      "kind": "concrete"
+    },
+    {
+      "source": "original_replay",
+      "source_index": 13135,
+      "kind": "tree",
+      "interface": "submit"
+    },
+    {
+      "source": "broad",
+      "source_index": 297,
+      "kind": "tree",
+      "interface": "chat"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-native-single-04-template",
+      "interface": "submit",
+      "kind": "template"
+    },
+    {
+      "source": "compound_replay",
+      "source_index": 208,
+      "kind": "write",
+      "interface": "submit"
+    },
+    {
+      "source": "compound_replay",
+      "source_index": 263,
+      "kind": "write",
+      "interface": "submit"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-native-single-07-template",
+      "interface": "chat",
+      "kind": "template"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-joint-height-06-template",
+      "interface": "chat",
+      "kind": "template"
+    },
+    {
+      "source": "broad",
+      "source_index": 315,
+      "kind": "tree",
+      "interface": "chat"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-joint-councils-05-template",
+      "interface": "submit",
+      "kind": "template"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-joint-approval-02-concrete",
+      "interface": "chat",
+      "kind": "concrete"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-joint-delay-02-concrete",
+      "interface": "submit",
+      "kind": "concrete"
+    },
+    {
+      "source": "broad",
+      "source_index": 48,
+      "kind": "write",
+      "interface": "chat"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-taproot-single-01-concrete",
+      "interface": "chat",
+      "kind": "concrete"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-joint-delay-01-template",
+      "interface": "submit",
+      "kind": "template"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-alternative-recovery-05-concrete",
+      "interface": "submit",
+      "kind": "concrete"
+    },
+    {
+      "source": "broad",
+      "source_index": 87,
+      "kind": "tree",
+      "interface": "submit"
+    },
+    {
+      "source": "broad",
+      "source_index": 258,
+      "kind": "write",
+      "interface": "submit"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-time-team-06-template",
+      "interface": "chat",
+      "kind": "template"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-joint-councils-01-template",
+      "interface": "submit",
+      "kind": "template"
+    },
+    {
+      "source": "broad",
+      "source_index": 136,
+      "kind": "write",
+      "interface": "submit"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-taproot-single-06-concrete",
+      "interface": "chat",
+      "kind": "concrete"
+    },
+    {
+      "source": "compound_replay",
+      "source_index": 275,
+      "kind": "write",
+      "interface": "submit"
+    },
+    {
+      "source": "original_replay",
+      "source_index": 2481,
+      "kind": "script",
+      "interface": "chat"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-native-single-03-concrete",
+      "interface": "chat",
+      "kind": "concrete"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-joint-approval-00-template",
+      "interface": "submit",
+      "kind": "template"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-native-single-01-concrete",
+      "interface": "chat",
+      "kind": "concrete"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-time-team-06-template",
+      "interface": "submit",
+      "kind": "template"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-joint-approval-07-template",
+      "interface": "submit",
+      "kind": "template"
+    },
+    {
+      "source": "compound_replay",
+      "source_index": 197,
+      "kind": "write",
+      "interface": "chat"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-immediate-team-05-template",
+      "interface": "chat",
+      "kind": "template"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-joint-councils-07-template",
+      "interface": "submit",
+      "kind": "template"
+    },
+    {
+      "source": "broad",
+      "source_index": 332,
+      "kind": "write",
+      "interface": "chat"
+    },
+    {
+      "source": "broad",
+      "source_index": 259,
+      "kind": "tree",
+      "interface": "submit"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-joint-approval-01-template",
+      "interface": "chat",
+      "kind": "template"
+    },
+    {
+      "source": "broad",
+      "source_index": 154,
+      "kind": "write",
+      "interface": "submit"
+    },
+    {
+      "source": "compound_replay",
+      "source_index": 25,
+      "kind": "write",
+      "interface": "submit"
+    },
+    {
+      "source": "broad",
+      "source_index": 137,
+      "kind": "tree",
+      "interface": "submit"
+    },
+    {
+      "source": "broad",
+      "source_index": 403,
+      "kind": "tree",
+      "interface": "submit"
+    },
+    {
+      "source": "broad",
+      "source_index": 511,
+      "kind": "tree",
+      "interface": "submit"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-joint-councils-04-template",
+      "interface": "chat",
+      "kind": "template"
+    },
+    {
+      "source": "compound_replay",
+      "source_index": 218,
+      "kind": "write",
+      "interface": "submit"
+    },
+    {
+      "source": "original_replay",
+      "source_index": 2745,
+      "kind": "tree",
+      "interface": "submit"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-taproot-single-01-template",
+      "interface": "submit",
+      "kind": "template"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-recovery-delay-05-concrete",
+      "interface": "submit",
+      "kind": "concrete"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-joint-councils-00-template",
+      "interface": "submit",
+      "kind": "template"
+    },
+    {
+      "source": "compound_replay",
+      "source_index": 241,
+      "kind": "write",
+      "interface": "chat"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-time-team-02-concrete",
+      "interface": "submit",
+      "kind": "concrete"
+    },
+    {
+      "source": "broad",
+      "source_index": 342,
+      "kind": "write",
+      "interface": "chat"
+    },
+    {
+      "source": "original_replay",
+      "source_index": 14267,
+      "kind": "identify",
+      "interface": "chat"
+    },
+    {
+      "source": "original_replay",
+      "source_index": 9819,
+      "kind": "identify",
+      "interface": "chat"
+    },
+    {
+      "source": "broad",
+      "source_index": 403,
+      "kind": "tree",
+      "interface": "chat"
+    },
+    {
+      "source": "broad",
+      "source_index": 81,
+      "kind": "tree",
+      "interface": "submit"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-height-team-02-template",
+      "interface": "submit",
+      "kind": "template"
+    },
+    {
+      "source": "original_replay",
+      "source_index": 3714,
+      "kind": "script",
+      "interface": "chat"
+    },
+    {
+      "source": "compound_replay",
+      "source_index": 54,
+      "kind": "write",
+      "interface": "submit"
+    },
+    {
+      "source": "broad",
+      "source_index": 310,
+      "kind": "write",
+      "interface": "submit"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-height-team-00-concrete",
+      "interface": "submit",
+      "kind": "concrete"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-immediate-team-03-concrete",
+      "interface": "submit",
+      "kind": "concrete"
+    },
+    {
+      "source": "original_replay",
+      "source_index": 11913,
+      "kind": "script",
+      "interface": "chat"
+    },
+    {
+      "source": "compound_replay",
+      "source_index": 218,
+      "kind": "write",
+      "interface": "chat"
+    },
+    {
+      "source": "broad",
+      "source_index": 479,
+      "kind": "tree",
+      "interface": "chat"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-recovery-delay-03-template",
+      "interface": "chat",
+      "kind": "template"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-recovery-time-05-concrete",
+      "interface": "chat",
+      "kind": "concrete"
+    },
+    {
+      "source": "compound_replay",
+      "source_index": 243,
+      "kind": "write",
+      "interface": "chat"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-recovery-delay-01-template",
+      "interface": "submit",
+      "kind": "template"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-joint-councils-06-template",
+      "interface": "chat",
+      "kind": "template"
+    },
+    {
+      "source": "broad",
+      "source_index": 251,
+      "kind": "tree",
+      "interface": "submit"
+    },
+    {
+      "source": "broad",
+      "source_index": 246,
+      "kind": "write",
+      "interface": "chat"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-recovery-time-02-concrete",
+      "interface": "submit",
+      "kind": "concrete"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-joint-height-06-concrete",
+      "interface": "chat",
+      "kind": "concrete"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-joint-time-04-template",
+      "interface": "chat",
+      "kind": "template"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-joint-approval-03-template",
+      "interface": "chat",
+      "kind": "template"
+    },
+    {
+      "source": "broad",
+      "source_index": 224,
+      "kind": "write",
+      "interface": "chat"
+    },
+    {
+      "source": "broad",
+      "source_index": 173,
+      "kind": "tree",
+      "interface": "submit"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-height-team-04-concrete",
+      "interface": "chat",
+      "kind": "concrete"
+    },
+    {
+      "source": "compound_replay",
+      "source_index": 287,
+      "kind": "write",
+      "interface": "submit"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-native-quorum-01-concrete",
+      "interface": "submit",
+      "kind": "concrete"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-recovery-height-04-template",
+      "interface": "chat",
+      "kind": "template"
+    },
+    {
+      "source": "broad",
+      "source_index": 309,
+      "kind": "tree",
+      "interface": "chat"
+    },
+    {
+      "source": "broad",
+      "source_index": 234,
+      "kind": "write",
+      "interface": "submit"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-alternative-recovery-07-template",
+      "interface": "submit",
+      "kind": "template"
+    },
+    {
+      "source": "original_replay",
+      "source_index": 7871,
+      "kind": "identify",
+      "interface": "submit"
+    },
+    {
+      "source": "original_replay",
+      "source_index": 2859,
+      "kind": "tree",
+      "interface": "submit"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-joint-delay-06-concrete",
+      "interface": "chat",
+      "kind": "concrete"
+    },
+    {
+      "source": "broad",
+      "source_index": 307,
+      "kind": "tree",
+      "interface": "submit"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-joint-time-05-concrete",
+      "interface": "chat",
+      "kind": "concrete"
+    },
+    {
+      "source": "compound_replay",
+      "source_index": 71,
+      "kind": "write",
+      "interface": "chat"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-joint-delay-00-concrete",
+      "interface": "submit",
+      "kind": "concrete"
+    },
+    {
+      "source": "original_replay",
+      "source_index": 13792,
+      "kind": "identify",
+      "interface": "chat"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-joint-time-05-template",
+      "interface": "submit",
+      "kind": "template"
+    },
+    {
+      "source": "broad",
+      "source_index": 259,
+      "kind": "tree",
+      "interface": "chat"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-joint-height-00-template",
+      "interface": "chat",
+      "kind": "template"
+    },
+    {
+      "source": "broad",
+      "source_index": 126,
+      "kind": "write",
+      "interface": "submit"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-native-single-06-template",
+      "interface": "chat",
+      "kind": "template"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-immediate-team-03-concrete",
+      "interface": "chat",
+      "kind": "concrete"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-time-team-04-template",
+      "interface": "chat",
+      "kind": "template"
+    },
+    {
+      "source": "broad",
+      "source_index": 92,
+      "kind": "write",
+      "interface": "chat"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-taproot-single-00-template",
+      "interface": "chat",
+      "kind": "template"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-alternative-recovery-03-template",
+      "interface": "chat",
+      "kind": "template"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-alternative-recovery-06-template",
+      "interface": "chat",
+      "kind": "template"
+    },
+    {
+      "source": "compound_replay",
+      "source_index": 8,
+      "kind": "write",
+      "interface": "submit"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-joint-approval-06-template",
+      "interface": "submit",
+      "kind": "template"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-recovery-height-01-template",
+      "interface": "chat",
+      "kind": "template"
+    },
+    {
+      "source": "broad",
+      "source_index": 78,
+      "kind": "write",
+      "interface": "chat"
+    },
+    {
+      "source": "original_replay",
+      "source_index": 3506,
+      "kind": "identify",
+      "interface": "submit"
+    },
+    {
+      "source": "broad",
+      "source_index": 227,
+      "kind": "tree",
+      "interface": "submit"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-time-team-03-concrete",
+      "interface": "chat",
+      "kind": "concrete"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-joint-delay-03-template",
+      "interface": "submit",
+      "kind": "template"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-native-single-05-concrete",
+      "interface": "submit",
+      "kind": "concrete"
+    },
+    {
+      "source": "compound_replay",
+      "source_index": 214,
+      "kind": "write",
+      "interface": "submit"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-delayed-team-07-template",
+      "interface": "chat",
+      "kind": "template"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-joint-delay-00-concrete",
+      "interface": "chat",
+      "kind": "concrete"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-joint-councils-02-concrete",
+      "interface": "submit",
+      "kind": "concrete"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-immediate-team-01-concrete",
+      "interface": "chat",
+      "kind": "concrete"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-joint-approval-04-template",
+      "interface": "submit",
+      "kind": "template"
+    },
+    {
+      "source": "compound_replay",
+      "source_index": 112,
+      "kind": "write",
+      "interface": "chat"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-recovery-delay-02-concrete",
+      "interface": "chat",
+      "kind": "concrete"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-recovery-delay-00-concrete",
+      "interface": "submit",
+      "kind": "concrete"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-alternative-recovery-00-template",
+      "interface": "submit",
+      "kind": "template"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-joint-delay-04-template",
+      "interface": "chat",
+      "kind": "template"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-joint-time-01-template",
+      "interface": "submit",
+      "kind": "template"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-alternative-recovery-03-concrete",
+      "interface": "submit",
+      "kind": "concrete"
+    },
+    {
+      "source": "compound_replay",
+      "source_index": 156,
+      "kind": "write",
+      "interface": "chat"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-recovery-delay-05-template",
+      "interface": "chat",
+      "kind": "template"
+    },
+    {
+      "source": "broad",
+      "source_index": 133,
+      "kind": "tree",
+      "interface": "chat"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-recovery-delay-00-concrete",
+      "interface": "chat",
+      "kind": "concrete"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-height-team-07-concrete",
+      "interface": "submit",
+      "kind": "concrete"
+    },
+    {
+      "source": "original_replay",
+      "source_index": 8673,
+      "kind": "script",
+      "interface": "chat"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-recovery-height-04-template",
+      "interface": "submit",
+      "kind": "template"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-immediate-team-01-template",
+      "interface": "chat",
+      "kind": "template"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-joint-approval-01-concrete",
+      "interface": "submit",
+      "kind": "concrete"
+    },
+    {
+      "source": "original_replay",
+      "source_index": 7711,
+      "kind": "script",
+      "interface": "submit"
+    },
+    {
+      "source": "broad",
+      "source_index": 505,
+      "kind": "tree",
+      "interface": "chat"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-recovery-height-00-concrete",
+      "interface": "submit",
+      "kind": "concrete"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-joint-delay-06-template",
+      "interface": "submit",
+      "kind": "template"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-taproot-single-07-template",
+      "interface": "chat",
+      "kind": "template"
+    },
+    {
+      "source": "broad",
+      "source_index": 359,
+      "kind": "tree",
+      "interface": "chat"
+    },
+    {
+      "source": "broad",
+      "source_index": 13,
+      "kind": "tree",
+      "interface": "submit"
+    },
+    {
+      "source": "original_replay",
+      "source_index": 700,
+      "kind": "script",
+      "interface": "chat"
+    },
+    {
+      "source": "original_replay",
+      "source_index": 9299,
+      "kind": "script",
+      "interface": "submit"
+    },
+    {
+      "source": "broad",
+      "source_index": 48,
+      "kind": "write",
+      "interface": "submit"
+    },
+    {
+      "source": "broad",
+      "source_index": 160,
+      "kind": "write",
+      "interface": "submit"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-recovery-height-02-template",
+      "interface": "submit",
+      "kind": "template"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-joint-approval-04-concrete",
+      "interface": "chat",
+      "kind": "concrete"
+    },
+    {
+      "source": "original_replay",
+      "source_index": 995,
+      "kind": "script",
+      "interface": "submit"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-native-single-05-concrete",
+      "interface": "chat",
+      "kind": "concrete"
+    },
+    {
+      "source": "broad",
+      "source_index": 480,
+      "kind": "write",
+      "interface": "submit"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-native-quorum-03-concrete",
+      "interface": "submit",
+      "kind": "concrete"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-recovery-time-00-concrete",
+      "interface": "submit",
+      "kind": "concrete"
+    },
+    {
+      "source": "original_replay",
+      "source_index": 7871,
+      "kind": "identify",
+      "interface": "chat"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-joint-councils-04-template",
+      "interface": "submit",
+      "kind": "template"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-native-quorum-05-concrete",
+      "interface": "submit",
+      "kind": "concrete"
+    },
+    {
+      "source": "original_replay",
+      "source_index": 2481,
+      "kind": "script",
+      "interface": "submit"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-delayed-team-07-template",
+      "interface": "submit",
+      "kind": "template"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-recovery-time-03-template",
+      "interface": "submit",
+      "kind": "template"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-joint-time-04-concrete",
+      "interface": "chat",
+      "kind": "concrete"
+    },
+    {
+      "source": "compound_replay",
+      "source_index": 174,
+      "kind": "write",
+      "interface": "chat"
+    },
+    {
+      "source": "broad",
+      "source_index": 430,
+      "kind": "write",
+      "interface": "submit"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-alternative-recovery-06-template",
+      "interface": "submit",
+      "kind": "template"
+    },
+    {
+      "source": "compound_replay",
+      "source_index": 23,
+      "kind": "write",
+      "interface": "submit"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-time-team-05-concrete",
+      "interface": "submit",
+      "kind": "concrete"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-height-team-00-template",
+      "interface": "submit",
+      "kind": "template"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-native-quorum-02-template",
+      "interface": "chat",
+      "kind": "template"
+    },
+    {
+      "source": "compound_replay",
+      "source_index": 236,
+      "kind": "write",
+      "interface": "chat"
+    },
+    {
+      "source": "original_replay",
+      "source_index": 5192,
+      "kind": "script",
+      "interface": "submit"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-joint-councils-01-concrete",
+      "interface": "chat",
+      "kind": "concrete"
+    },
+    {
+      "source": "original_replay",
+      "source_index": 995,
+      "kind": "script",
+      "interface": "chat"
+    },
+    {
+      "source": "compound_replay",
+      "source_index": 252,
+      "kind": "write",
+      "interface": "chat"
+    },
+    {
+      "source": "original_replay",
+      "source_index": 4383,
+      "kind": "script",
+      "interface": "submit"
+    },
+    {
+      "source": "original_replay",
+      "source_index": 2333,
+      "kind": "script",
+      "interface": "chat"
+    },
+    {
+      "source": "broad",
+      "source_index": 71,
+      "kind": "tree",
+      "interface": "submit"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-joint-delay-05-template",
+      "interface": "chat",
+      "kind": "template"
+    },
+    {
+      "source": "broad",
+      "source_index": 321,
+      "kind": "tree",
+      "interface": "chat"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-delayed-team-06-template",
+      "interface": "chat",
+      "kind": "template"
+    },
+    {
+      "source": "broad",
+      "source_index": 352,
+      "kind": "write",
+      "interface": "chat"
+    },
+    {
+      "source": "broad",
+      "source_index": 36,
+      "kind": "write",
+      "interface": "chat"
+    },
+    {
+      "source": "broad",
+      "source_index": 224,
+      "kind": "write",
+      "interface": "submit"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-delayed-team-03-template",
+      "interface": "submit",
+      "kind": "template"
+    },
+    {
+      "source": "original_replay",
+      "source_index": 11219,
+      "kind": "script",
+      "interface": "submit"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-recovery-time-07-template",
+      "interface": "submit",
+      "kind": "template"
+    },
+    {
+      "source": "original_replay",
+      "source_index": 14848,
+      "kind": "identify",
+      "interface": "submit"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-recovery-delay-05-template",
+      "interface": "submit",
+      "kind": "template"
+    },
+    {
+      "source": "broad",
+      "source_index": 53,
+      "kind": "tree",
+      "interface": "submit"
+    },
+    {
+      "source": "original_replay",
+      "source_index": 16594,
+      "kind": "identify",
+      "interface": "submit"
+    },
+    {
+      "source": "original_replay",
+      "source_index": 3910,
+      "kind": "script",
+      "interface": "submit"
+    },
+    {
+      "source": "compound_replay",
+      "source_index": 82,
+      "kind": "write",
+      "interface": "submit"
+    },
+    {
+      "source": "broad",
+      "source_index": 92,
+      "kind": "write",
+      "interface": "submit"
+    },
+    {
+      "source": "broad",
+      "source_index": 246,
+      "kind": "write",
+      "interface": "submit"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-time-team-05-concrete",
+      "interface": "chat",
+      "kind": "concrete"
+    },
+    {
+      "source": "broad",
+      "source_index": 315,
+      "kind": "tree",
+      "interface": "submit"
+    },
+    {
+      "source": "broad",
+      "source_index": 106,
+      "kind": "write",
+      "interface": "submit"
+    },
+    {
+      "source": "original_replay",
+      "source_index": 9074,
+      "kind": "tree",
+      "interface": "chat"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-delayed-team-01-concrete",
+      "interface": "submit",
+      "kind": "concrete"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-joint-approval-07-concrete",
+      "interface": "submit",
+      "kind": "concrete"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-joint-approval-02-template",
+      "interface": "chat",
+      "kind": "template"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-native-quorum-06-concrete",
+      "interface": "chat",
+      "kind": "concrete"
+    },
+    {
+      "source": "broad",
+      "source_index": 0,
+      "kind": "write",
+      "interface": "submit"
+    },
+    {
+      "source": "compound_replay",
+      "source_index": 164,
+      "kind": "write",
+      "interface": "submit"
+    },
+    {
+      "source": "broad",
+      "source_index": 377,
+      "kind": "tree",
+      "interface": "chat"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-joint-height-06-concrete",
+      "interface": "submit",
+      "kind": "concrete"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-taproot-single-00-template",
+      "interface": "submit",
+      "kind": "template"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-joint-councils-04-concrete",
+      "interface": "submit",
+      "kind": "concrete"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-time-team-02-concrete",
+      "interface": "chat",
+      "kind": "concrete"
+    },
+    {
+      "source": "broad",
+      "source_index": 143,
+      "kind": "tree",
+      "interface": "chat"
+    },
+    {
+      "source": "original_replay",
+      "source_index": 10414,
+      "kind": "tree",
+      "interface": "submit"
+    },
+    {
+      "source": "broad",
+      "source_index": 113,
+      "kind": "tree",
+      "interface": "submit"
+    },
+    {
+      "source": "broad",
+      "source_index": 74,
+      "kind": "write",
+      "interface": "chat"
+    },
+    {
+      "source": "broad",
+      "source_index": 354,
+      "kind": "write",
+      "interface": "submit"
+    },
+    {
+      "source": "broad",
+      "source_index": 228,
+      "kind": "write",
+      "interface": "chat"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-immediate-team-02-template",
+      "interface": "chat",
+      "kind": "template"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-recovery-time-05-concrete",
+      "interface": "submit",
+      "kind": "concrete"
+    },
+    {
+      "source": "broad",
+      "source_index": 209,
+      "kind": "tree",
+      "interface": "chat"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-delayed-team-05-concrete",
+      "interface": "submit",
+      "kind": "concrete"
+    },
+    {
+      "source": "original_replay",
+      "source_index": 12585,
+      "kind": "tree",
+      "interface": "submit"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-time-team-07-concrete",
+      "interface": "chat",
+      "kind": "concrete"
+    },
+    {
+      "source": "compound_replay",
+      "source_index": 198,
+      "kind": "write",
+      "interface": "chat"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-native-quorum-06-template",
+      "interface": "submit",
+      "kind": "template"
+    },
+    {
+      "source": "compound_replay",
+      "source_index": 277,
+      "kind": "write",
+      "interface": "chat"
+    },
+    {
+      "source": "broad",
+      "source_index": 280,
+      "kind": "write",
+      "interface": "submit"
+    },
+    {
+      "source": "broad",
+      "source_index": 37,
+      "kind": "tree",
+      "interface": "chat"
+    },
+    {
+      "source": "original_replay",
+      "source_index": 12119,
+      "kind": "script",
+      "interface": "chat"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-height-team-05-template",
+      "interface": "submit",
+      "kind": "template"
+    },
+    {
+      "source": "original_replay",
+      "source_index": 4034,
+      "kind": "script",
+      "interface": "chat"
+    },
+    {
+      "source": "broad",
+      "source_index": 116,
+      "kind": "write",
+      "interface": "chat"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-joint-delay-03-concrete",
+      "interface": "chat",
+      "kind": "concrete"
+    },
+    {
+      "source": "compound_replay",
+      "source_index": 53,
+      "kind": "write",
+      "interface": "submit"
+    },
+    {
+      "source": "broad",
+      "source_index": 297,
+      "kind": "tree",
+      "interface": "submit"
+    },
+    {
+      "source": "original_replay",
+      "source_index": 1463,
+      "kind": "identify",
+      "interface": "submit"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-alternative-recovery-04-concrete",
+      "interface": "submit",
+      "kind": "concrete"
+    },
+    {
+      "source": "broad",
+      "source_index": 291,
+      "kind": "tree",
+      "interface": "chat"
+    },
+    {
+      "source": "compound_replay",
+      "source_index": 132,
+      "kind": "write",
+      "interface": "chat"
+    },
+    {
+      "source": "compound_replay",
+      "source_index": 23,
+      "kind": "write",
+      "interface": "chat"
+    },
+    {
+      "source": "broad",
+      "source_index": 57,
+      "kind": "tree",
+      "interface": "submit"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-height-team-01-template",
+      "interface": "submit",
+      "kind": "template"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-immediate-team-02-concrete",
+      "interface": "submit",
+      "kind": "concrete"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-alternative-recovery-01-concrete",
+      "interface": "submit",
+      "kind": "concrete"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-height-team-02-concrete",
+      "interface": "chat",
+      "kind": "concrete"
+    },
+    {
+      "source": "original_replay",
+      "source_index": 13329,
+      "kind": "script",
+      "interface": "chat"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-height-team-06-concrete",
+      "interface": "chat",
+      "kind": "concrete"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-native-quorum-01-template",
+      "interface": "chat",
+      "kind": "template"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-joint-delay-01-concrete",
+      "interface": "chat",
+      "kind": "concrete"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-joint-councils-03-template",
+      "interface": "chat",
+      "kind": "template"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-taproot-single-07-template",
+      "interface": "submit",
+      "kind": "template"
+    },
+    {
+      "source": "broad",
+      "source_index": 113,
+      "kind": "tree",
+      "interface": "chat"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-joint-approval-05-template",
+      "interface": "chat",
+      "kind": "template"
+    },
+    {
+      "source": "original_replay",
+      "source_index": 15789,
+      "kind": "identify",
+      "interface": "submit"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-joint-height-05-template",
+      "interface": "chat",
+      "kind": "template"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-immediate-team-06-template",
+      "interface": "submit",
+      "kind": "template"
+    },
+    {
+      "source": "compound_replay",
+      "source_index": 53,
+      "kind": "write",
+      "interface": "chat"
+    },
+    {
+      "source": "broad",
+      "source_index": 69,
+      "kind": "tree",
+      "interface": "chat"
+    },
+    {
+      "source": "broad",
+      "source_index": 354,
+      "kind": "write",
+      "interface": "chat"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-joint-approval-02-template",
+      "interface": "submit",
+      "kind": "template"
+    },
+    {
+      "source": "broad",
+      "source_index": 389,
+      "kind": "tree",
+      "interface": "chat"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-joint-councils-03-template",
+      "interface": "submit",
+      "kind": "template"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-immediate-team-01-template",
+      "interface": "submit",
+      "kind": "template"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-delayed-team-00-template",
+      "interface": "submit",
+      "kind": "template"
+    },
+    {
+      "source": "original_replay",
+      "source_index": 9074,
+      "kind": "tree",
+      "interface": "submit"
+    },
+    {
+      "source": "broad",
+      "source_index": 505,
+      "kind": "tree",
+      "interface": "submit"
+    },
+    {
+      "source": "compound_replay",
+      "source_index": 249,
+      "kind": "write",
+      "interface": "submit"
+    },
+    {
+      "source": "broad",
+      "source_index": 359,
+      "kind": "tree",
+      "interface": "submit"
+    },
+    {
+      "source": "broad",
+      "source_index": 51,
+      "kind": "tree",
+      "interface": "submit"
+    },
+    {
+      "source": "compound_replay",
+      "source_index": 280,
+      "kind": "write",
+      "interface": "chat"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-joint-approval-00-template",
+      "interface": "chat",
+      "kind": "template"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-joint-councils-07-concrete",
+      "interface": "submit",
+      "kind": "concrete"
+    },
+    {
+      "source": "broad",
+      "source_index": 309,
+      "kind": "tree",
+      "interface": "submit"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-joint-delay-05-concrete",
+      "interface": "chat",
+      "kind": "concrete"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-joint-delay-07-template",
+      "interface": "submit",
+      "kind": "template"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-height-team-04-concrete",
+      "interface": "submit",
+      "kind": "concrete"
+    },
+    {
+      "source": "broad",
+      "source_index": 132,
+      "kind": "write",
+      "interface": "chat"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-native-single-04-template",
+      "interface": "chat",
+      "kind": "template"
+    },
+    {
+      "source": "original_replay",
+      "source_index": 10476,
+      "kind": "identify",
+      "interface": "submit"
+    },
+    {
+      "source": "original_replay",
+      "source_index": 16594,
+      "kind": "identify",
+      "interface": "chat"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-joint-time-00-template",
+      "interface": "submit",
+      "kind": "template"
+    },
+    {
+      "source": "compound_replay",
+      "source_index": 252,
+      "kind": "write",
+      "interface": "submit"
+    },
+    {
+      "source": "broad",
+      "source_index": 296,
+      "kind": "write",
+      "interface": "submit"
+    },
+    {
+      "source": "broad",
+      "source_index": 62,
+      "kind": "write",
+      "interface": "submit"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-native-single-07-concrete",
+      "interface": "chat",
+      "kind": "concrete"
+    },
+    {
+      "source": "original_replay",
+      "source_index": 192,
+      "kind": "identify",
+      "interface": "chat"
+    },
+    {
+      "source": "original_replay",
+      "source_index": 4553,
+      "kind": "tree",
+      "interface": "submit"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-alternative-recovery-01-template",
+      "interface": "chat",
+      "kind": "template"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-joint-councils-00-template",
+      "interface": "chat",
+      "kind": "template"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-joint-height-03-concrete",
+      "interface": "submit",
+      "kind": "concrete"
+    },
+    {
+      "source": "compound_replay",
+      "source_index": 57,
+      "kind": "write",
+      "interface": "chat"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-time-team-04-concrete",
+      "interface": "submit",
+      "kind": "concrete"
+    },
+    {
+      "source": "broad",
+      "source_index": 434,
+      "kind": "write",
+      "interface": "chat"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-recovery-height-06-template",
+      "interface": "submit",
+      "kind": "template"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-joint-time-05-template",
+      "interface": "chat",
+      "kind": "template"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-native-quorum-07-template",
+      "interface": "chat",
+      "kind": "template"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-time-team-01-concrete",
+      "interface": "submit",
+      "kind": "concrete"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-recovery-delay-02-concrete",
+      "interface": "submit",
+      "kind": "concrete"
+    },
+    {
+      "source": "broad",
+      "source_index": 339,
+      "kind": "tree",
+      "interface": "chat"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-immediate-team-06-template",
+      "interface": "chat",
+      "kind": "template"
+    },
+    {
+      "source": "broad",
+      "source_index": 187,
+      "kind": "tree",
+      "interface": "submit"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-joint-time-05-concrete",
+      "interface": "submit",
+      "kind": "concrete"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-recovery-delay-07-concrete",
+      "interface": "submit",
+      "kind": "concrete"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-alternative-recovery-07-template",
+      "interface": "chat",
+      "kind": "template"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-joint-approval-01-concrete",
+      "interface": "chat",
+      "kind": "concrete"
+    },
+    {
+      "source": "broad",
+      "source_index": 173,
+      "kind": "tree",
+      "interface": "chat"
+    },
+    {
+      "source": "broad",
+      "source_index": 216,
+      "kind": "write",
+      "interface": "chat"
+    },
+    {
+      "source": "broad",
+      "source_index": 217,
+      "kind": "tree",
+      "interface": "submit"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-joint-time-07-concrete",
+      "interface": "chat",
+      "kind": "concrete"
+    },
+    {
+      "source": "broad",
+      "source_index": 296,
+      "kind": "write",
+      "interface": "chat"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-recovery-time-07-concrete",
+      "interface": "chat",
+      "kind": "concrete"
+    },
+    {
+      "source": "broad",
+      "source_index": 455,
+      "kind": "tree",
+      "interface": "submit"
+    },
+    {
+      "source": "compound_replay",
+      "source_index": 241,
+      "kind": "write",
+      "interface": "submit"
+    },
+    {
+      "source": "broad",
+      "source_index": 71,
+      "kind": "tree",
+      "interface": "chat"
+    },
+    {
+      "source": "compound_replay",
+      "source_index": 253,
+      "kind": "write",
+      "interface": "chat"
+    },
+    {
+      "source": "broad",
+      "source_index": 336,
+      "kind": "write",
+      "interface": "submit"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-delayed-team-04-concrete",
+      "interface": "submit",
+      "kind": "concrete"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-height-team-06-template",
+      "interface": "submit",
+      "kind": "template"
+    },
+    {
+      "source": "compound_replay",
+      "source_index": 254,
+      "kind": "write",
+      "interface": "chat"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-native-single-07-template",
+      "interface": "submit",
+      "kind": "template"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-recovery-height-05-concrete",
+      "interface": "chat",
+      "kind": "concrete"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-joint-delay-05-concrete",
+      "interface": "submit",
+      "kind": "concrete"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-joint-delay-05-template",
+      "interface": "submit",
+      "kind": "template"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-joint-approval-06-template",
+      "interface": "chat",
+      "kind": "template"
+    },
+    {
+      "source": "broad",
+      "source_index": 306,
+      "kind": "write",
+      "interface": "submit"
+    },
+    {
+      "source": "broad",
+      "source_index": 105,
+      "kind": "tree",
+      "interface": "chat"
+    },
+    {
+      "source": "broad",
+      "source_index": 456,
+      "kind": "write",
+      "interface": "submit"
+    },
+    {
+      "source": "broad",
+      "source_index": 148,
+      "kind": "write",
+      "interface": "submit"
+    },
+    {
+      "source": "compound_replay",
+      "source_index": 151,
+      "kind": "write",
+      "interface": "submit"
+    },
+    {
+      "source": "compound_replay",
+      "source_index": 66,
+      "kind": "write",
+      "interface": "chat"
+    },
+    {
+      "source": "broad",
+      "source_index": 139,
+      "kind": "tree",
+      "interface": "submit"
+    },
+    {
+      "source": "compound_replay",
+      "source_index": 205,
+      "kind": "write",
+      "interface": "chat"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-joint-councils-03-concrete",
+      "interface": "chat",
+      "kind": "concrete"
+    },
+    {
+      "source": "broad",
+      "source_index": 420,
+      "kind": "write",
+      "interface": "chat"
+    },
+    {
+      "source": "original_replay",
+      "source_index": 12403,
+      "kind": "script",
+      "interface": "submit"
+    },
+    {
+      "source": "broad",
+      "source_index": 62,
+      "kind": "write",
+      "interface": "chat"
+    },
+    {
+      "source": "compound_replay",
+      "source_index": 61,
+      "kind": "write",
+      "interface": "submit"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-native-quorum-04-concrete",
+      "interface": "chat",
+      "kind": "concrete"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-taproot-single-04-template",
+      "interface": "submit",
+      "kind": "template"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-immediate-team-06-concrete",
+      "interface": "submit",
+      "kind": "concrete"
+    },
+    {
+      "source": "broad",
+      "source_index": 114,
+      "kind": "write",
+      "interface": "submit"
+    },
+    {
+      "source": "original_replay",
+      "source_index": 14824,
+      "kind": "script",
+      "interface": "submit"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-recovery-height-02-template",
+      "interface": "chat",
+      "kind": "template"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-height-team-07-template",
+      "interface": "submit",
+      "kind": "template"
+    },
+    {
+      "source": "broad",
+      "source_index": 336,
+      "kind": "write",
+      "interface": "chat"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-height-team-04-template",
+      "interface": "chat",
+      "kind": "template"
+    },
+    {
+      "source": "broad",
+      "source_index": 342,
+      "kind": "write",
+      "interface": "submit"
+    },
+    {
+      "source": "compound_replay",
+      "source_index": 15,
+      "kind": "write",
+      "interface": "chat"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-native-single-04-concrete",
+      "interface": "chat",
+      "kind": "concrete"
+    },
+    {
+      "source": "original_replay",
+      "source_index": 3390,
+      "kind": "script",
+      "interface": "chat"
+    },
+    {
+      "source": "original_replay",
+      "source_index": 1463,
+      "kind": "identify",
+      "interface": "chat"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-joint-time-03-concrete",
+      "interface": "submit",
+      "kind": "concrete"
+    },
+    {
+      "source": "broad",
+      "source_index": 136,
+      "kind": "write",
+      "interface": "chat"
+    },
+    {
+      "source": "compound_replay",
+      "source_index": 192,
+      "kind": "write",
+      "interface": "submit"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-native-quorum-07-template",
+      "interface": "submit",
+      "kind": "template"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-recovery-time-01-concrete",
+      "interface": "chat",
+      "kind": "concrete"
+    },
+    {
+      "source": "original_replay",
+      "source_index": 10148,
+      "kind": "script",
+      "interface": "submit"
+    },
+    {
+      "source": "compound_replay",
+      "source_index": 212,
+      "kind": "write",
+      "interface": "submit"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-native-single-07-concrete",
+      "interface": "submit",
+      "kind": "concrete"
+    },
+    {
+      "source": "compound_replay",
+      "source_index": 251,
+      "kind": "write",
+      "interface": "chat"
+    },
+    {
+      "source": "original_replay",
+      "source_index": 8740,
+      "kind": "script",
+      "interface": "chat"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-height-team-06-template",
+      "interface": "chat",
+      "kind": "template"
+    },
+    {
+      "source": "original_replay",
+      "source_index": 16169,
+      "kind": "script",
+      "interface": "chat"
+    },
+    {
+      "source": "original_replay",
+      "source_index": 13792,
+      "kind": "identify",
+      "interface": "submit"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-delayed-team-06-concrete",
+      "interface": "chat",
+      "kind": "concrete"
+    },
+    {
+      "source": "broad",
+      "source_index": 36,
+      "kind": "write",
+      "interface": "submit"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-joint-councils-02-template",
+      "interface": "chat",
+      "kind": "template"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-recovery-height-01-template",
+      "interface": "submit",
+      "kind": "template"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-taproot-single-06-template",
+      "interface": "chat",
+      "kind": "template"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-time-team-03-template",
+      "interface": "submit",
+      "kind": "template"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-native-single-01-concrete",
+      "interface": "submit",
+      "kind": "concrete"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-recovery-height-02-concrete",
+      "interface": "submit",
+      "kind": "concrete"
+    },
+    {
+      "source": "broad",
+      "source_index": 402,
+      "kind": "write",
+      "interface": "chat"
+    },
+    {
+      "source": "original_replay",
+      "source_index": 10476,
+      "kind": "identify",
+      "interface": "chat"
+    },
+    {
+      "source": "original_replay",
+      "source_index": 6105,
+      "kind": "identify",
+      "interface": "submit"
+    },
+    {
+      "source": "broad",
+      "source_index": 263,
+      "kind": "tree",
+      "interface": "chat"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-joint-approval-04-template",
+      "interface": "chat",
+      "kind": "template"
+    },
+    {
+      "source": "compound_replay",
+      "source_index": 246,
+      "kind": "write",
+      "interface": "submit"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-joint-delay-07-concrete",
+      "interface": "submit",
+      "kind": "concrete"
+    },
+    {
+      "source": "broad",
+      "source_index": 132,
+      "kind": "write",
+      "interface": "submit"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-joint-councils-02-template",
+      "interface": "submit",
+      "kind": "template"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-joint-councils-06-concrete",
+      "interface": "chat",
+      "kind": "concrete"
+    },
+    {
+      "source": "broad",
+      "source_index": 90,
+      "kind": "write",
+      "interface": "chat"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-joint-delay-01-concrete",
+      "interface": "submit",
+      "kind": "concrete"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-alternative-recovery-05-concrete",
+      "interface": "chat",
+      "kind": "concrete"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-alternative-recovery-05-template",
+      "interface": "submit",
+      "kind": "template"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-time-team-07-template",
+      "interface": "chat",
+      "kind": "template"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-recovery-time-02-template",
+      "interface": "submit",
+      "kind": "template"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-alternative-recovery-04-template",
+      "interface": "chat",
+      "kind": "template"
+    },
+    {
+      "source": "compound_replay",
+      "source_index": 8,
+      "kind": "write",
+      "interface": "chat"
+    },
+    {
+      "source": "original_replay",
+      "source_index": 3797,
+      "kind": "script",
+      "interface": "chat"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-joint-councils-01-template",
+      "interface": "chat",
+      "kind": "template"
+    },
+    {
+      "source": "compound_replay",
+      "source_index": 178,
+      "kind": "write",
+      "interface": "submit"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-taproot-single-06-template",
+      "interface": "submit",
+      "kind": "template"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-immediate-team-05-concrete",
+      "interface": "chat",
+      "kind": "concrete"
+    },
+    {
+      "source": "broad",
+      "source_index": 54,
+      "kind": "write",
+      "interface": "chat"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-recovery-height-00-template",
+      "interface": "chat",
+      "kind": "template"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-recovery-delay-06-concrete",
+      "interface": "chat",
+      "kind": "concrete"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-joint-approval-07-template",
+      "interface": "chat",
+      "kind": "template"
+    },
+    {
+      "source": "compound_replay",
+      "source_index": 151,
+      "kind": "write",
+      "interface": "chat"
+    },
+    {
+      "source": "compound_replay",
+      "source_index": 145,
+      "kind": "write",
+      "interface": "chat"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-recovery-delay-05-concrete",
+      "interface": "chat",
+      "kind": "concrete"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-recovery-time-03-concrete",
+      "interface": "chat",
+      "kind": "concrete"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-joint-time-07-template",
+      "interface": "chat",
+      "kind": "template"
+    },
+    {
+      "source": "original_replay",
+      "source_index": 12585,
+      "kind": "tree",
+      "interface": "chat"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-joint-height-07-template",
+      "interface": "submit",
+      "kind": "template"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-joint-delay-06-template",
+      "interface": "chat",
+      "kind": "template"
+    },
+    {
+      "source": "broad",
+      "source_index": 167,
+      "kind": "tree",
+      "interface": "chat"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-delayed-team-04-template",
+      "interface": "submit",
+      "kind": "template"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-joint-councils-07-template",
+      "interface": "chat",
+      "kind": "template"
+    },
+    {
+      "source": "broad",
+      "source_index": 33,
+      "kind": "tree",
+      "interface": "chat"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-recovery-time-06-concrete",
+      "interface": "chat",
+      "kind": "concrete"
+    },
+    {
+      "source": "original_replay",
+      "source_index": 11913,
+      "kind": "script",
+      "interface": "submit"
+    },
+    {
+      "source": "original_replay",
+      "source_index": 13329,
+      "kind": "script",
+      "interface": "submit"
+    },
+    {
+      "source": "broad",
+      "source_index": 352,
+      "kind": "write",
+      "interface": "submit"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-joint-time-06-template",
+      "interface": "submit",
+      "kind": "template"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-height-team-00-concrete",
+      "interface": "chat",
+      "kind": "concrete"
+    },
+    {
+      "source": "broad",
+      "source_index": 399,
+      "kind": "tree",
+      "interface": "chat"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-immediate-team-04-concrete",
+      "interface": "submit",
+      "kind": "concrete"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-time-team-01-concrete",
+      "interface": "chat",
+      "kind": "concrete"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-alternative-recovery-02-concrete",
+      "interface": "chat",
+      "kind": "concrete"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-delayed-team-00-concrete",
+      "interface": "submit",
+      "kind": "concrete"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-native-single-00-concrete",
+      "interface": "submit",
+      "kind": "concrete"
+    },
+    {
+      "source": "broad",
+      "source_index": 303,
+      "kind": "tree",
+      "interface": "chat"
+    },
+    {
+      "source": "compound_replay",
+      "source_index": 3,
+      "kind": "write",
+      "interface": "chat"
+    },
+    {
+      "source": "compound_replay",
+      "source_index": 231,
+      "kind": "write",
+      "interface": "submit"
+    },
+    {
+      "source": "broad",
+      "source_index": 116,
+      "kind": "write",
+      "interface": "submit"
+    },
+    {
+      "source": "compound_replay",
+      "source_index": 73,
+      "kind": "write",
+      "interface": "chat"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-recovery-time-01-template",
+      "interface": "submit",
+      "kind": "template"
+    },
+    {
+      "source": "original_replay",
+      "source_index": 3631,
+      "kind": "identify",
+      "interface": "submit"
+    },
+    {
+      "source": "compound_replay",
+      "source_index": 73,
+      "kind": "write",
+      "interface": "submit"
+    },
+    {
+      "source": "original_replay",
+      "source_index": 8754,
+      "kind": "identify",
+      "interface": "chat"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-native-single-01-template",
+      "interface": "submit",
+      "kind": "template"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-recovery-delay-01-concrete",
+      "interface": "chat",
+      "kind": "concrete"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-joint-time-07-concrete",
+      "interface": "submit",
+      "kind": "concrete"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-recovery-time-04-template",
+      "interface": "chat",
+      "kind": "template"
+    },
+    {
+      "source": "original_replay",
+      "source_index": 14824,
+      "kind": "script",
+      "interface": "chat"
+    },
+    {
+      "source": "broad",
+      "source_index": 251,
+      "kind": "tree",
+      "interface": "chat"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-height-team-04-template",
+      "interface": "submit",
+      "kind": "template"
+    },
+    {
+      "source": "broad",
+      "source_index": 164,
+      "kind": "write",
+      "interface": "submit"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-native-quorum-07-concrete",
+      "interface": "chat",
+      "kind": "concrete"
+    },
+    {
+      "source": "original_replay",
+      "source_index": 3824,
+      "kind": "tree",
+      "interface": "submit"
+    },
+    {
+      "source": "original_replay",
+      "source_index": 7274,
+      "kind": "tree",
+      "interface": "chat"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-immediate-team-07-template",
+      "interface": "submit",
+      "kind": "template"
+    },
+    {
+      "source": "compound_replay",
+      "source_index": 164,
+      "kind": "write",
+      "interface": "chat"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-native-single-06-concrete",
+      "interface": "chat",
+      "kind": "concrete"
+    },
+    {
+      "source": "original_replay",
+      "source_index": 4553,
+      "kind": "tree",
+      "interface": "chat"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-immediate-team-03-template",
+      "interface": "submit",
+      "kind": "template"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-joint-height-02-concrete",
+      "interface": "chat",
+      "kind": "concrete"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-native-single-01-template",
+      "interface": "chat",
+      "kind": "template"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-joint-approval-00-concrete",
+      "interface": "submit",
+      "kind": "concrete"
+    },
+    {
+      "source": "broad",
+      "source_index": 5,
+      "kind": "tree",
+      "interface": "submit"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-recovery-time-05-template",
+      "interface": "chat",
+      "kind": "template"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-immediate-team-06-concrete",
+      "interface": "chat",
+      "kind": "concrete"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-joint-time-02-template",
+      "interface": "chat",
+      "kind": "template"
+    },
+    {
+      "source": "broad",
+      "source_index": 121,
+      "kind": "tree",
+      "interface": "submit"
+    },
+    {
+      "source": "original_replay",
+      "source_index": 7774,
+      "kind": "tree",
+      "interface": "chat"
+    },
+    {
+      "source": "broad",
+      "source_index": 280,
+      "kind": "write",
+      "interface": "chat"
+    },
+    {
+      "source": "broad",
+      "source_index": 228,
+      "kind": "write",
+      "interface": "submit"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-taproot-single-05-concrete",
+      "interface": "chat",
+      "kind": "concrete"
+    },
+    {
+      "source": "broad",
+      "source_index": 60,
+      "kind": "write",
+      "interface": "submit"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-height-team-03-template",
+      "interface": "chat",
+      "kind": "template"
+    },
+    {
+      "source": "broad",
+      "source_index": 184,
+      "kind": "write",
+      "interface": "chat"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-recovery-time-06-template",
+      "interface": "submit",
+      "kind": "template"
+    },
+    {
+      "source": "broad",
+      "source_index": 105,
+      "kind": "tree",
+      "interface": "submit"
+    },
+    {
+      "source": "compound_replay",
+      "source_index": 284,
+      "kind": "write",
+      "interface": "submit"
+    },
+    {
+      "source": "broad",
+      "source_index": 407,
+      "kind": "tree",
+      "interface": "chat"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-delayed-team-02-concrete",
+      "interface": "chat",
+      "kind": "concrete"
+    },
+    {
+      "source": "original_replay",
+      "source_index": 4834,
+      "kind": "tree",
+      "interface": "chat"
+    },
+    {
+      "source": "broad",
+      "source_index": 480,
+      "kind": "write",
+      "interface": "chat"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-height-team-01-template",
+      "interface": "chat",
+      "kind": "template"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-taproot-single-01-concrete",
+      "interface": "submit",
+      "kind": "concrete"
+    },
+    {
+      "source": "broad",
+      "source_index": 125,
+      "kind": "tree",
+      "interface": "chat"
+    },
+    {
+      "source": "compound_replay",
+      "source_index": 280,
+      "kind": "write",
+      "interface": "submit"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-native-quorum-00-concrete",
+      "interface": "chat",
+      "kind": "concrete"
+    },
+    {
+      "source": "original_replay",
+      "source_index": 5539,
+      "kind": "identify",
+      "interface": "submit"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-height-team-06-concrete",
+      "interface": "submit",
+      "kind": "concrete"
+    },
+    {
+      "source": "original_replay",
+      "source_index": 11058,
+      "kind": "script",
+      "interface": "submit"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-time-team-04-concrete",
+      "interface": "chat",
+      "kind": "concrete"
+    },
+    {
+      "source": "broad",
+      "source_index": 187,
+      "kind": "tree",
+      "interface": "chat"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-joint-delay-07-concrete",
+      "interface": "chat",
+      "kind": "concrete"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-joint-approval-03-template",
+      "interface": "submit",
+      "kind": "template"
+    },
+    {
+      "source": "broad",
+      "source_index": 329,
+      "kind": "tree",
+      "interface": "chat"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-recovery-time-06-concrete",
+      "interface": "submit",
+      "kind": "concrete"
+    },
+    {
+      "source": "broad",
+      "source_index": 133,
+      "kind": "tree",
+      "interface": "submit"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-recovery-height-06-concrete",
+      "interface": "submit",
+      "kind": "concrete"
+    },
+    {
+      "source": "broad",
+      "source_index": 383,
+      "kind": "tree",
+      "interface": "submit"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-joint-time-02-concrete",
+      "interface": "chat",
+      "kind": "concrete"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-recovery-time-04-concrete",
+      "interface": "submit",
+      "kind": "concrete"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-delayed-team-00-template",
+      "interface": "chat",
+      "kind": "template"
+    },
+    {
+      "source": "compound_replay",
+      "source_index": 243,
+      "kind": "write",
+      "interface": "submit"
+    },
+    {
+      "source": "broad",
+      "source_index": 164,
+      "kind": "write",
+      "interface": "chat"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-alternative-recovery-03-concrete",
+      "interface": "chat",
+      "kind": "concrete"
+    },
+    {
+      "source": "original_replay",
+      "source_index": 13531,
+      "kind": "script",
+      "interface": "chat"
+    },
+    {
+      "source": "broad",
+      "source_index": 373,
+      "kind": "tree",
+      "interface": "submit"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-native-quorum-03-template",
+      "interface": "chat",
+      "kind": "template"
+    },
+    {
+      "source": "original_replay",
+      "source_index": 3824,
+      "kind": "tree",
+      "interface": "chat"
+    },
+    {
+      "source": "broad",
+      "source_index": 206,
+      "kind": "write",
+      "interface": "submit"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-immediate-team-05-concrete",
+      "interface": "submit",
+      "kind": "concrete"
+    },
+    {
+      "source": "original_replay",
+      "source_index": 13135,
+      "kind": "tree",
+      "interface": "chat"
+    },
+    {
+      "source": "original_replay",
+      "source_index": 7484,
+      "kind": "identify",
+      "interface": "submit"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-recovery-time-06-template",
+      "interface": "chat",
+      "kind": "template"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-time-team-06-concrete",
+      "interface": "submit",
+      "kind": "concrete"
+    },
+    {
+      "source": "broad",
+      "source_index": 281,
+      "kind": "tree",
+      "interface": "submit"
+    },
+    {
+      "source": "compound_replay",
+      "source_index": 275,
+      "kind": "write",
+      "interface": "chat"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-native-single-00-template",
+      "interface": "submit",
+      "kind": "template"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-recovery-delay-02-template",
+      "interface": "chat",
+      "kind": "template"
+    },
+    {
+      "source": "broad",
+      "source_index": 119,
+      "kind": "tree",
+      "interface": "submit"
+    },
+    {
+      "source": "broad",
+      "source_index": 202,
+      "kind": "write",
+      "interface": "submit"
+    },
+    {
+      "source": "broad",
+      "source_index": 303,
+      "kind": "tree",
+      "interface": "submit"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-joint-height-03-concrete",
+      "interface": "chat",
+      "kind": "concrete"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-joint-delay-00-template",
+      "interface": "submit",
+      "kind": "template"
+    },
+    {
+      "source": "broad",
+      "source_index": 37,
+      "kind": "tree",
+      "interface": "submit"
+    },
+    {
+      "source": "compound_replay",
+      "source_index": 283,
+      "kind": "write",
+      "interface": "submit"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-recovery-height-03-concrete",
+      "interface": "chat",
+      "kind": "concrete"
+    },
+    {
+      "source": "broad",
+      "source_index": 291,
+      "kind": "tree",
+      "interface": "submit"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-native-quorum-04-template",
+      "interface": "submit",
+      "kind": "template"
+    },
+    {
+      "source": "compound_replay",
+      "source_index": 156,
+      "kind": "write",
+      "interface": "submit"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-delayed-team-01-concrete",
+      "interface": "chat",
+      "kind": "concrete"
+    },
+    {
+      "source": "compound_replay",
+      "source_index": 86,
+      "kind": "write",
+      "interface": "submit"
+    },
+    {
+      "source": "original_replay",
+      "source_index": 7711,
+      "kind": "script",
+      "interface": "chat"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-height-team-05-concrete",
+      "interface": "submit",
+      "kind": "concrete"
+    },
+    {
+      "source": "broad",
+      "source_index": 192,
+      "kind": "write",
+      "interface": "chat"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-joint-approval-03-concrete",
+      "interface": "chat",
+      "kind": "concrete"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-time-team-00-template",
+      "interface": "chat",
+      "kind": "template"
+    },
+    {
+      "source": "compound_replay",
+      "source_index": 250,
+      "kind": "write",
+      "interface": "submit"
+    },
+    {
+      "source": "broad",
+      "source_index": 63,
+      "kind": "tree",
+      "interface": "submit"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-taproot-single-07-concrete",
+      "interface": "submit",
+      "kind": "concrete"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-joint-height-07-concrete",
+      "interface": "chat",
+      "kind": "concrete"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-recovery-delay-03-concrete",
+      "interface": "chat",
+      "kind": "concrete"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-recovery-time-01-concrete",
+      "interface": "submit",
+      "kind": "concrete"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-alternative-recovery-00-concrete",
+      "interface": "chat",
+      "kind": "concrete"
+    },
+    {
+      "source": "broad",
+      "source_index": 333,
+      "kind": "tree",
+      "interface": "chat"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-native-single-03-template",
+      "interface": "chat",
+      "kind": "template"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-immediate-team-01-concrete",
+      "interface": "submit",
+      "kind": "concrete"
+    },
+    {
+      "source": "broad",
+      "source_index": 190,
+      "kind": "write",
+      "interface": "submit"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-joint-delay-04-concrete",
+      "interface": "submit",
+      "kind": "concrete"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-recovery-delay-06-template",
+      "interface": "submit",
+      "kind": "template"
+    },
+    {
+      "source": "broad",
+      "source_index": 219,
+      "kind": "tree",
+      "interface": "chat"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-recovery-delay-00-template",
+      "interface": "submit",
+      "kind": "template"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-taproot-single-00-concrete",
+      "interface": "submit",
+      "kind": "concrete"
+    },
+    {
+      "source": "broad",
+      "source_index": 57,
+      "kind": "tree",
+      "interface": "chat"
+    },
+    {
+      "source": "compound_replay",
+      "source_index": 246,
+      "kind": "write",
+      "interface": "chat"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-taproot-single-03-concrete",
+      "interface": "chat",
+      "kind": "concrete"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-delayed-team-03-concrete",
+      "interface": "chat",
+      "kind": "concrete"
+    },
+    {
+      "source": "original_replay",
+      "source_index": 8754,
+      "kind": "identify",
+      "interface": "submit"
+    },
+    {
+      "source": "original_replay",
+      "source_index": 424,
+      "kind": "tree",
+      "interface": "submit"
+    },
+    {
+      "source": "compound_replay",
+      "source_index": 263,
+      "kind": "write",
+      "interface": "chat"
+    },
+    {
+      "source": "original_replay",
+      "source_index": 9819,
+      "kind": "identify",
+      "interface": "submit"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-joint-height-03-template",
+      "interface": "submit",
+      "kind": "template"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-time-team-02-template",
+      "interface": "chat",
+      "kind": "template"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-recovery-time-02-concrete",
+      "interface": "chat",
+      "kind": "concrete"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-joint-height-02-template",
+      "interface": "chat",
+      "kind": "template"
+    },
+    {
+      "source": "original_replay",
+      "source_index": 7484,
+      "kind": "identify",
+      "interface": "chat"
+    },
+    {
+      "source": "broad",
+      "source_index": 172,
+      "kind": "write",
+      "interface": "submit"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-height-team-02-concrete",
+      "interface": "submit",
+      "kind": "concrete"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-joint-approval-06-concrete",
+      "interface": "chat",
+      "kind": "concrete"
+    },
+    {
+      "source": "broad",
+      "source_index": 78,
+      "kind": "write",
+      "interface": "submit"
+    },
+    {
+      "source": "broad",
+      "source_index": 90,
+      "kind": "write",
+      "interface": "submit"
+    },
+    {
+      "source": "broad",
+      "source_index": 114,
+      "kind": "write",
+      "interface": "chat"
+    },
+    {
+      "source": "compound_replay",
+      "source_index": 212,
+      "kind": "write",
+      "interface": "chat"
+    },
+    {
+      "source": "broad",
+      "source_index": 159,
+      "kind": "tree",
+      "interface": "chat"
+    },
+    {
+      "source": "broad",
+      "source_index": 80,
+      "kind": "write",
+      "interface": "chat"
+    },
+    {
+      "source": "original_replay",
+      "source_index": 2333,
+      "kind": "script",
+      "interface": "submit"
+    },
+    {
+      "source": "broad",
+      "source_index": 154,
+      "kind": "write",
+      "interface": "chat"
+    },
+    {
+      "source": "broad",
+      "source_index": 186,
+      "kind": "write",
+      "interface": "submit"
+    },
+    {
+      "source": "broad",
+      "source_index": 172,
+      "kind": "write",
+      "interface": "chat"
+    },
+    {
+      "source": "broad",
+      "source_index": 81,
+      "kind": "tree",
+      "interface": "chat"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-joint-approval-05-template",
+      "interface": "submit",
+      "kind": "template"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-height-team-07-concrete",
+      "interface": "chat",
+      "kind": "concrete"
+    },
+    {
+      "source": "original_replay",
+      "source_index": 7352,
+      "kind": "script",
+      "interface": "chat"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-joint-height-02-concrete",
+      "interface": "submit",
+      "kind": "concrete"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-time-team-00-concrete",
+      "interface": "chat",
+      "kind": "concrete"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-recovery-time-04-concrete",
+      "interface": "chat",
+      "kind": "concrete"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-delayed-team-05-template",
+      "interface": "chat",
+      "kind": "template"
+    },
+    {
+      "source": "broad",
+      "source_index": 32,
+      "kind": "write",
+      "interface": "submit"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-recovery-height-07-template",
+      "interface": "chat",
+      "kind": "template"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-time-team-01-template",
+      "interface": "chat",
+      "kind": "template"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-native-quorum-02-concrete",
+      "interface": "chat",
+      "kind": "concrete"
+    },
+    {
+      "source": "broad",
+      "source_index": 2,
+      "kind": "write",
+      "interface": "chat"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-joint-councils-04-concrete",
+      "interface": "chat",
+      "kind": "concrete"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-taproot-single-04-template",
+      "interface": "chat",
+      "kind": "template"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-joint-time-04-template",
+      "interface": "submit",
+      "kind": "template"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-immediate-team-04-concrete",
+      "interface": "chat",
+      "kind": "concrete"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-joint-councils-07-concrete",
+      "interface": "chat",
+      "kind": "concrete"
+    },
+    {
+      "source": "broad",
+      "source_index": 362,
+      "kind": "write",
+      "interface": "chat"
+    },
+    {
+      "source": "compound_replay",
+      "source_index": 133,
+      "kind": "write",
+      "interface": "submit"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-joint-height-01-concrete",
+      "interface": "submit",
+      "kind": "concrete"
+    },
+    {
+      "source": "original_replay",
+      "source_index": 11058,
+      "kind": "script",
+      "interface": "chat"
+    },
+    {
+      "source": "original_replay",
+      "source_index": 286,
+      "kind": "tree",
+      "interface": "chat"
+    },
+    {
+      "source": "compound_replay",
+      "source_index": 125,
+      "kind": "write",
+      "interface": "chat"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-recovery-time-00-template",
+      "interface": "submit",
+      "kind": "template"
+    },
+    {
+      "source": "broad",
+      "source_index": 260,
+      "kind": "write",
+      "interface": "submit"
+    },
+    {
+      "source": "original_replay",
+      "source_index": 2859,
+      "kind": "tree",
+      "interface": "chat"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-delayed-team-03-concrete",
+      "interface": "submit",
+      "kind": "concrete"
+    },
+    {
+      "source": "broad",
+      "source_index": 82,
+      "kind": "write",
+      "interface": "chat"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-joint-height-00-concrete",
+      "interface": "submit",
+      "kind": "concrete"
+    },
+    {
+      "source": "broad",
+      "source_index": 137,
+      "kind": "tree",
+      "interface": "chat"
+    },
+    {
+      "source": "original_replay",
+      "source_index": 192,
+      "kind": "identify",
+      "interface": "submit"
+    },
+    {
+      "source": "broad",
+      "source_index": 333,
+      "kind": "tree",
+      "interface": "submit"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-time-team-01-template",
+      "interface": "submit",
+      "kind": "template"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-native-quorum-05-template",
+      "interface": "chat",
+      "kind": "template"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-alternative-recovery-02-concrete",
+      "interface": "submit",
+      "kind": "concrete"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-native-quorum-04-template",
+      "interface": "chat",
+      "kind": "template"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-alternative-recovery-05-template",
+      "interface": "chat",
+      "kind": "template"
+    },
+    {
+      "source": "original_replay",
+      "source_index": 4383,
+      "kind": "script",
+      "interface": "chat"
+    },
+    {
+      "source": "original_replay",
+      "source_index": 14678,
+      "kind": "tree",
+      "interface": "chat"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-time-team-05-template",
+      "interface": "chat",
+      "kind": "template"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-joint-height-01-template",
+      "interface": "submit",
+      "kind": "template"
+    },
+    {
+      "source": "compound_replay",
+      "source_index": 195,
+      "kind": "write",
+      "interface": "chat"
+    },
+    {
+      "source": "broad",
+      "source_index": 32,
+      "kind": "write",
+      "interface": "chat"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-recovery-height-04-concrete",
+      "interface": "chat",
+      "kind": "concrete"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-delayed-team-04-template",
+      "interface": "chat",
+      "kind": "template"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-taproot-single-02-template",
+      "interface": "submit",
+      "kind": "template"
+    },
+    {
+      "source": "broad",
+      "source_index": 128,
+      "kind": "write",
+      "interface": "submit"
+    },
+    {
+      "source": "compound_replay",
+      "source_index": 205,
+      "kind": "write",
+      "interface": "submit"
+    },
+    {
+      "source": "compound_replay",
+      "source_index": 112,
+      "kind": "write",
+      "interface": "submit"
+    },
+    {
+      "source": "compound_replay",
+      "source_index": 178,
+      "kind": "write",
+      "interface": "chat"
+    },
+    {
+      "source": "broad",
+      "source_index": 312,
+      "kind": "write",
+      "interface": "submit"
+    },
+    {
+      "source": "original_replay",
+      "source_index": 3195,
+      "kind": "script",
+      "interface": "submit"
+    },
+    {
+      "source": "compound_replay",
+      "source_index": 14,
+      "kind": "write",
+      "interface": "chat"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-native-single-00-concrete",
+      "interface": "chat",
+      "kind": "concrete"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-immediate-team-03-template",
+      "interface": "chat",
+      "kind": "template"
+    },
+    {
+      "source": "wallet",
+      "source_index": "ws1-time-team-06-concrete",
+      "interface": "chat",
+      "kind": "concrete"
+    }
+  ]
+}

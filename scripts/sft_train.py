@@ -31,12 +31,16 @@ def main():
     ap.add_argument("--out", default="runs/sft-qwen3-4b")
     ap.add_argument("--epochs", type=float, default=2.0)
     ap.add_argument("--learning-rate", type=float, default=1e-4)
+    ap.add_argument("--lora-dropout", type=float, default=0.05)
     ap.add_argument("--warmup-steps", type=int, default=60)
     ap.add_argument("--save-steps", type=int, default=200)
     ap.add_argument("--gradient-accumulation-steps", type=int, default=16)
+    ap.add_argument("--audit-data", help="Save and verify the prepared completion loss masks before training.")
     ap.add_argument("--resume-from-checkpoint", nargs="?", const=True, default=None,
                     help="Resume a checkpoint path, or the latest checkpoint in --out.")
     args = ap.parse_args()
+    if not 0 <= args.lora_dropout < 1:
+        ap.error("--lora-dropout must be in [0, 1)")
 
     from datasets import load_dataset
     from peft import LoraConfig
@@ -47,7 +51,7 @@ def main():
     peft_config = LoraConfig(
         r=64,
         lora_alpha=128,
-        lora_dropout=0.05,
+        lora_dropout=args.lora_dropout,
         bias="none",
         task_type="CAUSAL_LM",
         target_modules=[
@@ -96,6 +100,26 @@ def main():
         peft_config=peft_config,
         args=config,
     )
+    if args.audit_data:
+        import json
+        from pathlib import Path
+
+        audit = []
+        for row in trainer.train_dataset:
+            prompt_ids = trainer.processing_class.encode(row["prompt"], add_special_tokens=False)
+            boundary = len(prompt_ids)
+            assert row["input_ids"][:boundary] == prompt_ids, "Prompt token boundary mismatch"
+            assert row["labels"][:boundary] == [-100] * boundary, "Prompt contributes to loss"
+            assert row["labels"][boundary:] == row["input_ids"][boundary:], "Completion tokens are masked"
+            assert len(row["labels"]) > boundary, "No supervised completion"
+            supervised = trainer.processing_class.decode(row["labels"][boundary:])
+            assert supervised == row["completion"], "Completion was changed or truncated"
+            audit.append(dict(prompt_tokens=boundary, supervised_tokens=len(row["labels"]) - boundary,
+                              supervised_text=supervised))
+        with Path(args.audit_data).open("x") as out:
+            json.dump(audit, out, indent=2)
+            out.write("\n")
+        print(f"Verified completion loss masks for {len(audit)} examples", flush=True)
     trainer.train(resume_from_checkpoint=args.resume_from_checkpoint)
     trainer.save_model(args.out + "/final")
     print(f"TRAIN-DONE adapters in {args.out}/final")

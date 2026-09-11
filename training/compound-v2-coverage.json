@@ -1,0 +1,27 @@
+{
+  "seed": 20260911,
+  "train": 192,
+  "validation": 48,
+  "train_shapes": 192,
+  "validation_shapes": 48,
+  "structural_overlap": 0,
+  "excluded_shapes": 994,
+  "coverage": {
+    "recognized_original_policy_traces": 14700
+  },
+  "train_approval_types": {
+    "deadline": 73,
+    "pair": 101,
+    "either": 112,
+    "sha": 72,
+    "committee": 38,
+    "delay": 78,
+    "hash160": 63,
+    "person": 174
+  },
+  "validation_buckets": {
+    "new arrangement": 24,
+    "held-out gated teams": 24
+  },
+  "limit": "Synthetic requests. Structural checks are not proofs of semantic novelty. Validation will select checkpoints, so it is development data."
+}

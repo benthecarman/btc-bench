@@ -52,6 +52,9 @@ def validate_rows(rows, thinking):
         if row.get("thinking") is not thinking:
             raise ValueError("RL prompt thinking mode is missing or differs; rerun rl_prepare.py with the intended --thinking/--no-thinking setting")
         fixture = json.loads(row["task_json"])
+        if fixture.get("task") == "wallet":
+            if fixture.get("fixture", {}).get("split") != "training":
+                raise ValueError("Wallet RL requires training fixtures; evaluation rows are forbidden")
         if fixture.get("task") == "judgment" and fixture.get("contract_version") != 1:
             raise ValueError("Old judgment contract; regenerate the task pool and RL prompts")
 
@@ -86,3 +89,27 @@ def extract_answer(completion: str, *, thinking=False, finish_reason=None):
         except (json.JSONDecodeError, TypeError):
             continue
     return completion.strip()
+
+
+def extract_task_answer(completion, task, *, thinking=False, finish_reason=None):
+    """Wallet submit extraction matches its evaluation contract exactly."""
+    if task.get("task") != "wallet":
+        return extract_answer(completion, thinking=thinking, finish_reason=finish_reason)
+    if finish_reason == "length" or (thinking and "</think>" not in completion):
+        return ""
+    if "</think>" in completion:
+        completion = completion.rsplit("</think>", 1)[1]
+    elif "<think>" in completion:
+        return ""
+    matches = list(TOOL_CALL_RE.finditer(completion))
+    if len(matches) != 1 or completion.count("<tool_call>") != 1 or completion.count("</tool_call>") != 1:
+        return ""
+    try:
+        call = json.loads(matches[0][1])
+        if not isinstance(call, dict) or call.get("name") != "submit_descriptor": return ""
+        args = call.get("arguments")
+        if isinstance(args, str): args = json.loads(args)
+        if not isinstance(args, dict) or not isinstance(args.get("descriptor"), str): return ""
+        return {"task":"descriptor", "descriptor":args["descriptor"]}
+    except (ValueError, TypeError):
+        return ""

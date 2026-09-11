@@ -46,7 +46,10 @@ fn main() -> Result<()> {
     )?;
     let manifest_path = out.join("manifest.json");
     let mut manifest: serde_json::Value = serde_json::from_slice(&fs::read(&manifest_path)?)?;
-    manifest["suite"] = "composed-training-v1".into();
+    manifest["suite"] = input["suite"]
+        .as_str()
+        .unwrap_or("composed-training-v1")
+        .into();
     manifest["evaluation_only"] = false.into();
     manifest["source_sha256"] = sha256::Hash::hash(&source).to_string().into();
     manifest["fixtures_sha256"] = sha256::Hash::hash(&fs::read(out.join("fixtures.jsonl"))?)
@@ -64,7 +67,7 @@ fn main() -> Result<()> {
     )?;
     fs::write(out.join("source.json"), source)?;
     println!(
-        "compiled {} independent training fixtures to {}",
+        "compiled {} training fixtures to {}",
         data.fixtures.len(),
         out.display()
     );

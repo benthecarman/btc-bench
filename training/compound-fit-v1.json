@@ -1,0 +1,31 @@
+{
+  "parent": "runs/sft-qwen3-4b-think/merged",
+  "training_data": "datasets/sft-compound-fit-v1.jsonl",
+  "probe_data": "datasets/rl-compound-fit-v1.jsonl",
+  "task_ids": [
+    "t1-human-composed-train-approval-joint-seat",
+    "t1-human-composed-train-approval-delayed-seat",
+    "t1-human-composed-train-approval-delivery-seat"
+  ],
+  "epochs": 40,
+  "updates": 40,
+  "gradient_accumulation": 3,
+  "learning_rate": 0.0001,
+  "warmup_steps": 3,
+  "save_steps": 20,
+  "seed": 7,
+  "purpose": "Intentional fit diagnostic on three training questions; not a generalization test",
+  "probe": {
+    "samples_per_question": 8,
+    "temperature": 0.6,
+    "top_p": 0.95,
+    "top_k": 20,
+    "min_p": 0,
+    "seed": 20260910,
+    "generation_cap": null
+  },
+  "source_hashes": {
+    "datasets/sft-compound-fit-v1.jsonl": "ceaadd5e3802ecbf0b65b17414600a939e239d82d79804f1c1760166eb84bfc4",
+    "datasets/rl-compound-fit-v1.jsonl": "196635fe50bcf0d7edec60a4692949fa2e65102f36564784d816f8856a728e6c"
+  }
+}

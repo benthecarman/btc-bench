@@ -1,0 +1,278 @@
+[
+  {
+    "id": "t1-human-composed-train-script-repairs-v1-both-signatures-write",
+    "group": "composed-train-script-repairs-v1-both-signatures",
+    "task_kind": "write",
+    "request": "Can you write the Bitcoin script for our shared savings? Alice and Bob must both sign a withdrawal. Neither can spend alone, and there is no recovery route or waiting period.\n\nAlice: 0303d6a8f93367e9e435639b6ca2ec5c443114e4c3f2dbbe860271fa3176574a9e\nBob: 03d8e07cce60ff5551e7688527fb21847756adb6bea152ef56dda64a6b6b839532\n",
+    "keys": [
+      {
+        "label": "Alice",
+        "pubkey": "0303d6a8f93367e9e435639b6ca2ec5c443114e4c3f2dbbe860271fa3176574a9e"
+      },
+      {
+        "label": "Bob",
+        "pubkey": "03d8e07cce60ff5551e7688527fb21847756adb6bea152ef56dda64a6b6b839532"
+      }
+    ],
+    "policy": "and(pk(0303d6a8f93367e9e435639b6ca2ec5c443114e4c3f2dbbe860271fa3176574a9e),pk(03d8e07cce60ff5551e7688527fb21847756adb6bea152ef56dda64a6b6b839532))",
+    "miniscript": "and_v(v:pk(0303d6a8f93367e9e435639b6ca2ec5c443114e4c3f2dbbe860271fa3176574a9e),pk(03d8e07cce60ff5551e7688527fb21847756adb6bea152ef56dda64a6b6b839532))",
+    "script_asm": "0303d6a8f93367e9e435639b6ca2ec5c443114e4c3f2dbbe860271fa3176574a9e OP_CHECKSIGVERIFY 03d8e07cce60ff5551e7688527fb21847756adb6bea152ef56dda64a6b6b839532 OP_CHECKSIG",
+    "script_hex": "210303d6a8f93367e9e435639b6ca2ec5c443114e4c3f2dbbe860271fa3176574a9ead2103d8e07cce60ff5551e7688527fb21847756adb6bea152ef56dda64a6b6b839532ac",
+    "draft": null,
+    "explanation": "Both signatures are required. The first signature check must succeed before the second check runs; a branch that accepts either signature would permit an unauthorized withdrawal.",
+    "draft_failure": "the script is valid but not semantically equivalent to the required spending policy"
+  },
+  {
+    "id": "t1-human-composed-train-script-repairs-v1-both-signatures-repair",
+    "group": "composed-train-script-repairs-v1-both-signatures",
+    "task_kind": "repair",
+    "request": "Can you write the Bitcoin script for our shared savings? Alice and Bob must both sign a withdrawal. Neither can spend alone, and there is no recovery route or waiting period.\n\nAlice: 0303d6a8f93367e9e435639b6ca2ec5c443114e4c3f2dbbe860271fa3176574a9e\nBob: 03d8e07cce60ff5551e7688527fb21847756adb6bea152ef56dda64a6b6b839532\n\nI tried the script below. Please fix it so it follows those rules:\n\n```text\nOP_IF 0303d6a8f93367e9e435639b6ca2ec5c443114e4c3f2dbbe860271fa3176574a9e OP_CHECKSIG OP_ELSE 03d8e07cce60ff5551e7688527fb21847756adb6bea152ef56dda64a6b6b839532 OP_CHECKSIG OP_ENDIF\n```",
+    "keys": [
+      {
+        "label": "Alice",
+        "pubkey": "0303d6a8f93367e9e435639b6ca2ec5c443114e4c3f2dbbe860271fa3176574a9e"
+      },
+      {
+        "label": "Bob",
+        "pubkey": "03d8e07cce60ff5551e7688527fb21847756adb6bea152ef56dda64a6b6b839532"
+      }
+    ],
+    "policy": "and(pk(0303d6a8f93367e9e435639b6ca2ec5c443114e4c3f2dbbe860271fa3176574a9e),pk(03d8e07cce60ff5551e7688527fb21847756adb6bea152ef56dda64a6b6b839532))",
+    "miniscript": "and_v(v:pk(0303d6a8f93367e9e435639b6ca2ec5c443114e4c3f2dbbe860271fa3176574a9e),pk(03d8e07cce60ff5551e7688527fb21847756adb6bea152ef56dda64a6b6b839532))",
+    "script_asm": "0303d6a8f93367e9e435639b6ca2ec5c443114e4c3f2dbbe860271fa3176574a9e OP_CHECKSIGVERIFY 03d8e07cce60ff5551e7688527fb21847756adb6bea152ef56dda64a6b6b839532 OP_CHECKSIG",
+    "script_hex": "210303d6a8f93367e9e435639b6ca2ec5c443114e4c3f2dbbe860271fa3176574a9ead2103d8e07cce60ff5551e7688527fb21847756adb6bea152ef56dda64a6b6b839532ac",
+    "draft": "OP_IF 0303d6a8f93367e9e435639b6ca2ec5c443114e4c3f2dbbe860271fa3176574a9e OP_CHECKSIG OP_ELSE 03d8e07cce60ff5551e7688527fb21847756adb6bea152ef56dda64a6b6b839532 OP_CHECKSIG OP_ENDIF",
+    "explanation": "Both signatures are required. The first signature check must succeed before the second check runs; a branch that accepts either signature would permit an unauthorized withdrawal.",
+    "draft_failure": "the script is valid but not semantically equivalent to the required spending policy"
+  },
+  {
+    "id": "t1-human-composed-train-script-repairs-v1-either-signature-write",
+    "group": "composed-train-script-repairs-v1-either-signature",
+    "task_kind": "write",
+    "request": "I want a Bitcoin script that lets either Alice or Bob spend the money on their own. They should not have to contact each other or wait. Nobody else can spend.\n\nAlice: 03a534479f0bddf8b4b8c9d26510882e1bbc1a51775eee83d197fff3c340cb599a\nBob: 0209a40171d1bc6eba255f8467d79a0d2ddddb0705de8af4e637eb2a03e5968a51\n",
+    "keys": [
+      {
+        "label": "Alice",
+        "pubkey": "03a534479f0bddf8b4b8c9d26510882e1bbc1a51775eee83d197fff3c340cb599a"
+      },
+      {
+        "label": "Bob",
+        "pubkey": "0209a40171d1bc6eba255f8467d79a0d2ddddb0705de8af4e637eb2a03e5968a51"
+      }
+    ],
+    "policy": "or(pk(03a534479f0bddf8b4b8c9d26510882e1bbc1a51775eee83d197fff3c340cb599a),pk(0209a40171d1bc6eba255f8467d79a0d2ddddb0705de8af4e637eb2a03e5968a51))",
+    "miniscript": "or_i(pk(03a534479f0bddf8b4b8c9d26510882e1bbc1a51775eee83d197fff3c340cb599a),pk(0209a40171d1bc6eba255f8467d79a0d2ddddb0705de8af4e637eb2a03e5968a51))",
+    "script_asm": "OP_IF 03a534479f0bddf8b4b8c9d26510882e1bbc1a51775eee83d197fff3c340cb599a OP_CHECKSIG OP_ELSE 0209a40171d1bc6eba255f8467d79a0d2ddddb0705de8af4e637eb2a03e5968a51 OP_CHECKSIG OP_ENDIF",
+    "script_hex": "632103a534479f0bddf8b4b8c9d26510882e1bbc1a51775eee83d197fff3c340cb599aac67210209a40171d1bc6eba255f8467d79a0d2ddddb0705de8af4e637eb2a03e5968a51ac68",
+    "draft": null,
+    "explanation": "Either signer is sufficient. The witness selects one branch and supplies the signature for that branch. Requiring both signatures would block the promised independent access.",
+    "draft_failure": "the script is valid but not semantically equivalent to the required spending policy"
+  },
+  {
+    "id": "t1-human-composed-train-script-repairs-v1-either-signature-repair",
+    "group": "composed-train-script-repairs-v1-either-signature",
+    "task_kind": "repair",
+    "request": "I want a Bitcoin script that lets either Alice or Bob spend the money on their own. They should not have to contact each other or wait. Nobody else can spend.\n\nAlice: 03a534479f0bddf8b4b8c9d26510882e1bbc1a51775eee83d197fff3c340cb599a\nBob: 0209a40171d1bc6eba255f8467d79a0d2ddddb0705de8af4e637eb2a03e5968a51\n\nI tried the script below. Please fix it so it follows those rules:\n\n```text\n03a534479f0bddf8b4b8c9d26510882e1bbc1a51775eee83d197fff3c340cb599a OP_CHECKSIGVERIFY 0209a40171d1bc6eba255f8467d79a0d2ddddb0705de8af4e637eb2a03e5968a51 OP_CHECKSIG\n```",
+    "keys": [
+      {
+        "label": "Alice",
+        "pubkey": "03a534479f0bddf8b4b8c9d26510882e1bbc1a51775eee83d197fff3c340cb599a"
+      },
+      {
+        "label": "Bob",
+        "pubkey": "0209a40171d1bc6eba255f8467d79a0d2ddddb0705de8af4e637eb2a03e5968a51"
+      }
+    ],
+    "policy": "or(pk(03a534479f0bddf8b4b8c9d26510882e1bbc1a51775eee83d197fff3c340cb599a),pk(0209a40171d1bc6eba255f8467d79a0d2ddddb0705de8af4e637eb2a03e5968a51))",
+    "miniscript": "or_i(pk(03a534479f0bddf8b4b8c9d26510882e1bbc1a51775eee83d197fff3c340cb599a),pk(0209a40171d1bc6eba255f8467d79a0d2ddddb0705de8af4e637eb2a03e5968a51))",
+    "script_asm": "OP_IF 03a534479f0bddf8b4b8c9d26510882e1bbc1a51775eee83d197fff3c340cb599a OP_CHECKSIG OP_ELSE 0209a40171d1bc6eba255f8467d79a0d2ddddb0705de8af4e637eb2a03e5968a51 OP_CHECKSIG OP_ENDIF",
+    "script_hex": "632103a534479f0bddf8b4b8c9d26510882e1bbc1a51775eee83d197fff3c340cb599aac67210209a40171d1bc6eba255f8467d79a0d2ddddb0705de8af4e637eb2a03e5968a51ac68",
+    "draft": "03a534479f0bddf8b4b8c9d26510882e1bbc1a51775eee83d197fff3c340cb599a OP_CHECKSIGVERIFY 0209a40171d1bc6eba255f8467d79a0d2ddddb0705de8af4e637eb2a03e5968a51 OP_CHECKSIG",
+    "explanation": "Either signer is sufficient. The witness selects one branch and supplies the signature for that branch. Requiring both signatures would block the promised independent access.",
+    "draft_failure": "the script is valid but not semantically equivalent to the required spending policy"
+  },
+  {
+    "id": "t1-human-composed-train-script-repairs-v1-delay-only-recovery-write",
+    "group": "composed-train-script-repairs-v1-delay-only-recovery",
+    "task_kind": "write",
+    "request": "Please write a Bitcoin script for my savings. Alice can spend at any time. If needed, Bob can recover the money once the output is at least 288 blocks old from confirmation, without Alice. Alice must still be able to spend after that. Those are the only options.\n\nAlice: 03868934412556940ae7f75952f44cd2cf7024a58d1c6518c9477584879ad64f6c\nBob: 02db50e8902b2c61147437096c70c799707afa9b4d739ad0697624bb2354c2d0e9\n",
+    "keys": [
+      {
+        "label": "Alice",
+        "pubkey": "03868934412556940ae7f75952f44cd2cf7024a58d1c6518c9477584879ad64f6c"
+      },
+      {
+        "label": "Bob",
+        "pubkey": "02db50e8902b2c61147437096c70c799707afa9b4d739ad0697624bb2354c2d0e9"
+      }
+    ],
+    "policy": "or(pk(03868934412556940ae7f75952f44cd2cf7024a58d1c6518c9477584879ad64f6c),and(pk(02db50e8902b2c61147437096c70c799707afa9b4d739ad0697624bb2354c2d0e9),older(288)))",
+    "miniscript": "or_i(pk(03868934412556940ae7f75952f44cd2cf7024a58d1c6518c9477584879ad64f6c),and_v(v:older(288),pk(02db50e8902b2c61147437096c70c799707afa9b4d739ad0697624bb2354c2d0e9)))",
+    "script_asm": "OP_IF 03868934412556940ae7f75952f44cd2cf7024a58d1c6518c9477584879ad64f6c OP_CHECKSIG OP_ELSE 288 OP_CSV OP_VERIFY 02db50e8902b2c61147437096c70c799707afa9b4d739ad0697624bb2354c2d0e9 OP_CHECKSIG OP_ENDIF",
+    "script_hex": "632103868934412556940ae7f75952f44cd2cf7024a58d1c6518c9477584879ad64f6cac67022001b2692102db50e8902b2c61147437096c70c799707afa9b4d739ad0697624bb2354c2d0e9ac68",
+    "draft": null,
+    "explanation": "Only Bob must wait. Keep the relative lock inside the recovery branch so Alice remains unrestricted. For recovery, use a version-2-or-later transaction and a block-based input sequence of at least 288 with the relative-lock disable flag clear.",
+    "draft_failure": "the script is valid but not semantically equivalent to the required spending policy"
+  },
+  {
+    "id": "t1-human-composed-train-script-repairs-v1-delay-only-recovery-repair",
+    "group": "composed-train-script-repairs-v1-delay-only-recovery",
+    "task_kind": "repair",
+    "request": "Please write a Bitcoin script for my savings. Alice can spend at any time. If needed, Bob can recover the money once the output is at least 288 blocks old from confirmation, without Alice. Alice must still be able to spend after that. Those are the only options.\n\nAlice: 03868934412556940ae7f75952f44cd2cf7024a58d1c6518c9477584879ad64f6c\nBob: 02db50e8902b2c61147437096c70c799707afa9b4d739ad0697624bb2354c2d0e9\n\nI tried the script below. Please fix it so it follows those rules:\n\n```text\n288 OP_CSV OP_VERIFY OP_IF 03868934412556940ae7f75952f44cd2cf7024a58d1c6518c9477584879ad64f6c OP_CHECKSIG OP_ELSE 02db50e8902b2c61147437096c70c799707afa9b4d739ad0697624bb2354c2d0e9 OP_CHECKSIG OP_ENDIF\n```",
+    "keys": [
+      {
+        "label": "Alice",
+        "pubkey": "03868934412556940ae7f75952f44cd2cf7024a58d1c6518c9477584879ad64f6c"
+      },
+      {
+        "label": "Bob",
+        "pubkey": "02db50e8902b2c61147437096c70c799707afa9b4d739ad0697624bb2354c2d0e9"
+      }
+    ],
+    "policy": "or(pk(03868934412556940ae7f75952f44cd2cf7024a58d1c6518c9477584879ad64f6c),and(pk(02db50e8902b2c61147437096c70c799707afa9b4d739ad0697624bb2354c2d0e9),older(288)))",
+    "miniscript": "or_i(pk(03868934412556940ae7f75952f44cd2cf7024a58d1c6518c9477584879ad64f6c),and_v(v:older(288),pk(02db50e8902b2c61147437096c70c799707afa9b4d739ad0697624bb2354c2d0e9)))",
+    "script_asm": "OP_IF 03868934412556940ae7f75952f44cd2cf7024a58d1c6518c9477584879ad64f6c OP_CHECKSIG OP_ELSE 288 OP_CSV OP_VERIFY 02db50e8902b2c61147437096c70c799707afa9b4d739ad0697624bb2354c2d0e9 OP_CHECKSIG OP_ENDIF",
+    "script_hex": "632103868934412556940ae7f75952f44cd2cf7024a58d1c6518c9477584879ad64f6cac67022001b2692102db50e8902b2c61147437096c70c799707afa9b4d739ad0697624bb2354c2d0e9ac68",
+    "draft": "288 OP_CSV OP_VERIFY OP_IF 03868934412556940ae7f75952f44cd2cf7024a58d1c6518c9477584879ad64f6c OP_CHECKSIG OP_ELSE 02db50e8902b2c61147437096c70c799707afa9b4d739ad0697624bb2354c2d0e9 OP_CHECKSIG OP_ENDIF",
+    "explanation": "Only Bob must wait. Keep the relative lock inside the recovery branch so Alice remains unrestricted. For recovery, use a version-2-or-later transaction and a block-based input sequence of at least 288 with the relative-lock disable flag clear.",
+    "draft_failure": "the script is valid but not semantically equivalent to the required spending policy"
+  },
+  {
+    "id": "t1-human-composed-train-script-repairs-v1-relative-not-absolute-write",
+    "group": "composed-train-script-repairs-v1-relative-not-absolute",
+    "task_kind": "write",
+    "request": "Write a Bitcoin script that lets Alice spend only after these coins have been confirmed for at least 144 blocks. The delay starts when this output confirms, not at a fixed block height. There are no other spending routes.\n\nAlice: 02df7200c717292bc7fa2948fc827531915ed2b6f718bf8487c282f6750faf597c\n",
+    "keys": [
+      {
+        "label": "Alice",
+        "pubkey": "02df7200c717292bc7fa2948fc827531915ed2b6f718bf8487c282f6750faf597c"
+      }
+    ],
+    "policy": "and(pk(02df7200c717292bc7fa2948fc827531915ed2b6f718bf8487c282f6750faf597c),older(144))",
+    "miniscript": "and_v(v:older(144),pk(02df7200c717292bc7fa2948fc827531915ed2b6f718bf8487c282f6750faf597c))",
+    "script_asm": "144 OP_CSV OP_VERIFY 02df7200c717292bc7fa2948fc827531915ed2b6f718bf8487c282f6750faf597c OP_CHECKSIG",
+    "script_hex": "029000b2692102df7200c717292bc7fa2948fc827531915ed2b6f718bf8487c282f6750faf597cac",
+    "draft": null,
+    "explanation": "Use a relative lock, not an absolute block-height lock. CSV constrains this input sequence; CLTV checks transaction locktime. Use a version-2-or-later transaction and a block-based input sequence of at least 144 with the relative-lock disable flag clear.",
+    "draft_failure": "the script is valid but not semantically equivalent to the required spending policy"
+  },
+  {
+    "id": "t1-human-composed-train-script-repairs-v1-relative-not-absolute-repair",
+    "group": "composed-train-script-repairs-v1-relative-not-absolute",
+    "task_kind": "repair",
+    "request": "Write a Bitcoin script that lets Alice spend only after these coins have been confirmed for at least 144 blocks. The delay starts when this output confirms, not at a fixed block height. There are no other spending routes.\n\nAlice: 02df7200c717292bc7fa2948fc827531915ed2b6f718bf8487c282f6750faf597c\n\nI tried the script below. Please fix it so it follows those rules:\n\n```text\n144 OP_CLTV OP_VERIFY 02df7200c717292bc7fa2948fc827531915ed2b6f718bf8487c282f6750faf597c OP_CHECKSIG\n```",
+    "keys": [
+      {
+        "label": "Alice",
+        "pubkey": "02df7200c717292bc7fa2948fc827531915ed2b6f718bf8487c282f6750faf597c"
+      }
+    ],
+    "policy": "and(pk(02df7200c717292bc7fa2948fc827531915ed2b6f718bf8487c282f6750faf597c),older(144))",
+    "miniscript": "and_v(v:older(144),pk(02df7200c717292bc7fa2948fc827531915ed2b6f718bf8487c282f6750faf597c))",
+    "script_asm": "144 OP_CSV OP_VERIFY 02df7200c717292bc7fa2948fc827531915ed2b6f718bf8487c282f6750faf597c OP_CHECKSIG",
+    "script_hex": "029000b2692102df7200c717292bc7fa2948fc827531915ed2b6f718bf8487c282f6750faf597cac",
+    "draft": "144 OP_CLTV OP_VERIFY 02df7200c717292bc7fa2948fc827531915ed2b6f718bf8487c282f6750faf597c OP_CHECKSIG",
+    "explanation": "Use a relative lock, not an absolute block-height lock. CSV constrains this input sequence; CLTV checks transaction locktime. Use a version-2-or-later transaction and a block-based input sequence of at least 144 with the relative-lock disable flag clear.",
+    "draft_failure": "the script is valid but not semantically equivalent to the required spending policy"
+  },
+  {
+    "id": "t1-human-composed-train-script-repairs-v1-signature-stack-write",
+    "group": "composed-train-script-repairs-v1-signature-stack",
+    "task_kind": "write",
+    "request": "Could you write the Bitcoin script for a payment that needs both Alice and Bob to sign? Neither signature alone should work. There are no other conditions or spending paths.\n\nAlice: 036da7cf6b7f328450244d453d663aa3af2b80d9eaa4b398341e9b5e392aa08620\nBob: 03e16c7a28964f929bc65bb8819c0226584533d260781ed296554bfdfa7a5a9d69\n",
+    "keys": [
+      {
+        "label": "Alice",
+        "pubkey": "036da7cf6b7f328450244d453d663aa3af2b80d9eaa4b398341e9b5e392aa08620"
+      },
+      {
+        "label": "Bob",
+        "pubkey": "03e16c7a28964f929bc65bb8819c0226584533d260781ed296554bfdfa7a5a9d69"
+      }
+    ],
+    "policy": "and(pk(036da7cf6b7f328450244d453d663aa3af2b80d9eaa4b398341e9b5e392aa08620),pk(03e16c7a28964f929bc65bb8819c0226584533d260781ed296554bfdfa7a5a9d69))",
+    "miniscript": "and_v(v:pk(036da7cf6b7f328450244d453d663aa3af2b80d9eaa4b398341e9b5e392aa08620),pk(03e16c7a28964f929bc65bb8819c0226584533d260781ed296554bfdfa7a5a9d69))",
+    "script_asm": "036da7cf6b7f328450244d453d663aa3af2b80d9eaa4b398341e9b5e392aa08620 OP_CHECKSIGVERIFY 03e16c7a28964f929bc65bb8819c0226584533d260781ed296554bfdfa7a5a9d69 OP_CHECKSIG",
+    "script_hex": "21036da7cf6b7f328450244d453d663aa3af2b80d9eaa4b398341e9b5e392aa08620ad2103e16c7a28964f929bc65bb8819c0226584533d260781ed296554bfdfa7a5a9d69ac",
+    "draft": null,
+    "explanation": "The first check must consume its Boolean result. CHECKSIGVERIFY does that and aborts if the signature is invalid. Two consecutive CHECKSIG operations would leave the first Boolean where the next signature is needed.",
+    "draft_failure": "Pubkey error: malformed public key under TapscriptCtx scriptcontext"
+  },
+  {
+    "id": "t1-human-composed-train-script-repairs-v1-signature-stack-repair",
+    "group": "composed-train-script-repairs-v1-signature-stack",
+    "task_kind": "repair",
+    "request": "Could you write the Bitcoin script for a payment that needs both Alice and Bob to sign? Neither signature alone should work. There are no other conditions or spending paths.\n\nAlice: 036da7cf6b7f328450244d453d663aa3af2b80d9eaa4b398341e9b5e392aa08620\nBob: 03e16c7a28964f929bc65bb8819c0226584533d260781ed296554bfdfa7a5a9d69\n\nI tried the script below. Please fix it so it follows those rules:\n\n```text\n036da7cf6b7f328450244d453d663aa3af2b80d9eaa4b398341e9b5e392aa08620 OP_CHECKSIG 03e16c7a28964f929bc65bb8819c0226584533d260781ed296554bfdfa7a5a9d69 OP_CHECKSIG\n```",
+    "keys": [
+      {
+        "label": "Alice",
+        "pubkey": "036da7cf6b7f328450244d453d663aa3af2b80d9eaa4b398341e9b5e392aa08620"
+      },
+      {
+        "label": "Bob",
+        "pubkey": "03e16c7a28964f929bc65bb8819c0226584533d260781ed296554bfdfa7a5a9d69"
+      }
+    ],
+    "policy": "and(pk(036da7cf6b7f328450244d453d663aa3af2b80d9eaa4b398341e9b5e392aa08620),pk(03e16c7a28964f929bc65bb8819c0226584533d260781ed296554bfdfa7a5a9d69))",
+    "miniscript": "and_v(v:pk(036da7cf6b7f328450244d453d663aa3af2b80d9eaa4b398341e9b5e392aa08620),pk(03e16c7a28964f929bc65bb8819c0226584533d260781ed296554bfdfa7a5a9d69))",
+    "script_asm": "036da7cf6b7f328450244d453d663aa3af2b80d9eaa4b398341e9b5e392aa08620 OP_CHECKSIGVERIFY 03e16c7a28964f929bc65bb8819c0226584533d260781ed296554bfdfa7a5a9d69 OP_CHECKSIG",
+    "script_hex": "21036da7cf6b7f328450244d453d663aa3af2b80d9eaa4b398341e9b5e392aa08620ad2103e16c7a28964f929bc65bb8819c0226584533d260781ed296554bfdfa7a5a9d69ac",
+    "draft": "036da7cf6b7f328450244d453d663aa3af2b80d9eaa4b398341e9b5e392aa08620 OP_CHECKSIG 03e16c7a28964f929bc65bb8819c0226584533d260781ed296554bfdfa7a5a9d69 OP_CHECKSIG",
+    "explanation": "The first check must consume its Boolean result. CHECKSIGVERIFY does that and aborts if the signature is invalid. Two consecutive CHECKSIG operations would leave the first Boolean where the next signature is needed.",
+    "draft_failure": "Pubkey error: malformed public key under TapscriptCtx scriptcontext"
+  },
+  {
+    "id": "t1-human-composed-train-script-repairs-v1-unlisted-key-write",
+    "group": "composed-train-script-repairs-v1-unlisted-key",
+    "task_kind": "write",
+    "request": "Write the Bitcoin script for a club reserve. Any two of Alice, Bob, and Carol can authorize a withdrawal. One signature is never enough, and there must be no spending path for any other key.\n\nAlice: 0289a9b3763722debcf82e0dbb40b1e4da84b68e98f5df8b55c5382861a107022a\nBob: 036bc7b05a95b8f5ce4606ae14978778883b2aaf1036b9f515abe5b9b8785a76b2\nCarol: 03631ba81e5a03990d8c5a0905790af511e5ddcaa30167a4e76a344b3d9884b270\n",
+    "keys": [
+      {
+        "label": "Alice",
+        "pubkey": "0289a9b3763722debcf82e0dbb40b1e4da84b68e98f5df8b55c5382861a107022a"
+      },
+      {
+        "label": "Bob",
+        "pubkey": "036bc7b05a95b8f5ce4606ae14978778883b2aaf1036b9f515abe5b9b8785a76b2"
+      },
+      {
+        "label": "Carol",
+        "pubkey": "03631ba81e5a03990d8c5a0905790af511e5ddcaa30167a4e76a344b3d9884b270"
+      }
+    ],
+    "policy": "thresh(2,pk(0289a9b3763722debcf82e0dbb40b1e4da84b68e98f5df8b55c5382861a107022a),pk(036bc7b05a95b8f5ce4606ae14978778883b2aaf1036b9f515abe5b9b8785a76b2),pk(03631ba81e5a03990d8c5a0905790af511e5ddcaa30167a4e76a344b3d9884b270))",
+    "miniscript": "multi(2,0289a9b3763722debcf82e0dbb40b1e4da84b68e98f5df8b55c5382861a107022a,036bc7b05a95b8f5ce4606ae14978778883b2aaf1036b9f515abe5b9b8785a76b2,03631ba81e5a03990d8c5a0905790af511e5ddcaa30167a4e76a344b3d9884b270)",
+    "script_asm": "OP_PUSHNUM_2 0289a9b3763722debcf82e0dbb40b1e4da84b68e98f5df8b55c5382861a107022a 036bc7b05a95b8f5ce4606ae14978778883b2aaf1036b9f515abe5b9b8785a76b2 03631ba81e5a03990d8c5a0905790af511e5ddcaa30167a4e76a344b3d9884b270 OP_PUSHNUM_3 OP_CHECKMULTISIG",
+    "script_hex": "52210289a9b3763722debcf82e0dbb40b1e4da84b68e98f5df8b55c5382861a107022a21036bc7b05a95b8f5ce4606ae14978778883b2aaf1036b9f515abe5b9b8785a76b22103631ba81e5a03990d8c5a0905790af511e5ddcaa30167a4e76a344b3d9884b27053ae",
+    "draft": null,
+    "explanation": "Remove the alternate branch for the unlisted key. The remaining script requires two of the three club signatures. Its CHECKMULTISIG witness includes the required empty dummy element before the signatures.",
+    "draft_failure": "the script is valid but not semantically equivalent to the required spending policy"
+  },
+  {
+    "id": "t1-human-composed-train-script-repairs-v1-unlisted-key-repair",
+    "group": "composed-train-script-repairs-v1-unlisted-key",
+    "task_kind": "repair",
+    "request": "Write the Bitcoin script for a club reserve. Any two of Alice, Bob, and Carol can authorize a withdrawal. One signature is never enough, and there must be no spending path for any other key.\n\nAlice: 0289a9b3763722debcf82e0dbb40b1e4da84b68e98f5df8b55c5382861a107022a\nBob: 036bc7b05a95b8f5ce4606ae14978778883b2aaf1036b9f515abe5b9b8785a76b2\nCarol: 03631ba81e5a03990d8c5a0905790af511e5ddcaa30167a4e76a344b3d9884b270\n\nI tried the script below. Please fix it so it follows those rules:\n\n```text\nOP_IF OP_PUSHNUM_2 0289a9b3763722debcf82e0dbb40b1e4da84b68e98f5df8b55c5382861a107022a 036bc7b05a95b8f5ce4606ae14978778883b2aaf1036b9f515abe5b9b8785a76b2 03631ba81e5a03990d8c5a0905790af511e5ddcaa30167a4e76a344b3d9884b270 OP_PUSHNUM_3 OP_CHECKMULTISIG OP_ELSE 0303d6a8f93367e9e435639b6ca2ec5c443114e4c3f2dbbe860271fa3176574a9e OP_CHECKSIG OP_ENDIF\n```",
+    "keys": [
+      {
+        "label": "Alice",
+        "pubkey": "0289a9b3763722debcf82e0dbb40b1e4da84b68e98f5df8b55c5382861a107022a"
+      },
+      {
+        "label": "Bob",
+        "pubkey": "036bc7b05a95b8f5ce4606ae14978778883b2aaf1036b9f515abe5b9b8785a76b2"
+      },
+      {
+        "label": "Carol",
+        "pubkey": "03631ba81e5a03990d8c5a0905790af511e5ddcaa30167a4e76a344b3d9884b270"
+      }
+    ],
+    "policy": "thresh(2,pk(0289a9b3763722debcf82e0dbb40b1e4da84b68e98f5df8b55c5382861a107022a),pk(036bc7b05a95b8f5ce4606ae14978778883b2aaf1036b9f515abe5b9b8785a76b2),pk(03631ba81e5a03990d8c5a0905790af511e5ddcaa30167a4e76a344b3d9884b270))",
+    "miniscript": "multi(2,0289a9b3763722debcf82e0dbb40b1e4da84b68e98f5df8b55c5382861a107022a,036bc7b05a95b8f5ce4606ae14978778883b2aaf1036b9f515abe5b9b8785a76b2,03631ba81e5a03990d8c5a0905790af511e5ddcaa30167a4e76a344b3d9884b270)",
+    "script_asm": "OP_PUSHNUM_2 0289a9b3763722debcf82e0dbb40b1e4da84b68e98f5df8b55c5382861a107022a 036bc7b05a95b8f5ce4606ae14978778883b2aaf1036b9f515abe5b9b8785a76b2 03631ba81e5a03990d8c5a0905790af511e5ddcaa30167a4e76a344b3d9884b270 OP_PUSHNUM_3 OP_CHECKMULTISIG",
+    "script_hex": "52210289a9b3763722debcf82e0dbb40b1e4da84b68e98f5df8b55c5382861a107022a21036bc7b05a95b8f5ce4606ae14978778883b2aaf1036b9f515abe5b9b8785a76b22103631ba81e5a03990d8c5a0905790af511e5ddcaa30167a4e76a344b3d9884b27053ae",
+    "draft": "OP_IF OP_PUSHNUM_2 0289a9b3763722debcf82e0dbb40b1e4da84b68e98f5df8b55c5382861a107022a 036bc7b05a95b8f5ce4606ae14978778883b2aaf1036b9f515abe5b9b8785a76b2 03631ba81e5a03990d8c5a0905790af511e5ddcaa30167a4e76a344b3d9884b270 OP_PUSHNUM_3 OP_CHECKMULTISIG OP_ELSE 0303d6a8f93367e9e435639b6ca2ec5c443114e4c3f2dbbe860271fa3176574a9e OP_CHECKSIG OP_ENDIF",
+    "explanation": "Remove the alternate branch for the unlisted key. The remaining script requires two of the three club signatures. Its CHECKMULTISIG witness includes the required empty dummy element before the signatures.",
+    "draft_failure": "the script is valid but not semantically equivalent to the required spending policy"
+  }
+]

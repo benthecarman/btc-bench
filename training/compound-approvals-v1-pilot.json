@@ -1,0 +1,837 @@
+{
+  "parent": "runs/sft-qwen3-4b-think/merged",
+  "data": "datasets/sft-compound-approvals-v1-pilot.jsonl",
+  "data_sha256": "ee0b85f78cc5d5f9265ca41edf269821d3b826e9bf35de64f423211b27b989fe",
+  "sources": {
+    "datasets/sft-compound-approvals-v1-samples.jsonl": "580988e15802886242fa0eab713c508129a249a67f4f1d82179c0a94a11268dc",
+    "datasets/sft-train-think.jsonl": "22dd01f38fbc37705efc512542e61e5b30de4381f37709b422811d3bc7768e7f"
+  },
+  "data_seed": 20260908,
+  "trainer_seed": 7,
+  "rows": 192,
+  "new_unique": 12,
+  "new_repetitions": 4,
+  "replay_unique": 144,
+  "replay_script": 88,
+  "replay_tree": 48,
+  "replay_identify": 8,
+  "max_tokens": 3299,
+  "mean_tokens": 1979.6927083333333,
+  "epochs": 1,
+  "optimizer_steps": 24,
+  "learning_rate": 1e-05,
+  "warmup_steps": 3,
+  "gradient_accumulation_steps": 8,
+  "save_steps": 10,
+  "training_device": "GPU 1, RTX 5060 Ti",
+  "out": "runs/sft-compound-approvals-v1-pilot",
+  "evaluation": "Training examples as a fit diagnostic; unchanged human-v2 and composition-transfer-v1 in chat and submit modes. Transfer-v1 is now a development test for this skill family.",
+  "row_provenance": [
+    {
+      "source": "replay",
+      "index": 5968
+    },
+    {
+      "source": "new",
+      "index": 8
+    },
+    {
+      "source": "new",
+      "index": 8
+    },
+    {
+      "source": "new",
+      "index": 2
+    },
+    {
+      "source": "replay",
+      "index": 8800
+    },
+    {
+      "source": "new",
+      "index": 7
+    },
+    {
+      "source": "replay",
+      "index": 2498
+    },
+    {
+      "source": "new",
+      "index": 1
+    },
+    {
+      "source": "new",
+      "index": 0
+    },
+    {
+      "source": "replay",
+      "index": 3592
+    },
+    {
+      "source": "replay",
+      "index": 403
+    },
+    {
+      "source": "new",
+      "index": 5
+    },
+    {
+      "source": "replay",
+      "index": 7261
+    },
+    {
+      "source": "replay",
+      "index": 9671
+    },
+    {
+      "source": "replay",
+      "index": 14468
+    },
+    {
+      "source": "replay",
+      "index": 2068
+    },
+    {
+      "source": "new",
+      "index": 4
+    },
+    {
+      "source": "replay",
+      "index": 1799
+    },
+    {
+      "source": "replay",
+      "index": 884
+    },
+    {
+      "source": "replay",
+      "index": 9632
+    },
+    {
+      "source": "replay",
+      "index": 7112
+    },
+    {
+      "source": "replay",
+      "index": 10548
+    },
+    {
+      "source": "replay",
+      "index": 3492
+    },
+    {
+      "source": "new",
+      "index": 6
+    },
+    {
+      "source": "new",
+      "index": 3
+    },
+    {
+      "source": "replay",
+      "index": 16625
+    },
+    {
+      "source": "replay",
+      "index": 1188
+    },
+    {
+      "source": "replay",
+      "index": 14072
+    },
+    {
+      "source": "replay",
+      "index": 6575
+    },
+    {
+      "source": "new",
+      "index": 8
+    },
+    {
+      "source": "replay",
+      "index": 16294
+    },
+    {
+      "source": "replay",
+      "index": 10086
+    },
+    {
+      "source": "replay",
+      "index": 4845
+    },
+    {
+      "source": "replay",
+      "index": 10093
+    },
+    {
+      "source": "replay",
+      "index": 5715
+    },
+    {
+      "source": "replay",
+      "index": 9780
+    },
+    {
+      "source": "replay",
+      "index": 8038
+    },
+    {
+      "source": "new",
+      "index": 5
+    },
+    {
+      "source": "replay",
+      "index": 2108
+    },
+    {
+      "source": "new",
+      "index": 3
+    },
+    {
+      "source": "replay",
+      "index": 2818
+    },
+    {
+      "source": "new",
+      "index": 6
+    },
+    {
+      "source": "replay",
+      "index": 12213
+    },
+    {
+      "source": "replay",
+      "index": 302
+    },
+    {
+      "source": "new",
+      "index": 4
+    },
+    {
+      "source": "replay",
+      "index": 4445
+    },
+    {
+      "source": "replay",
+      "index": 6556
+    },
+    {
+      "source": "replay",
+      "index": 10954
+    },
+    {
+      "source": "replay",
+      "index": 3942
+    },
+    {
+      "source": "replay",
+      "index": 1644
+    },
+    {
+      "source": "replay",
+      "index": 12603
+    },
+    {
+      "source": "replay",
+      "index": 673
+    },
+    {
+      "source": "replay",
+      "index": 15095
+    },
+    {
+      "source": "new",
+      "index": 3
+    },
+    {
+      "source": "replay",
+      "index": 87
+    },
+    {
+      "source": "replay",
+      "index": 94
+    },
+    {
+      "source": "replay",
+      "index": 11788
+    },
+    {
+      "source": "replay",
+      "index": 534
+    },
+    {
+      "source": "new",
+      "index": 6
+    },
+    {
+      "source": "replay",
+      "index": 834
+    },
+    {
+      "source": "replay",
+      "index": 9571
+    },
+    {
+      "source": "replay",
+      "index": 4905
+    },
+    {
+      "source": "new",
+      "index": 11
+    },
+    {
+      "source": "replay",
+      "index": 1936
+    },
+    {
+      "source": "replay",
+      "index": 10734
+    },
+    {
+      "source": "replay",
+      "index": 1740
+    },
+    {
+      "source": "replay",
+      "index": 1573
+    },
+    {
+      "source": "replay",
+      "index": 9205
+    },
+    {
+      "source": "replay",
+      "index": 3162
+    },
+    {
+      "source": "replay",
+      "index": 3462
+    },
+    {
+      "source": "replay",
+      "index": 1256
+    },
+    {
+      "source": "replay",
+      "index": 12896
+    },
+    {
+      "source": "replay",
+      "index": 5537
+    },
+    {
+      "source": "replay",
+      "index": 8489
+    },
+    {
+      "source": "replay",
+      "index": 10329
+    },
+    {
+      "source": "replay",
+      "index": 3080
+    },
+    {
+      "source": "replay",
+      "index": 14981
+    },
+    {
+      "source": "replay",
+      "index": 2447
+    },
+    {
+      "source": "new",
+      "index": 5
+    },
+    {
+      "source": "replay",
+      "index": 9676
+    },
+    {
+      "source": "replay",
+      "index": 2341
+    },
+    {
+      "source": "replay",
+      "index": 16682
+    },
+    {
+      "source": "new",
+      "index": 11
+    },
+    {
+      "source": "replay",
+      "index": 3247
+    },
+    {
+      "source": "replay",
+      "index": 15919
+    },
+    {
+      "source": "replay",
+      "index": 12973
+    },
+    {
+      "source": "replay",
+      "index": 15992
+    },
+    {
+      "source": "replay",
+      "index": 15403
+    },
+    {
+      "source": "new",
+      "index": 11
+    },
+    {
+      "source": "replay",
+      "index": 11272
+    },
+    {
+      "source": "replay",
+      "index": 5221
+    },
+    {
+      "source": "new",
+      "index": 10
+    },
+    {
+      "source": "replay",
+      "index": 6904
+    },
+    {
+      "source": "replay",
+      "index": 9431
+    },
+    {
+      "source": "replay",
+      "index": 13647
+    },
+    {
+      "source": "replay",
+      "index": 15545
+    },
+    {
+      "source": "new",
+      "index": 0
+    },
+    {
+      "source": "new",
+      "index": 6
+    },
+    {
+      "source": "replay",
+      "index": 744
+    },
+    {
+      "source": "replay",
+      "index": 15577
+    },
+    {
+      "source": "replay",
+      "index": 3612
+    },
+    {
+      "source": "new",
+      "index": 1
+    },
+    {
+      "source": "replay",
+      "index": 108
+    },
+    {
+      "source": "replay",
+      "index": 9512
+    },
+    {
+      "source": "replay",
+      "index": 5116
+    },
+    {
+      "source": "replay",
+      "index": 5745
+    },
+    {
+      "source": "replay",
+      "index": 2061
+    },
+    {
+      "source": "replay",
+      "index": 7515
+    },
+    {
+      "source": "new",
+      "index": 4
+    },
+    {
+      "source": "new",
+      "index": 9
+    },
+    {
+      "source": "new",
+      "index": 8
+    },
+    {
+      "source": "replay",
+      "index": 16373
+    },
+    {
+      "source": "replay",
+      "index": 13595
+    },
+    {
+      "source": "replay",
+      "index": 4302
+    },
+    {
+      "source": "replay",
+      "index": 12597
+    },
+    {
+      "source": "replay",
+      "index": 13006
+    },
+    {
+      "source": "replay",
+      "index": 9049
+    },
+    {
+      "source": "new",
+      "index": 0
+    },
+    {
+      "source": "replay",
+      "index": 13856
+    },
+    {
+      "source": "replay",
+      "index": 16328
+    },
+    {
+      "source": "replay",
+      "index": 147
+    },
+    {
+      "source": "replay",
+      "index": 11458
+    },
+    {
+      "source": "replay",
+      "index": 4837
+    },
+    {
+      "source": "replay",
+      "index": 8750
+    },
+    {
+      "source": "replay",
+      "index": 13239
+    },
+    {
+      "source": "replay",
+      "index": 2662
+    },
+    {
+      "source": "replay",
+      "index": 15735
+    },
+    {
+      "source": "replay",
+      "index": 5636
+    },
+    {
+      "source": "replay",
+      "index": 10777
+    },
+    {
+      "source": "replay",
+      "index": 13408
+    },
+    {
+      "source": "replay",
+      "index": 13866
+    },
+    {
+      "source": "replay",
+      "index": 7047
+    },
+    {
+      "source": "replay",
+      "index": 9791
+    },
+    {
+      "source": "new",
+      "index": 0
+    },
+    {
+      "source": "new",
+      "index": 9
+    },
+    {
+      "source": "replay",
+      "index": 10153
+    },
+    {
+      "source": "replay",
+      "index": 11038
+    },
+    {
+      "source": "replay",
+      "index": 10103
+    },
+    {
+      "source": "replay",
+      "index": 15470
+    },
+    {
+      "source": "replay",
+      "index": 15616
+    },
+    {
+      "source": "replay",
+      "index": 4569
+    },
+    {
+      "source": "replay",
+      "index": 5446
+    },
+    {
+      "source": "replay",
+      "index": 9093
+    },
+    {
+      "source": "replay",
+      "index": 1996
+    },
+    {
+      "source": "new",
+      "index": 10
+    },
+    {
+      "source": "replay",
+      "index": 13594
+    },
+    {
+      "source": "replay",
+      "index": 16646
+    },
+    {
+      "source": "new",
+      "index": 2
+    },
+    {
+      "source": "replay",
+      "index": 11974
+    },
+    {
+      "source": "new",
+      "index": 10
+    },
+    {
+      "source": "replay",
+      "index": 6640
+    },
+    {
+      "source": "replay",
+      "index": 4314
+    },
+    {
+      "source": "replay",
+      "index": 11208
+    },
+    {
+      "source": "new",
+      "index": 7
+    },
+    {
+      "source": "replay",
+      "index": 5893
+    },
+    {
+      "source": "replay",
+      "index": 4556
+    },
+    {
+      "source": "replay",
+      "index": 178
+    },
+    {
+      "source": "new",
+      "index": 9
+    },
+    {
+      "source": "new",
+      "index": 5
+    },
+    {
+      "source": "replay",
+      "index": 3188
+    },
+    {
+      "source": "replay",
+      "index": 1311
+    },
+    {
+      "source": "replay",
+      "index": 4311
+    },
+    {
+      "source": "replay",
+      "index": 2829
+    },
+    {
+      "source": "replay",
+      "index": 10112
+    },
+    {
+      "source": "replay",
+      "index": 15108
+    },
+    {
+      "source": "new",
+      "index": 3
+    },
+    {
+      "source": "new",
+      "index": 7
+    },
+    {
+      "source": "new",
+      "index": 10
+    },
+    {
+      "source": "replay",
+      "index": 2316
+    },
+    {
+      "source": "new",
+      "index": 2
+    },
+    {
+      "source": "replay",
+      "index": 2530
+    },
+    {
+      "source": "replay",
+      "index": 12856
+    },
+    {
+      "source": "replay",
+      "index": 1805
+    },
+    {
+      "source": "replay",
+      "index": 9573
+    },
+    {
+      "source": "replay",
+      "index": 1894
+    },
+    {
+      "source": "new",
+      "index": 1
+    },
+    {
+      "source": "replay",
+      "index": 14322
+    },
+    {
+      "source": "new",
+      "index": 11
+    },
+    {
+      "source": "replay",
+      "index": 12266
+    },
+    {
+      "source": "new",
+      "index": 7
+    },
+    {
+      "source": "new",
+      "index": 4
+    },
+    {
+      "source": "replay",
+      "index": 4728
+    },
+    {
+      "source": "new",
+      "index": 2
+    },
+    {
+      "source": "new",
+      "index": 1
+    },
+    {
+      "source": "replay",
+      "index": 16003
+    },
+    {
+      "source": "new",
+      "index": 9
+    },
+    {
+      "source": "replay",
+      "index": 2739
+    },
+    {
+      "source": "replay",
+      "index": 10768
+    },
+    {
+      "source": "replay",
+      "index": 976
+    },
+    {
+      "source": "replay",
+      "index": 1100
+    },
+    {
+      "source": "replay",
+      "index": 9321
+    },
+    {
+      "source": "replay",
+      "index": 16033
+    }
+  ],
+  "fixture_hashes": {
+    "human-v2": "d4c166f41f5488565b140fd519f7264f9281abd1a5bc05cd27a6fb7e214909a9",
+    "composition-transfer-v1": "9482f7fa1d09900917cdc63729f125380961d720143a4ac110bc60f18b66d025",
+    "compound-approvals-v1-samples": "df5ccaf31aab12a11e510e9c891a2b4d58c5b709c7c6fd230dd737c9acf33e94"
+  },
+  "inference_protocol": {
+    "attempts": 1,
+    "interfaces": [
+      "chat",
+      "submit"
+    ],
+    "diagnostic_tools": false,
+    "grader_feedback": false,
+    "concurrency": 4,
+    "temperature": 0.6,
+    "top_p": 0.95,
+    "top_k": 20,
+    "min_p": 0.0,
+    "seed": 20260904,
+    "thinking": true,
+    "max_model_len": 32768,
+    "generation_cap": null,
+    "time_cap": null,
+    "device": "GPU 0, RTX 5090",
+    "speculative_config": {
+      "method": "ngram",
+      "num_speculative_tokens": 8,
+      "prompt_lookup_max": 8,
+      "prompt_lookup_min": 2
+    }
+  },
+  "evaluation_runs": {
+    "human-v2/chat": "runs/human-v2-compound-pilot-chat",
+    "human-v2/submit": "runs/human-v2-compound-pilot-submit",
+    "composition-transfer-v1/chat": "runs/transfer-v1-compound-pilot-chat",
+    "composition-transfer-v1/submit": "runs/transfer-v1-compound-pilot-submit",
+    "compound-approvals-v1-samples/submit": "runs/compound-pilot-after-submit"
+  }
+}

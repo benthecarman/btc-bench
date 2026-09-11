@@ -59,6 +59,10 @@ btc-bench grade --dataset datasets/my-set --responses runs/my-run/responses.json
 
 ## Datasets
 
+The [BIP-388 wallet-policy pilot](evals/wallet-policy-v1.md) adds 40 paired
+template/concrete descriptor questions. It has a separate wallet grader and
+uses the existing semantic oracle. Its data is reserved for evaluation.
+
 For ordinary technical requests, see the [human request transfer eval](evals/README.md).
 `btc-bench gen-human` builds 32 authored requests for review. Run them with
 `--tools chat` to use ordinary assistant text without submit tools or the
@@ -256,6 +260,19 @@ baseline. Exits nonzero on regression.
 | bitcoin | 0.32.102 |
 | goose-providers | 0.1.0-alpha.7 |
 | Workspace MSRV | 1.94.1 |
+
+## Local model storage
+
+On Ben's workstation, `runs` is a symlink to
+`/mnt/llm-models/huggingface/local/btc-bench/runs`. Models, adapter
+checkpoints, optimizer state, logs, and evaluation results are stored on
+the models drive. Existing `runs/...` paths and future training outputs
+continue to work through this link. Keep `/mnt/llm-models` mounted when
+training, merging, evaluating, or serving a saved model.
+
+Source code, datasets, and experiment plans remain in this repository.
+The symlink is local and ignored by Git; a new clone must configure its
+own run storage.
 
 ## License
 

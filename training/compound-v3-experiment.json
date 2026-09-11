@@ -1,0 +1,93 @@
+{
+  "parent": "runs/sft-qwen3-4b-think/merged",
+  "data": "datasets/sft-compound-v3-mixed.jsonl",
+  "data_sha256": "2a4213dcfcfa564567a9b78bcb247fc3cb429fbacda685ac9ddedaaf6fd24cdf",
+  "out": "runs/sft-compound-v3",
+  "epochs": 2,
+  "optimizer_steps": 288,
+  "checkpoints": [
+    144,
+    288
+  ],
+  "learning_rate": 5e-05,
+  "warmup_steps": 9,
+  "gradient_accumulation_steps": 8,
+  "save_steps": 144,
+  "trainer_seed": 7,
+  "training_device": "GPU 0, RTX 5090",
+  "inference_protocol": {
+    "attempts": 1,
+    "interfaces": [
+      "chat",
+      "submit"
+    ],
+    "diagnostic_tools": false,
+    "grader_feedback": false,
+    "concurrency": 4,
+    "temperature": 0.6,
+    "top_p": 0.95,
+    "top_k": 20,
+    "min_p": 0.0,
+    "seed": 20260904,
+    "thinking": true,
+    "max_model_len": 32768,
+    "generation_cap": null,
+    "time_cap": null,
+    "device": "GPU 0, RTX 5090",
+    "speculative_config": {
+      "method": "ngram",
+      "num_speculative_tokens": 8,
+      "prompt_lookup_max": 8,
+      "prompt_lookup_min": 2
+    }
+  },
+  "original_weight_sha256": {
+    "model.safetensors": "db2ae430e5b6ecdfd91c413908e8d1de1810b2fe3a7351c827d1d94e91be4724"
+  },
+  "selection": "Maximize total correct answers on old compound-v2 development questions across chat and submit (96 answers). Include original baseline; ties prefer fewer updates. Fit and fresh test scores do not select checkpoints.",
+  "fresh_role": "Evaluate only original and selected checkpoint; never use fresh results to select a checkpoint.",
+  "fixture_hashes": {
+    "compound-v2-validation": "115ae7b681ce00b13b9b9925d940c42900d0d0e43feb9c62c0c06ff9c9525c2c",
+    "compound-v3-train": "8edf360b3e56144aea9d860544f7b1f2f534f89e7cac05e01edd481c330b1ce7",
+    "compound-v3-fit-sample": "eb60a7642cfbf4be087aca0509903de40dc828b96595f90bf250b05c4efd532f",
+    "compound-v3-fresh": "2c8b3b68fb2304aff7ff989e0cc17521a7e74c678c44fb37b739c799054fb981",
+    "human-v2": "d4c166f41f5488565b140fd519f7264f9281abd1a5bc05cd27a6fb7e214909a9"
+  },
+  "training_code_sha256": "ef70fe9de6e6f07e60ebd4da273c69932f1c9d2dbc39dcb84acf09cd9f3394d9",
+  "runs": {
+    "original": {
+      "development": {
+        "chat": "runs/compound-v3-original-development-chat",
+        "submit": "runs/compound-v2-original-validation"
+      },
+      "fit": {
+        "chat": "runs/compound-v3-original-fit-chat",
+        "submit": "runs/compound-v3-original-fit-submit"
+      },
+      "fresh": {
+        "chat": "runs/compound-v3-original-fresh-chat",
+        "submit": "runs/compound-v3-original-fresh-submit"
+      }
+    },
+    "step144": {
+      "development": {
+        "chat": "runs/compound-v3-step144-development-chat",
+        "submit": "runs/compound-v3-step144-development-submit"
+      },
+      "fit": {
+        "chat": "runs/compound-v3-step144-fit-chat",
+        "submit": "runs/compound-v3-step144-fit-submit"
+      }
+    },
+    "step288": {
+      "development": {
+        "chat": "runs/compound-v3-step288-development-chat",
+        "submit": "runs/compound-v3-step288-development-submit"
+      },
+      "fit": {
+        "chat": "runs/compound-v3-step288-fit-chat",
+        "submit": "runs/compound-v3-step288-fit-submit"
+      }
+    }
+  }
+}

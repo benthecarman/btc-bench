@@ -1,0 +1,55 @@
+{
+  "parent": "runs/sft-qwen3-4b-think/merged",
+  "data": "datasets/sft-compound-v2-mixed.jsonl",
+  "data_sha256": "44252fa4fde5d5edd28d34aff7c849e27d3cdf6da3f52c2899f23f2a7348595d",
+  "out": "runs/sft-compound-v2",
+  "epochs": 4,
+  "optimizer_steps": 192,
+  "checkpoints": [
+    96,
+    192
+  ],
+  "learning_rate": 0.0001,
+  "warmup_steps": 6,
+  "gradient_accumulation_steps": 8,
+  "save_steps": 96,
+  "trainer_seed": 7,
+  "training_device": "GPU 0, RTX 5090",
+  "selection": "Highest number of correct validation answers among original, checkpoint-96, checkpoint-192; ties prefer fewer training updates. Fit sample is diagnostic only. Human-v2 is checked after selection and does not choose the checkpoint.",
+  "inference_protocol": {
+    "attempts": 1,
+    "interfaces": [
+      "chat",
+      "submit"
+    ],
+    "diagnostic_tools": false,
+    "grader_feedback": false,
+    "concurrency": 4,
+    "temperature": 0.6,
+    "top_p": 0.95,
+    "top_k": 20,
+    "min_p": 0.0,
+    "seed": 20260904,
+    "thinking": true,
+    "max_model_len": 32768,
+    "generation_cap": null,
+    "time_cap": null,
+    "device": "GPU 0, RTX 5090",
+    "speculative_config": {
+      "method": "ngram",
+      "num_speculative_tokens": 8,
+      "prompt_lookup_max": 8,
+      "prompt_lookup_min": 2
+    }
+  },
+  "fixture_hashes": {
+    "compound-v2-train": "fa99fdbcfc285365984f3a275a0da9965896332a42a05625a94415d07cf87353",
+    "compound-v2-validation": "115ae7b681ce00b13b9b9925d940c42900d0d0e43feb9c62c0c06ff9c9525c2c",
+    "compound-v2-fit-sample": "525b0024cbf63b8613ba7734154bec9461232c98cc3fd63ed60db72ee9a7e98c",
+    "human-v2": "d4c166f41f5488565b140fd519f7264f9281abd1a5bc05cd27a6fb7e214909a9"
+  },
+  "training_code_sha256": "ef70fe9de6e6f07e60ebd4da273c69932f1c9d2dbc39dcb84acf09cd9f3394d9",
+  "original_weight_sha256": {
+    "model.safetensors": "db2ae430e5b6ecdfd91c413908e8d1de1810b2fe3a7351c827d1d94e91be4724"
+  }
+}
