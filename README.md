@@ -4,6 +4,14 @@ A benchmark for AI models that write, optimize, and identify Bitcoin
 Script. Graded by a judge-free oracle: every answer is verified
 mechanically, no LLM judge anywhere.
 
+The active training work focuses on **writing raw Bitcoin Script from
+spending requirements**. See the [writing-only experiment](training/script-writing-v1.md).
+Its training and evaluation use ordinary chat and writing tasks only.
+The [first writing-only results](training/script-writing-v1-results.md)
+show a regression against the broad parent, which remains the baseline.
+Earlier repair, wallet-descriptor, optimization, and identification
+experiments remain available as historical work.
+
 ## Tasks
 
 | Task | What the model does | Grading |

@@ -1,0 +1,130 @@
+{
+  "sft_python": "/home/ben/.local/share/venvs/sft/bin/python",
+  "vllm_python": "/home/ben/.local/share/venvs/vllm/bin/python",
+  "vllm_cli": "/home/ben/.local/bin/vllm",
+  "environment": {
+    "CUDA_VISIBLE_DEVICES": "0",
+    "CUDA_DEVICE_ORDER": "PCI_BUS_ID",
+    "CUDA_HOME": "/usr/local/cuda-13.1"
+  },
+  "endpoint": "http://127.0.0.1:8010/v1",
+  "port": 8010,
+  "speculative_config": {
+    "method": "ngram",
+    "num_speculative_tokens": 8,
+    "prompt_lookup_max": 8,
+    "prompt_lookup_min": 2
+  },
+  "inference_protocol": {
+    "attempts": 1,
+    "interfaces": [
+      "chat"
+    ],
+    "diagnostic_tools": false,
+    "grader_feedback": false,
+    "concurrency": 4,
+    "temperature": 0.6,
+    "top_p": 0.95,
+    "top_k": 20,
+    "min_p": 0.0,
+    "seed": 20260904,
+    "thinking": true,
+    "max_model_len": 32768,
+    "generation_cap": null,
+    "time_cap": null,
+    "device": "GPU 0, RTX 5090",
+    "speculative_config": {
+      "method": "ngram",
+      "num_speculative_tokens": 8,
+      "prompt_lookup_max": 8,
+      "prompt_lookup_min": 2
+    }
+  },
+  "name": "script-writing-v1",
+  "report_title": "Script-writing-only SFT results",
+  "parent": "runs/sft-broad-v1/merged-step528",
+  "data": "datasets/sft-script-writing-v1.jsonl",
+  "out": "runs/sft-script-writing-v1",
+  "rows": 512,
+  "epochs": 1,
+  "steps": 64,
+  "learning_rate": 1e-05,
+  "warmup_steps": 4,
+  "gradient_accumulation_steps": 8,
+  "save_steps": 32,
+  "trainer_seed": 7,
+  "lora_rank": 64,
+  "lora_alpha": 128,
+  "lora_dropout": 0.05,
+  "task_kinds": [
+    "write"
+  ],
+  "training_interfaces": [
+    "chat"
+  ],
+  "interfaces": [
+    "chat"
+  ],
+  "original": {
+    "pid": 347965,
+    "model": "runs/sft-qwen3-4b-think/merged",
+    "alias": "qwen3-4b-think"
+  },
+  "baselines": {},
+  "parent_runs": {},
+  "reserved": "datasets/script-writing-v1-reserved",
+  "retention_datasets": [
+    "datasets/human-v2-writing"
+  ],
+  "evaluate_parent_retention": true,
+  "report_contexts": true,
+  "trace_diagnostics": false,
+  "checkpoint_rule": "Evaluate only the fixed final step64 model. Step32 is for recovery. No automatic model promotion.",
+  "primary_metric": "Single-attempt ordinary-chat writing accuracy on human-v2-writing, paired with a fresh run of the broad parent. Report reserved composition and per-context results separately.",
+  "interpretation": "Writing tasks only: requirements to raw ASM in ordinary chat. This single-seed pilot compares broad step528 with a fixed writing-only SFT child. The 36 reserved questions share 12 scenario groups across contexts. Their normalized structures are absent from this training mix, but may occur in parent training. Human-v2 writing questions are observed development data. Scores use the existing Miniscript semantic oracle; reference execution assumes valid signatures. No signed-transaction or arbitrary-Script proof is claimed. Report paired gains/losses and context results; do not automatically promote.",
+  "git_head": "9544e0244788a0c5b421246be52013062aed44ce",
+  "hashes": {
+    "crates/bench-cli/examples/compile_script_targets.rs": "213d3bead4e9943b3c6904b0313d2446910d60899ba89e4449101257e4a1896b",
+    "datasets/broad-v1-training/fixtures.jsonl": "1eb8842d8b11b34d8c63fcfb4639011ba271284a0f364ae487d47c6ec7cb5c91",
+    "datasets/compound-v3-train/fixtures.jsonl": "8edf360b3e56144aea9d860544f7b1f2f534f89e7cac05e01edd481c330b1ce7",
+    "datasets/human-v2-writing/fixtures.jsonl": "13020d93bb28a22bd87b72f7ece5317dcd6a600de591632c3291d7bda4491ff6",
+    "datasets/human-v2-writing/groups.json": "80afc58d7334cc9322559cc6aa65617027fa5ffda480cee4c7449ee8ef617768",
+    "datasets/human-v2-writing/manifest.json": "156f2fb6592821c1408085c1b282cf1e75f5b8a5433ebb7d6acbda037f3cabe6",
+    "datasets/script-writing-v1-mixed/fixtures.jsonl": "72f13f8ec556df3a49e5880714165784798c31298e807fb9df18017e4ad4c2ea",
+    "datasets/script-writing-v1-mixed/groups.json": "819f9d0da545f198807a0a5d43a776ca93c8233595de8f6323e37a48b0445ad5",
+    "datasets/script-writing-v1-mixed/manifest.json": "a9fccb32b418467ef90c271ce3bd95a2a69250e366157c4b5d099920999cfe34",
+    "datasets/script-writing-v1-reserved/fixtures.jsonl": "848cbe6066ddf1fee44ec28465a56e117c5e27b53cd60da4580c167f8215f814",
+    "datasets/script-writing-v1-reserved/groups.json": "adc3dc5567e937a5418301e0ecd2e576fb7e0346eeb7c634cb57fd938f69a5bd",
+    "datasets/script-writing-v1-reserved/manifest.json": "ed389497c5421a5177384a37f114756488d9335d2ea9f31c8ca8a7ea0151d666",
+    "datasets/script-writing-v1-training/fixtures.jsonl": "1d69345bf2fab004805eef345d660cbe0d7a598c56eb919d31f9f841d74e3efb",
+    "datasets/script-writing-v1-training/groups.json": "baca7a665b7d63306857bdddde06400ce992cb7a6cd7cb2f42def257c28f695b",
+    "datasets/script-writing-v1-training/manifest.json": "f47bfd7c6bdb5c6add1404001a0db6427d4c109a328cc40f377992e7681ca06f",
+    "datasets/sft-script-writing-v1.jsonl": "1bc1be75981104f20a0a08a36b55a85d2a5906526fd6144cd7eabf8f0eb0b501",
+    "runs/script-writing-v1-preparation/replay-provenance.json": "2b982564782444b3efbd61be9eae7285dbc2765586ea3cae80f73dfe42de3902",
+    "runs/script-writing-v1-preparation/reserved-catalog.json": "3fe431801a8536687d38c3875a9b92b53f2cd26e534c4bc469399ee2d6198256",
+    "runs/script-writing-v1-preparation/training-catalog.json": "6a2536f09e752dd1f1bd3e2149741475a72401c4cb77ac66089870f6f9ee019f",
+    "runs/script-writing-v1-preparation/verification.json": "7fa2f98ddfda193ce4759de0b88521c308a657d4abc9e975ba2cb9b2a7d76b1d",
+    "runs/sft-broad-v1/merged-step528/config.json": "23171ef5034da0215b229ec6cfec0732dbcd723d3f1302797885d2573fd243c7",
+    "runs/sft-broad-v1/merged-step528/generation_config.json": "8cf19eded42ca225321ef6d64a33a36162dd3febdd79690bd702ad895f8bc957",
+    "runs/sft-broad-v1/merged-step528/merge-provenance.json": "b5a1b52f55f0d6b74633ba3e9ae7eafa60739a65881a2e0fe801644171098a7a",
+    "runs/sft-broad-v1/merged-step528/model.safetensors": "b9669791efd6ecdf3867106bbaa29ebf539e521b6c9d6e57f46533934eeefb17",
+    "runs/sft-broad-v1/merged-step528/tokenizer.json": "be75606093db2094d7cd20f3c2f385c212750648bd6ea4fb2bf507a6a4c55506",
+    "runs/sft-broad-v1/merged-step528/tokenizer_config.json": "2e3bd3cb5055f7a903a54e7062b2fd14d21b70f4174c3ffcd9fc81ec50a25631",
+    "runs/sft-qwen3-4b-think/merged/config.json": "23171ef5034da0215b229ec6cfec0732dbcd723d3f1302797885d2573fd243c7",
+    "runs/sft-qwen3-4b-think/merged/generation_config.json": "8cf19eded42ca225321ef6d64a33a36162dd3febdd79690bd702ad895f8bc957",
+    "runs/sft-qwen3-4b-think/merged/model.safetensors": "db2ae430e5b6ecdfd91c413908e8d1de1810b2fe3a7351c827d1d94e91be4724",
+    "runs/sft-qwen3-4b-think/merged/tokenizer.json": "be75606093db2094d7cd20f3c2f385c212750648bd6ea4fb2bf507a6a4c55506",
+    "runs/sft-qwen3-4b-think/merged/tokenizer_config.json": "04b1682c59acbd057f4c9072297faa73d56fc9de053094c659cdb4c464f58f86",
+    "scripts/audit_human_catalog.py": "14379caa1437c7e89c202fd4a5c8a3ac56f47dee80aae7f1ba325cad56618e9d",
+    "scripts/compare_human_runs.py": "24b7ac9cd1f1bfb727c59827b9a7e017229b7bdf321ec4bf3a29264e8c2db63d",
+    "scripts/merge_adapter.py": "e57b38c81fae3b2ffc89b0edd1376c4da2c82a754124a5cd43bd2a653980ffbd",
+    "scripts/rl_replay.py": "65b78bd993fbd9f21f5a0f822db65297a3e0e70359e2d5c95e24ebc28c8fc375",
+    "scripts/sft_experiment.py": "da792336a1abbfcbd6cf7034e1e61765272ed882bf8af4ff5dda3998ca732cf5",
+    "scripts/sft_train.py": "a98934d4e28ab4a92c86db0af32f547f3fa56d346eb588802ff493c1ed555313",
+    "target/release/btc-bench": "6aaa54a61428383b3cd3abcffc85c04964c09911539dad6b87764d3b4de4f450",
+    "target/release/examples/compile_script_targets": "a7f9b4c1a963e97215d98a8cec05b865649b7da0a35055991eb0ca966f974402",
+    "training/build_script_writing_v1.py": "c7bc3853ce1040fa0529c73b6bc3ab1cee0af56a4b43468b3525c561430d618e",
+    "training/script-writing-v1.md": "b08e58a73bf8e7bdd64a3eb11f75806ecfc7b4a94f5edbfc2932b7dc17ba1252",
+    "runs/script-writing-v1-preparation/negative-controls.json": "ef6e73cec2e3cc1f909c70d3799d5c33a1e4353d1c6e823403d61e036a4318a7"
+  }
+}
