@@ -24,9 +24,10 @@ docker build --build-arg TARGETARCH=arm64 --build-arg CAUSAL_CONV1D_ARCHS="12.1"
 ```
 
 `patches/` is applied to the verl checkout. It makes the `FusedMoE`
-import optional (vLLM 0.27 removed the name) and makes sync-mode
-training request its last batch (without it the final step waits
-forever).
+import optional (vLLM 0.27 removed the name), makes sync-mode training
+request its last batch (without it the final step waits forever), and
+keeps LoRA adapters in fp32 on a bf16 base under FSDP2 (verl cast
+them to bf16, where Adam steps near their precision round away).
 
 ## Run (GPU 1 only)
 

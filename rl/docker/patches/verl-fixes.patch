@@ -35,3 +35,20 @@ index cbe06ba..d430386 100644
  
  from verl.utils.kernel.fp8_kernel import scaled_fp8_blockwise
  from verl.utils.vllm.vllm_fp4_utils import (
+diff --git a/verl/workers/engine/fsdp/transformer_impl.py b/verl/workers/engine/fsdp/transformer_impl.py
+index 0311b22..e36b204 100644
+--- a/verl/workers/engine/fsdp/transformer_impl.py
++++ b/verl/workers/engine/fsdp/transformer_impl.py
+@@ -346,8 +346,11 @@ class FSDPEngine(BaseEngine):
+ 
+             # FSDP requires all params in a flat group to share dtype: cast a
+             # fp32 adapter to the bf16 base dtype only when they actually differ.
++            # FSDP2 checks uniformity over trainable params only, so a frozen
++            # bf16 base keeps its fp32 adapters there: bf16 adapter weights
++            # round away Adam steps near their own precision.
+             base_dtype = next((p.dtype for p in module.parameters() if not p.requires_grad), None)
+-            if base_dtype is not None:
++            if base_dtype is not None and self.engine_config.strategy != "fsdp2":
+                 mismatched = [p for p in module.parameters() if p.requires_grad and p.dtype != base_dtype]
+                 if mismatched:
+                     logger.info(

@@ -61,6 +61,10 @@ actor_rollout_ref:
 
   actor:
     strategy: fsdp2
+    fsdp_config:
+      # The frozen base needs no fp32 master copy; PEFT upcasts the
+      # trainable adapter weights to fp32 on a bf16 base.
+      model_dtype: bf16
     use_dynamic_bsz: true
     loss_agg_mode: prompt-mean
     clip_ratio: 0.2

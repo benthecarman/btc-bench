@@ -141,7 +141,9 @@ RUN cd /tmp/cc/causal_conv1d-*/ \
 # verl fork at a pinned commit, editable so examples/recipes stay
 # next to the package.
 # patches/: vLLM 0.27 dropped the FusedMoE name that verl imports at
-# rollout startup; sync-mode training never requested its last batch.
+# rollout startup; sync-mode training never requested its last batch;
+# LoRA adapters were cast to the bf16 base dtype even under FSDP2,
+# which only needs uniform dtype across trainable params.
 COPY patches /tmp/verl-patches
 RUN git clone --filter=blob:none "${VERL_REPO}" /opt/verl \
     && git -C /opt/verl checkout --detach "${VERL_COMMIT}" \
