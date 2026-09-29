@@ -158,12 +158,56 @@ enum WalletTag {
     Wallet,
 }
 
+/// Exactly one of `answer` (an extracted answer) or `completion` (a
+/// raw assistant turn) per request.
 #[derive(Deserialize)]
 struct RewardRequest {
     task: RewardTask,
-    answer: serde_json::Value,
+    #[serde(default)]
+    answer: Option<serde_json::Value>,
+    #[serde(default)]
+    completion: Option<Completion>,
     #[serde(default)]
     shaping: Option<Shaping>,
+}
+
+/// One assistant turn as the serving stack parsed it: reasoning,
+/// visible text and structured tool calls. The answer is taken with
+/// the runner's own rule, so a rollout reward and `btc-bench run`
+/// read the same turn the same way.
+#[derive(Deserialize)]
+struct Completion {
+    #[serde(default)]
+    reasoning: String,
+    #[serde(default)]
+    content: String,
+    #[serde(default)]
+    tool_calls: Vec<CompletionToolCall>,
+}
+
+#[derive(Deserialize)]
+struct CompletionToolCall {
+    name: String,
+    #[serde(default)]
+    arguments: serde_json::Map<String, serde_json::Value>,
+}
+
+/// Blocks in the order the streaming client builds them.
+fn completion_answer(c: Completion) -> Option<TaskAnswer> {
+    use goose_providers::conversation::message::Message;
+    let mut m = Message::assistant();
+    if !c.reasoning.is_empty() {
+        m = m.with_thinking(c.reasoning, "");
+    }
+    if !c.content.is_empty() {
+        m = m.with_text(c.content);
+    }
+    for (i, call) in c.tool_calls.into_iter().enumerate() {
+        let params =
+            rmcp::model::CallToolRequestParams::new(call.name).with_arguments(call.arguments);
+        m = m.with_tool_request(format!("call_{i}"), Ok(params));
+    }
+    crate::runner::extract_answer_with_id(&[m]).0
 }
 
 #[derive(Deserialize)]
@@ -261,11 +305,19 @@ fn shape_script(graded: f64, c: &Components, s: &Shaping, floor_eligible: bool) 
 }
 
 fn grade_one(req: RewardRequest, default_shaping: &Shaping) -> Result<RewardResponse> {
+    let answer_value = match (req.answer, req.completion) {
+        (Some(v), None) => Ok(v),
+        (None, Some(c)) => Err(c),
+        _ => bail!("send exactly one of answer or completion"),
+    };
     if let RewardTask::Wallet(wallet) = &req.task {
         let _ = &wallet.task;
+        let Ok(answer) = &answer_value else {
+            bail!("wallet tasks take an extracted answer, not a completion");
+        };
         // Wallet rewards are always binary. No syntax rung can reward an
         // unsafe or incomplete contract, even when legacy shaping is enabled.
-        let text = match &req.answer {
+        let text = match answer {
             serde_json::Value::String(s) => Some(s.as_str()),
             v if v["task"] == "descriptor" => v["descriptor"].as_str(),
             _ => None,
@@ -287,7 +339,24 @@ fn grade_one(req: RewardRequest, default_shaping: &Shaping) -> Result<RewardResp
     let RewardTask::Legacy(task) = req.task else {
         unreachable!()
     };
-    let answer = answer_from_value(req.answer)?;
+    let answer = match answer_value {
+        Ok(v) => answer_from_value(v)?,
+        Err(c) => match completion_answer(c) {
+            Some(a) => a,
+            // No submit call: `btc-bench grade` counts it as zero.
+            None => {
+                return Ok(RewardResponse {
+                    task_id: task.id().to_string(),
+                    score: 0.0,
+                    shaped: 0.0,
+                    size_score: None,
+                    reason: Some("no submit tool call".into()),
+                    lint: Vec::new(),
+                    components: Components::default(),
+                })
+            }
+        },
+    };
     let shaping = match req.shaping {
         Some(s) => {
             s.validate()?;
@@ -579,12 +648,62 @@ mod tests {
         grade_one(
             RewardRequest {
                 task: RewardTask::Legacy(Fixture::Write(write_fixture())),
-                answer: serde_json::Value::String(answer.into()),
+                answer: Some(serde_json::Value::String(answer.into())),
+                completion: None,
                 shaping: Some(shaping),
             },
             &Shaping::default(),
         )
         .unwrap()
+    }
+
+    fn completion_reward(completion: serde_json::Value) -> Result<RewardResponse> {
+        let task = Fixture::Write(write_fixture());
+        grade_one(
+            serde_json::from_value(json!({"task": task, "completion": completion}))?,
+            &Shaping::default(),
+        )
+    }
+
+    fn submit(script: &str) -> serde_json::Value {
+        json!({"name": "submit_script", "arguments": {"script": script}})
+    }
+
+    #[test]
+    fn completion_takes_the_runners_last_submit_call() {
+        let right = write_fixture().reference_script_hex;
+        let wrong =
+            ms_hex("pk(0279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798)");
+        let r = completion_reward(json!({
+            "reasoning": "thinking", "content": "Here it is.",
+            "tool_calls": [submit(&right)]
+        }))
+        .unwrap();
+        assert_eq!(r.score, 1.0);
+        let r = completion_reward(json!({"tool_calls": [submit(&wrong), submit(&right)]})).unwrap();
+        assert_eq!(r.score, 1.0, "the last submit call is the answer");
+        let r = completion_reward(json!({"tool_calls": [submit(&right), submit(&wrong)]})).unwrap();
+        assert_eq!(r.score, 0.0, "the last submit call is the answer");
+    }
+
+    #[test]
+    fn completion_without_a_submit_call_scores_zero() {
+        let r =
+            completion_reward(json!({"reasoning": "hmm", "content": "I cannot decide."})).unwrap();
+        assert_eq!((r.score, r.shaped), (0.0, 0.0));
+        assert_eq!(r.reason.as_deref(), Some("no submit tool call"));
+    }
+
+    #[test]
+    fn answer_and_completion_are_exclusive() {
+        let task = Fixture::Write(write_fixture());
+        for body in [
+            json!({"task": task, "answer": "OP_1", "completion": {}}),
+            json!({"task": task}),
+        ] {
+            let req: RewardRequest = serde_json::from_value(body).unwrap();
+            assert!(grade_one(req, &Shaping::default()).is_err());
+        }
     }
 
     #[test]
@@ -722,7 +841,8 @@ mod tests {
             grade_one(
                 RewardRequest {
                     task: RewardTask::Legacy(fixtures[0].clone()),
-                    answer: serde_json::Value::String(answer.into()),
+                    answer: Some(serde_json::Value::String(answer.into())),
+                    completion: None,
                     shaping: Some(shaping),
                 },
                 &Shaping::default(),
@@ -796,11 +916,12 @@ mod tests {
                     let r = grade_one(
                         RewardRequest {
                             task: RewardTask::Legacy(fixture.clone()),
-                            answer: if structured {
+                            answer: Some(if structured {
                                 json!({"task": "script", "script": answer})
                             } else {
                                 json!(answer)
-                            },
+                            }),
+                            completion: None,
                             shaping: None,
                         },
                         &Shaping::default(),
@@ -813,7 +934,8 @@ mod tests {
             let r = grade_one(
                 RewardRequest {
                     task: RewardTask::Legacy(fixture.clone()),
-                    answer: json!("OP_1"),
+                    answer: Some(json!("OP_1")),
+                    completion: None,
                     shaping: None,
                 },
                 &Shaping {

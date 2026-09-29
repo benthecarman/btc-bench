@@ -924,7 +924,9 @@ fn feedback_message(call_id: &str, text: &str) -> Message {
 
 /// Extract the last submit-tool call, its raw text, and the tool-call
 /// id (needed to route feedback).
-fn extract_answer_with_id(messages: &[Message]) -> (Option<TaskAnswer>, String, Option<String>) {
+pub(crate) fn extract_answer_with_id(
+    messages: &[Message],
+) -> (Option<TaskAnswer>, String, Option<String>) {
     let mut raw = String::new();
     let mut found: Option<(TaskAnswer, String)> = None;
     for m in messages {
