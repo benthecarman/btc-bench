@@ -1,2 +1,4 @@
 - name: btc_bench
   _target_: btc_verl.agent_loop.BtcBenchAgentLoop
+- name: btc_bench_tools
+  _target_: btc_verl.agent_loop.BtcBenchToolsAgentLoop

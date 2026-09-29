@@ -11,7 +11,8 @@ come from the runner itself rather than from a copy that can drift.
 Row schema (verl RLHFDataset):
     prompt        [system, user] chat messages, verbatim from the runner
     data_source   "btc-bench/<kind>"; groups metrics only
-    agent_name    "btc_bench"; selects rl/btc_verl/agent_loop.py
+    agent_name    "btc_bench" (one submit turn) or "btc_bench_tools" (--tools
+                  basic); selects the loop in rl/btc_verl/agent_loop.py
     reward_model  {style: rule, ground_truth: ""}; the fixture is the key
     extra_info    {index, task_id, kind, fixture_json, tools_json}
 
@@ -61,7 +62,7 @@ def check_no_eval_overlap(fixtures):
                              f"regenerate with --exclude {d}")
 
 
-def capture_requests(pool: Path, tmp: Path, concurrency: int) -> list[dict]:
+def capture_requests(pool: Path, tmp: Path, concurrency: int, tools: str) -> list[dict]:
     """Run the benchmark runner against a recording mock; return request bodies."""
     bodies = []
     lock = threading.Lock()
@@ -95,7 +96,7 @@ def capture_requests(pool: Path, tmp: Path, concurrency: int) -> list[dict]:
     )
     try:
         subprocess.run([BENCH, "run", "--dataset", str(pool), "--config", str(config),
-                        "--model", "capture", "--attempts", "1", "--tools", "none",
+                        "--model", "capture", "--attempts", "1", "--tools", tools,
                         "--concurrency", str(concurrency), "--out", str(tmp / "run")],
                        check=True, stdout=subprocess.DEVNULL)
     finally:
@@ -111,6 +112,9 @@ def main():
                     help="Held out per task kind for verl's validation pass.")
     ap.add_argument("--seed", type=int, default=20260928)
     ap.add_argument("--concurrency", type=int, default=32)
+    ap.add_argument("--tools", choices=["none", "basic"], default="none",
+                    help="Runner tool mode to capture: none (one submit turn) or basic "
+                         "(check_script / check_descriptor, multi-turn agent loop).")
     args = ap.parse_args()
 
     manifest = json.loads((args.pool / "manifest.json").read_text())
@@ -130,7 +134,7 @@ def main():
         subprocess.run([BENCH, "prompts", "--dataset", str(args.pool), "--out", str(tmp / "prompts.jsonl")],
                        check=True, stdout=subprocess.DEVNULL)
         prompts = [json.loads(line) for line in (tmp / "prompts.jsonl").read_text().splitlines() if line]
-        bodies = capture_requests(args.pool, tmp, args.concurrency)
+        bodies = capture_requests(args.pool, tmp, args.concurrency, args.tools)
 
     # The request carries no task id; match on the user prompt.
     by_prompt = collections.defaultdict(list)
@@ -141,7 +145,7 @@ def main():
     requests = {}
     for body in bodies:
         user = [m for m in body["messages"] if m["role"] == "user"]
-        if len(user) != 1 or len(body.get("tools", [])) != 1:
+        if len(user) != 1 or not body.get("tools"):
             raise SystemExit(f"unexpected request shape: {[m['role'] for m in body['messages']]}")
         (tid,) = by_prompt[user[0]["content"]]
         if tid in requests:
@@ -159,7 +163,7 @@ def main():
             "prompt": [{"role": m["role"], "content": m["content"]} for m in body["messages"]],
             "data_source": f"btc-bench/{kind}",
             "ability": "bitcoin-script",
-            "agent_name": "btc_bench",
+            "agent_name": "btc_bench_tools" if args.tools == "basic" else "btc_bench",
             "reward_model": {"style": "rule", "ground_truth": ""},
             "extra_info": {"task_id": f["id"], "kind": kind,
                            "fixture_json": json.dumps(f), "tools_json": json.dumps(body["tools"])},
@@ -183,7 +187,7 @@ def main():
     counts = {k: len(v) for k, v in sorted(rows_by_kind.items())}
     (args.out_dir / "build.json").write_text(json.dumps({
         "pool": str(args.pool), "pool_manifest": manifest, "seed": args.seed,
-        "counts": counts, "train": len(train), "val": len(val),
+        "counts": counts, "train": len(train), "val": len(val), "tools": args.tools,
     }, indent=2) + "\n")
     print(f"wrote {len(train)} train / {len(val)} val rows to {args.out_dir}; kinds {counts}")
 
