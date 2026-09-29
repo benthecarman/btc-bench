@@ -68,6 +68,21 @@ pub struct ModelEntry {
     pub stream: Option<bool>,
 }
 
+/// Read timeout for provider connections: effectively none. The
+/// client library's default (600 s between reads) cut streams that a
+/// loaded vLLM paused while preempting long requests, and those tasks
+/// were scored as unanswered: a hidden time cap on generation.
+const READ_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(7 * 24 * 3600);
+
+fn api_client(host: String, auth: AuthMethod) -> Result<ApiClient> {
+    Ok(ApiClient::with_timeout_and_tls(
+        host,
+        auth,
+        READ_TIMEOUT,
+        None,
+    )?)
+}
+
 /// Backoff schedule between transient-error retries.
 const RETRY_BACKOFF_SECS: [u64; 3] = [2, 8, 30];
 
@@ -143,7 +158,7 @@ fn build_backends(entry: &ModelEntry) -> Result<Vec<Backend>> {
                 .into_iter()
                 .next()
                 .unwrap_or_else(|| "https://api.openai.com/v1".into());
-            let api = ApiClient::new_with_tls(host, auth_for(entry)?, None)?;
+            let api = api_client(host, auth_for(entry)?)?;
             Ok(vec![Backend::OpenAi(
                 OpenAiProviderBuilder::new(api).name("openai").build(),
             )])
@@ -162,7 +177,7 @@ fn build_backends(entry: &ModelEntry) -> Result<Vec<Backend>> {
             for host in &hosts {
                 let provider = OpenAiCompatibleProvider::new(
                     "openai_compatible".into(),
-                    ApiClient::new_with_tls(host.clone(), auth_for(entry)?, None)?,
+                    api_client(host.clone(), auth_for(entry)?)?,
                     String::new(),
                 )
                 .with_supports_streaming(stream);
@@ -188,8 +203,7 @@ fn build_backends(entry: &ModelEntry) -> Result<Vec<Backend>> {
                 }
                 None => AuthMethod::NoAuth,
             };
-            let api = ApiClient::new_with_tls(host, auth, None)?
-                .with_header("anthropic-version", "2023-06-01")?;
+            let api = api_client(host, auth)?.with_header("anthropic-version", "2023-06-01")?;
             Ok(vec![Backend::Anthropic(
                 AnthropicProviderBuilder::new(api).name("anthropic").build(),
             )])
