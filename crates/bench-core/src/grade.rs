@@ -193,9 +193,11 @@ pub fn grade_write(fixture: &WriteFixture, answer: &str) -> WriteResult {
             let checked = check_chosen_context(fixture, choice, &candidate);
             let equivalent = checked.is_equivalent();
             // Prefer semantic failures to a decode error from another dialect.
+            // Between two decode errors, keep the fixture context's.
             if choice == fixture.context
                 || equivalent
-                || matches!(verdict, Verdict::InvalidScript(_))
+                || (matches!(verdict, Verdict::InvalidScript(_))
+                    && !matches!(checked, Verdict::InvalidScript(_)))
             {
                 verdict = checked;
                 context = choice;
@@ -661,6 +663,36 @@ mod tests {
         assert_eq!(grade_write(&f, &reference).score, 1.0);
         assert_eq!(grade_write(&f, "51").score, 0.0);
         assert_eq!(grade_write(&f, "not hex!").score, 0.0);
+    }
+
+    /// A choose-context answer that no dialect decodes reports the
+    /// fixture context's decode error, not whichever dialect was tried
+    /// last: a tapscript key-size error on a SegWit script sends the
+    /// repair the wrong way.
+    #[test]
+    fn choose_context_decode_failure_reports_the_fixture_context() {
+        let key = "02c6047f9441ed7d6d3045406e95c07cd85c778e4b8cef3ca7abac09b95c709ee5";
+        let mut f = fix(ms_hex(&format!("pk({key})")));
+        f.choose_context = true;
+        f.reference_policy = format!("pk({key})");
+        f.keys = vec![KeyVar {
+            label: "A".into(),
+            pubkey: key.into(),
+        }];
+        // Textbook CLTV-then-signature (a real answer): not Miniscript, so
+        // SegWit v0 rejects its shape, while tapscript first rejects the
+        // 33-byte key.
+        let answer = format!("900000 OP_CHECKLOCKTIMEVERIFY OP_DROP {key} OP_CHECKSIG");
+        let script = crate::answer::parse_script_answer(&answer).unwrap();
+        let segwit_error =
+            miniscript::Miniscript::<bitcoin::PublicKey, Segwitv0>::decode_consensus(
+                script.as_script(),
+            )
+            .unwrap_err()
+            .to_string();
+        let r = grade_write(&f, &answer);
+        assert_eq!(r.score, 0.0);
+        assert_eq!(r.reason.as_deref(), Some(segwit_error.as_str()));
     }
 
     #[test]
