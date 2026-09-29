@@ -327,6 +327,21 @@ impl std::fmt::Display for ToolMode {
 /// tool loop so a check-forever policy cannot stall a run.
 const MAX_TOOL_CALLS: u32 = 16;
 
+/// Reply to one diagnostic call, counting it against the budget.
+pub(crate) fn check_reply(
+    fixture: &Fixture,
+    name: &str,
+    args: &serde_json::Map<String, serde_json::Value>,
+    checks_used: &mut u32,
+) -> String {
+    if *checks_used >= MAX_TOOL_CALLS {
+        "Diagnostic budget exhausted; call the submit tool with your final answer.".to_string()
+    } else {
+        *checks_used += 1;
+        run_check(fixture, name, args)
+    }
+}
+
 // Tool descriptions are deliberately terse and must not name the
 // Miniscript decode gate: that requirement stays implicit on every
 // prompt surface (test-pinned). Discovering it through the tool's
@@ -1111,7 +1126,7 @@ fn extract_chat_answer(
 /// Extract diagnostic (check_*) calls from an assistant turn:
 /// structured tool requests first, textual fallback second. Returns
 /// (name, args, call_id) triples in order.
-fn extract_check_calls(
+pub(crate) fn extract_check_calls(
     messages: &[Message],
 ) -> Vec<(
     String,
@@ -1566,14 +1581,7 @@ pub async fn run_resume(
                             if !checks.is_empty() {
                                 history.extend(messages);
                                 for (name, args, id) in checks {
-                                    let reply = if checks_used >= MAX_TOOL_CALLS {
-                                        "Diagnostic budget exhausted; call the \
-                                     submit tool with your final answer."
-                                            .to_string()
-                                    } else {
-                                        checks_used += 1;
-                                        run_check(&f, &name, &args)
-                                    };
+                                    let reply = check_reply(&f, &name, &args, &mut checks_used);
                                     // Textual-fallback checks carry no call
                                     // id; a tool response to a fabricated id
                                     // is a strict-server 400.
@@ -1641,14 +1649,7 @@ pub async fn run_resume(
                     }
                     if attempt < max_attempts.max(1) {
                         for (name, args, id) in &pending_checks {
-                            let reply = if checks_used >= MAX_TOOL_CALLS {
-                                "Diagnostic budget exhausted; call the \
-                                 submit tool with your final answer."
-                                    .to_string()
-                            } else {
-                                checks_used += 1;
-                                run_check(&f, name, args)
-                            };
+                            let reply = check_reply(&f, name, args, &mut checks_used);
                             history.push(feedback_message(
                                 id.as_deref().expect("filtered to Some"),
                                 &reply,

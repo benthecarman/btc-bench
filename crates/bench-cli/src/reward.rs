@@ -175,7 +175,7 @@ struct RewardRequest {
 /// visible text and structured tool calls. The answer is taken with
 /// the runner's own rule, so a rollout reward and `btc-bench run`
 /// read the same turn the same way.
-#[derive(Deserialize)]
+#[derive(Clone, Deserialize)]
 struct Completion {
     #[serde(default)]
     reasoning: String,
@@ -185,15 +185,16 @@ struct Completion {
     tool_calls: Vec<CompletionToolCall>,
 }
 
-#[derive(Deserialize)]
+#[derive(Clone, Deserialize)]
 struct CompletionToolCall {
     name: String,
     #[serde(default)]
     arguments: serde_json::Map<String, serde_json::Value>,
 }
 
-/// Blocks in the order the streaming client builds them.
-fn completion_answer(c: Completion) -> Option<TaskAnswer> {
+/// The assistant message the runner's client builds for this turn,
+/// blocks in streaming order.
+fn completion_message(c: Completion) -> goose_providers::conversation::message::Message {
     use goose_providers::conversation::message::Message;
     let mut m = Message::assistant();
     if !c.reasoning.is_empty() {
@@ -207,7 +208,53 @@ fn completion_answer(c: Completion) -> Option<TaskAnswer> {
             rmcp::model::CallToolRequestParams::new(call.name).with_arguments(call.arguments);
         m = m.with_tool_request(format!("call_{i}"), Ok(params));
     }
-    crate::runner::extract_answer_with_id(&[m]).0
+    m
+}
+
+fn completion_answer(c: Completion) -> Option<TaskAnswer> {
+    crate::runner::extract_answer_with_id(&[completion_message(c)]).0
+}
+
+/// One assistant turn of a `--tools basic` conversation, handled as the
+/// runner handles it with a single graded attempt: a submit call ends
+/// the task and is graded; otherwise check calls get the runner's
+/// replies (the same diagnostic text, the same budget) and the
+/// conversation continues; a turn with neither ends the task at zero.
+#[derive(Deserialize)]
+struct TurnRequest {
+    task: Fixture,
+    completion: Completion,
+    #[serde(default)]
+    checks_used: u32,
+}
+
+fn take_turn(req: TurnRequest, shaping: &Shaping) -> Result<serde_json::Value> {
+    let message = [completion_message(req.completion.clone())];
+    let answered = crate::runner::extract_answer_with_id(&message).0.is_some();
+    let checks = crate::runner::extract_check_calls(&message);
+    if answered || checks.is_empty() {
+        let reward = grade_one(
+            RewardRequest {
+                task: RewardTask::Legacy(req.task),
+                answer: None,
+                completion: Some(req.completion),
+                shaping: None,
+            },
+            shaping,
+        )?;
+        return Ok(json!({"done": true, "reward": reward}));
+    }
+    let mut checks_used = req.checks_used;
+    let replies: Vec<_> = checks
+        .into_iter()
+        .map(|(name, args, id)| {
+            let content = crate::runner::check_reply(&req.task, &name, &args, &mut checks_used);
+            // A textual-fallback call has no id; the runner answers it
+            // with a user message instead of a tool response.
+            json!({"tool_call_id": id, "content": content})
+        })
+        .collect();
+    Ok(json!({"done": false, "replies": replies, "checks_used": checks_used}))
 }
 
 #[derive(Deserialize)]
@@ -518,6 +565,23 @@ fn handle(request: tiny_http::Request, shaping: &Shaping) {
     }
     let url = request.url().to_string();
     let payload = match url.as_str() {
+        "/turn" => match serde_json::from_str::<TurnRequest>(&body) {
+            Ok(req) => match take_turn(req, shaping) {
+                Ok(v) => v.to_string(),
+                Err(e) => {
+                    respond(request, 400, json!({"error": e.to_string()}).to_string());
+                    return;
+                }
+            },
+            Err(e) => {
+                respond(
+                    request,
+                    400,
+                    json!({"error": format!("bad turn request: {e}")}).to_string(),
+                );
+                return;
+            }
+        },
         "/reward" => match serde_json::from_str::<RewardRequest>(&body) {
             Ok(req) => match grade_one(req, shaping) {
                 Ok(r) => json!(r).to_string(),
@@ -692,6 +756,58 @@ mod tests {
             completion_reward(json!({"reasoning": "hmm", "content": "I cannot decide."})).unwrap();
         assert_eq!((r.score, r.shaped), (0.0, 0.0));
         assert_eq!(r.reason.as_deref(), Some("no submit tool call"));
+    }
+
+    fn turn(completion: serde_json::Value, checks_used: u32) -> serde_json::Value {
+        let task = Fixture::Write(write_fixture());
+        take_turn(
+            serde_json::from_value(
+                json!({"task": task, "completion": completion, "checks_used": checks_used}),
+            )
+            .unwrap(),
+            &Shaping::default(),
+        )
+        .unwrap()
+    }
+
+    fn check(script: &str) -> serde_json::Value {
+        json!({"name": "check_script", "arguments": {"script": script}})
+    }
+
+    #[test]
+    fn a_turn_follows_the_runners_tool_loop() {
+        let right = write_fixture().reference_script_hex;
+        let t = turn(json!({"tool_calls": [submit(&right)]}), 0);
+        assert_eq!(
+            (t["done"].as_bool(), t["reward"]["score"].as_f64()),
+            (Some(true), Some(1.0))
+        );
+
+        let t = turn(json!({"tool_calls": [check("OP_1 OP_DROP")]}), 3);
+        let expected =
+            bench_core::toolbox::check_script(ContextKind::SegwitV0, "OP_1 OP_DROP").render();
+        assert_eq!(t["done"], json!(false));
+        assert_eq!(
+            t["replies"],
+            json!([{"tool_call_id": "call_0", "content": expected}])
+        );
+        assert_eq!(t["checks_used"], json!(4));
+
+        let t = turn(json!({"content": "Thinking about it."}), 0);
+        assert_eq!(
+            (t["done"].as_bool(), t["reward"]["score"].as_f64()),
+            (Some(true), Some(0.0))
+        );
+    }
+
+    #[test]
+    fn a_spent_diagnostic_budget_is_reported_not_run() {
+        let t = turn(json!({"tool_calls": [check("OP_1")]}), 16);
+        assert_eq!(
+            t["replies"][0]["content"],
+            json!("Diagnostic budget exhausted; call the submit tool with your final answer.")
+        );
+        assert_eq!(t["checks_used"], json!(16));
     }
 
     #[test]
