@@ -47,15 +47,22 @@ def check_no_eval_overlap(fixtures):
     def keys(fs):
         return {f[k] for f in fs for k in KEY_FIELDS if f.get(k)}
     pool = keys(fixtures)
+    pool_scripts = collections.Counter(
+        f[k] for f in fixtures for k in ("spk_hex", "inner_script_hex") if f.get(k))
     for d in json.loads(FREEZE.read_text())["rl_pools_must_exclude"]:
         path = Path(d) / "fixtures.jsonl"
         if not path.exists():
             raise SystemExit(f"{path} missing; regenerate it to check the pool against it")
         evals = [json.loads(l) for l in path.read_text().splitlines() if l]
-        # A scriptPubKey shared by several eval tasks is a protocol
-        # constant (P2A is always OP_1 <4e73>), not an answer key.
-        spk_counts = collections.Counter(f["spk_hex"] for f in evals if f.get("spk_hex"))
-        constants = {spk for spk, n in spk_counts.items() if n > 1}
+        # An identify script that repeats within either set is a protocol
+        # constant (P2A is always OP_1 <4e73>, a Lightning taproot anchor
+        # leaf always 16 OP_CSV), not an answer key: generated keys never
+        # repeat a script otherwise.
+        script_counts = pool_scripts + collections.Counter(
+            f[k] for f in evals for k in ("spk_hex", "inner_script_hex") if f.get(k))
+        eval_counts = collections.Counter(
+            f[k] for f in evals for k in ("spk_hex", "inner_script_hex") if f.get(k))
+        constants = {sc for sc in script_counts if pool_scripts[sc] > 1 or eval_counts[sc] > 1}
         shared = (pool & keys(evals)) - constants
         if shared:
             raise SystemExit(f"pool shares {len(shared)} answer keys or policies with {d}; "
@@ -136,21 +143,23 @@ def main():
         prompts = [json.loads(line) for line in (tmp / "prompts.jsonl").read_text().splitlines() if line]
         bodies = capture_requests(args.pool, tmp, args.concurrency, args.tools)
 
-    # The request carries no task id; match on the user prompt.
+    # The request carries no task id; match on the user prompt. Tasks that
+    # share a prompt (identify tasks for a constant script such as P2A)
+    # send identical requests, so each gets that request.
     by_prompt = collections.defaultdict(list)
     for p in prompts:
         by_prompt[p["prompt"]].append(p["id"])
-    if any(len(ids) > 1 for ids in by_prompt.values()):
-        raise SystemExit("two tasks share a prompt; cannot attribute captured requests")
-    requests = {}
+    requests, seen = {}, {}
     for body in bodies:
         user = [m for m in body["messages"] if m["role"] == "user"]
         if len(user) != 1 or not body.get("tools"):
             raise SystemExit(f"unexpected request shape: {[m['role'] for m in body['messages']]}")
-        (tid,) = by_prompt[user[0]["content"]]
-        if tid in requests:
-            raise SystemExit(f"{tid} was requested twice; the runner retried a mock reply")
-        requests[tid] = body
+        prompt = user[0]["content"]
+        if prompt in seen and seen[prompt] != body:
+            raise SystemExit(f"tasks sharing a prompt sent different requests: {by_prompt[prompt]}")
+        seen[prompt] = body
+        for tid in by_prompt[prompt]:
+            requests[tid] = body
     missing = {f["id"] for f in fixtures} - requests.keys()
     if missing:
         raise SystemExit(f"no captured request for {len(missing)} tasks, e.g. {sorted(missing)[:3]}")
