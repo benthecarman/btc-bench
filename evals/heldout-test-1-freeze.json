@@ -1,0 +1,24 @@
+{
+  "dataset": "heldout-test-1",
+  "purpose": "Frozen held-out test set for RL decisions. Scores only: never read its prompts, responses or failures, never tune on it, never train on it. A change counts only if dev suites and this set both improve.",
+  "generator": "btc-bench gen --seed 70011 --write 48 --optimize 48 --identify 3 --tree 50 --judgment 48 --exclude datasets/bench-s42 --exclude datasets/human-v2",
+  "generated_by": "0.1.0",
+  "pins": {
+    "bitcoin": "0.32.102",
+    "miniscript": "13.1.0"
+  },
+  "counts": {
+    "t1": 48,
+    "t2": 48,
+    "t3": 42,
+    "t4": 50,
+    "t5": 48
+  },
+  "fixtures_sha256": "b464485b29a2f51343208f0449527549eca88c31026437112e5d389ada348393",
+  "frozen": "2026-09-28",
+  "rl_pools_must_exclude": [
+    "datasets/bench-s42",
+    "datasets/human-v2",
+    "datasets/heldout-test-1"
+  ]
+}
