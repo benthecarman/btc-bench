@@ -1,0 +1,37 @@
+diff --git a/verl/trainer/ppo/v1/trainer_sync.py b/verl/trainer/ppo/v1/trainer_sync.py
+index e0cc4c5..90fc439 100644
+--- a/verl/trainer/ppo/v1/trainer_sync.py
++++ b/verl/trainer/ppo/v1/trainer_sync.py
+@@ -28,6 +28,12 @@ class PPOTrainerSync(PPOTrainer):
+     2. Partial rollout is disabled
+     """
+ 
++    def step(self, metrics, timing_raw, *, prefetch_next_batch=True):
++        # Sync mode queues no warmup batch: the batch added in step() is the
++        # one this step trains on, so the last step must add it too or it
++        # waits forever for a rollout that was never requested.
++        return super().step(metrics, timing_raw, prefetch_next_batch=True)
++
+     def on_init_end(self):
+         # update weights after loading checkpoint
+         self.checkpoint_manager.update_weights(self.global_steps)
+diff --git a/verl/utils/vllm/vllm_quant_utils.py b/verl/utils/vllm/vllm_quant_utils.py
+index cbe06ba..d430386 100644
+--- a/verl/utils/vllm/vllm_quant_utils.py
++++ b/verl/utils/vllm/vllm_quant_utils.py
+@@ -37,10 +37,14 @@ import torch
+ from packaging import version
+ 
+ try:
+-    from vllm.model_executor.layers.fused_moe.layer import FusedMoE
+     from vllm.model_executor.layers.linear import LinearBase
+ except ImportError as e:
+     raise ImportError("FP8 quantization not available") from e
++try:
++    from vllm.model_executor.layers.fused_moe.layer import FusedMoE
++except ImportError:
++    # vLLM >= 0.27 dropped the FusedMoE name; RoutedExperts/MoERunner below.
++    FusedMoE = None
+ 
+ from verl.utils.kernel.fp8_kernel import scaled_fp8_blockwise
+ from verl.utils.vllm.vllm_fp4_utils import (
