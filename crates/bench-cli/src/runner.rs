@@ -1674,6 +1674,7 @@ pub async fn run_resume(
         let attempts_path = out_dir.join("attempts.jsonl");
         let mut responses = if resume {
             std::fs::OpenOptions::new()
+                .create(true)
                 .append(true)
                 .open(&responses_path)?
         } else {
@@ -1681,6 +1682,7 @@ pub async fn run_resume(
         };
         let mut failures = if resume {
             std::fs::OpenOptions::new()
+                .create(true)
                 .append(true)
                 .open(&failures_path)?
         } else {
@@ -1688,6 +1690,7 @@ pub async fn run_resume(
         };
         let mut attempts_file = if resume {
             std::fs::OpenOptions::new()
+                .create(true)
                 .append(true)
                 .open(&attempts_path)?
         } else {
@@ -2731,6 +2734,47 @@ mod tests {
         let (_, summary) = grade(&fixtures, &[record.clone()], None, 0.5, false).expect("grade");
         assert_eq!(summary.write_n, 1);
         assert!((summary.write_mean - 1.0).abs() < 1e-9, "{summary:?}");
+        let _ = std::fs::remove_dir_all(&out);
+    }
+
+    /// `--resume` on a directory with no earlier run must still write
+    /// its results. Appending without create dropped an 11-hour run:
+    /// the collector's open failed before the first task finished, and
+    /// the error only surfaced at exit.
+    #[tokio::test]
+    async fn resume_into_a_fresh_directory_writes_results() {
+        let fixtures = generate(&GenParams {
+            seed: 5,
+            write: 1,
+            optimize: 0,
+            identify: 0,
+            ..GenParams::default()
+        });
+        let hex = match &fixtures[0] {
+            Fixture::Write(w) => w.reference_script_hex.clone(),
+            other => panic!("expected write fixture, got {}", other.id()),
+        };
+        let (base, _) = spawn_mock(vec![completion_with_tool(
+            "submit_script",
+            json!({ "script": hex }),
+        )]);
+        let out = tmpdir("resume-fresh");
+        let stats = run_resume(
+            &fixtures,
+            &entry(base),
+            &out,
+            1,
+            DisplayFormat::Hex,
+            1,
+            ToolMode::None,
+            true,
+            false,
+        )
+        .await
+        .expect("run");
+        assert_eq!(stats.answered, 1);
+        let text = std::fs::read_to_string(out.join("responses.jsonl")).expect("responses");
+        assert_eq!(text.lines().count(), 1);
         let _ = std::fs::remove_dir_all(&out);
     }
 
