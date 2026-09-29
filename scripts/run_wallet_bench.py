@@ -26,11 +26,11 @@ def submit_answer(message):
     return args['descriptor']
 
 
-def request_body(fixture, model, mode):
+def request_body(fixture, model, mode, temperature=0.6):
     result = {'model': model, 'messages': [
         {'role': 'system', 'content': 'You are a helpful assistant.' if mode == 'chat' else SYSTEM},
         {'role': 'user', 'content': fixture['request']}],
-        'temperature': 0.6, 'top_p': 0.95, 'top_k': 20, 'min_p': 0.0,
+        'temperature': temperature, 'top_p': 0.95, 'top_k': 20, 'min_p': 0.0,
         'seed': 20260904, 'chat_template_kwargs': {'enable_thinking': True}, 'stream': False}
     if mode == 'submit':
         result.update(tools=[TOOL], tool_choice='auto')
@@ -38,7 +38,7 @@ def request_body(fixture, model, mode):
 
 
 def complete(fixture, args):
-    body = request_body(fixture, args.model, args.mode)
+    body = request_body(fixture, args.model, args.mode, args.temperature)
     req = urllib.request.Request(args.base_url.rstrip('/') + '/chat/completions',
                                  data=json.dumps(body).encode(), headers={'Content-Type': 'application/json'})
     started = time.time()
@@ -75,6 +75,7 @@ def main():
     ap.add_argument('--model', required=True)
     ap.add_argument('--mode', choices=['chat', 'submit'], required=True)
     ap.add_argument('--base-url', default='http://127.0.0.1:8010/v1')
+    ap.add_argument('--temperature', type=float, default=0.6)
     args = ap.parse_args()
     if args.out.exists():
         ap.error('output exists; preserve the earlier run')
@@ -86,11 +87,11 @@ def main():
     fixtures = list(map(json.loads, data.decode().splitlines()))
     assert len({f['id'] for f in fixtures}) == len(fixtures)
     with urllib.request.urlopen(args.base_url.rstrip('/') + '/models') as response:
-        assert [m['id'] for m in json.load(response)['data']] == [args.model]
+        assert args.model in [m['id'] for m in json.load(response)['data']]
     args.out.mkdir(parents=True)
     metadata = {'dataset': str(args.dataset), 'fixture_sha256': digest, 'model': args.model, 'mode': args.mode,
                 'concurrency': 4, 'generation_cap': None, 'time_cap': None, 'retries': 4,
-                'settings': {k: v for k, v in request_body(fixtures[0], args.model, args.mode).items() if k != 'messages'},
+                'settings': {k: v for k, v in request_body(fixtures[0], args.model, args.mode, args.temperature).items() if k != 'messages'},
                 'transport': 'OpenAI-compatible JSON, non-streaming; no text-tool fallback',
                 'started_at_unix': time.time()}
     (args.out / 'run.json').write_text(json.dumps(metadata, indent=2) + '\n')
