@@ -82,8 +82,9 @@ def main():
     ap.add_argument("--server", default="http://127.0.0.1:18010")
     args = ap.parse_args()
     os.chdir(REPO)
-    cfg = json.load(open(f"{args.run}/config.json"))
     for step in range(args.start_step, args.start_step + args.steps):
+        # Re-read every step so the mix can change without a restart.
+        cfg = json.load(open(f"{args.run}/config.json"))
         # Rollouts for batch `step` may use adapter step-2 at the oldest.
         while True:
             pull_adapters(args.run)
@@ -106,7 +107,8 @@ def main():
                    "--model-path", f"/hfmodel/snapshots/{SNAPSHOT}", "--temperature", str(cfg["temperature"]),
                    "--top-p", str(cfg["top_p"]), "--top-k", str(cfg["top_k"]),
                    "--response-length", str(cfg["response_length"]), "--concurrency", str(cfg["concurrency"]),
-                   "--seed", str(cfg["seed"] * 100003 + step), "--out", out)
+                   "--seed", str(cfg["seed"] * 100003 + step), "--out", out,
+                   *(["--tiers", json.dumps(cfg["tiers"])] if cfg.get("tiers") else []))
                 break
             except subprocess.CalledProcessError:
                 if attempt == 2:

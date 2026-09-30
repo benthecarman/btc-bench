@@ -115,6 +115,7 @@ async def main():
     ap.add_argument("--prompts", type=int, default=8)
     ap.add_argument("--kind-weights", help="prompts per task kind, e.g. identify=2,tree=2,write=2 "
                                            "(overrides --prompts)")
+    ap.add_argument("--tiers", help='JSON {kind: [allowed tiers]}; kinds not listed are unrestricted')
     ap.add_argument("--n", type=int, default=8, help="rollouts per prompt (GRPO group size)")
     ap.add_argument("--adapter", required=True, help="served LoRA name, e.g. step-3")
     ap.add_argument("--server", default="http://127.0.0.1:18010")
@@ -133,10 +134,13 @@ async def main():
         idx = [int(i) for i in args.rows.split(",")]
     elif args.kind_weights:
         kinds = [x["kind"] for x in df["extra_info"]]
+        tiers = [json.loads(x["fixture_json"]).get("tier") for x in df["extra_info"]]
+        allowed = json.loads(args.tiers) if args.tiers else {}
         idx = []
         for part in args.kind_weights.split(","):
             kind, count = part.split("=")
-            idx += rng.sample([i for i, k in enumerate(kinds) if k == kind], int(count))
+            pool = [i for i, k in enumerate(kinds) if k == kind and (kind not in allowed or tiers[i] in allowed[kind])]
+            idx += rng.sample(pool, int(count))
     else:
         idx = rng.sample(range(len(df)), args.prompts)
     roller = Roller(args)
