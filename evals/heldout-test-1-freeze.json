@@ -20,5 +20,12 @@
     "datasets/bench-s42",
     "datasets/human-v2",
     "datasets/heldout-test-1"
-  ]
+  ],
+  "sub80": {
+    "purpose": "Per-checkpoint RL evaluation subset: a full held-out run costs ~10 h of 5090 time per checkpoint. Same rules as the full set.",
+    "method": "random.Random(80).sample of 16 task indexes per kind (id prefix t1..t5), in file order; chosen 2026-09-30 before any RL checkpoint was scored",
+    "task_ids_sha256": "c9c46b285f0ec475cc219d2c282b367f3485aa3b38db02bc5300e2d7d2af4313",
+    "fixtures_sha256": "7c5005aab266a5f40f8fab4fbe5e25e866526415b8ef3862ba5a241a88baa381",
+    "n": 80
+  }
 }
