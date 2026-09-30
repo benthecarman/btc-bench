@@ -120,9 +120,15 @@ def main():
         out = f"{args.run}/batches/batch-{step}.jsonl"
         t = time.time()
         log(event="rollout_start", step=step, adapter=adapter)
+        # A fixed container name: stopping this orchestrator kills the docker
+        # client, not the container, so a restarted orchestrator removes any
+        # rollout still running instead of generating alongside it.
+        container = f"{os.path.basename(args.run)}-rollout"
         for attempt in range(3):
+            subprocess.run(["docker", "rm", "-f", container], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
             try:
-                sh("docker", "run", "--rm", "--network", "host", "-v", f"{REPO}:/workspace/btc-bench",
+                sh("docker", "run", "--rm", "--name", container, "--network", "host",
+                   "-v", f"{REPO}:/workspace/btc-bench",
                    "-v", f"{MODEL_HUB}:/hfmodel:ro", "-w", "/workspace/btc-bench",
                    "-e", "PYTHONPATH=/workspace/btc-bench/rl",
                    "-e", f"BTCBENCH_REWARD_URL={cfg['reward_url']}", "--entrypoint", "python3", IMAGE,
