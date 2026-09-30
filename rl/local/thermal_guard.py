@@ -8,7 +8,7 @@ A machine that reaches its pause temperature, or reports hardware
 thermal slowdown, has its worker container frozen with `docker pause`
 (the rollout vLLM on the 5090, the trainer on the Spark). It is resumed
 once it is at or below the resume temperature and at least
---min-pause seconds have passed. A paused worker resumes exactly where
+--min-pause seconds (default 5 min) have passed. A paused worker resumes exactly where
 it stopped: rollout requests and the eval runner wait without a read
 timeout, so a pause only adds time.
 
@@ -104,7 +104,7 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--log", required=True, help="CSV of every sample")
     ap.add_argument("--interval", type=int, default=30)
-    ap.add_argument("--min-pause", type=int, default=600)
+    ap.add_argument("--min-pause", type=int, default=300)
     ap.add_argument("--rollout-container", default="vllm-rl")
     ap.add_argument("--trainer-container", default="rl27-train")
     ap.add_argument("--gpu-pause-c", type=float, default=85)
