@@ -2,7 +2,7 @@
 """Watch GPU and system temperatures during the local RL loop and pause
 the hot machine's worker until it cools down.
 
-Every --interval seconds it samples the RTX 5090 (local nvidia-smi) and
+Every --interval seconds (default 10) it samples the RTX 5090 (local nvidia-smi) and
 the DGX Spark (nvidia-smi and ACPI thermal zones over ssh) into a CSV.
 A machine that reaches its pause temperature, or reports hardware
 thermal slowdown, has its worker container frozen with `docker pause`
@@ -103,7 +103,7 @@ class Guard:
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--log", required=True, help="CSV of every sample")
-    ap.add_argument("--interval", type=int, default=30)
+    ap.add_argument("--interval", type=int, default=10)
     ap.add_argument("--min-pause", type=int, default=300)
     ap.add_argument("--rollout-container", default="vllm-rl")
     ap.add_argument("--trainer-container", default="rl27-train")
