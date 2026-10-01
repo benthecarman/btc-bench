@@ -74,28 +74,30 @@ def ensure_loaded(server, step):
     return name
 
 
-def evaluate(run, cfg, server, name):
+def evaluate(run, cfg, server, name, repeat=1):
     """Score the base model or an adapter on the run's eval set with the
-    benchmark runner itself (single attempt, submit mode, no cap)."""
-    out = f"{run}/eval/{name}"
+    benchmark runner itself (single attempt, submit mode, no cap).
+    Repeat r>1 is another independent sample: same model, its own request
+    seed, written to <name>-r<r>."""
+    out = f"{run}/eval/{name}" + (f"-r{repeat}" if repeat > 1 else "")
     if os.path.exists(f"{out}/grade.txt"):
         return
     served = "qwen3.8:27b" if name == "base" else ensure_loaded(server, int(name.split("-")[1]))
     os.makedirs(f"{run}/eval", exist_ok=True)
-    toml = f"{run}/eval/models-{name}.toml"
+    toml = f"{out}.toml"
     with open(toml, "w") as f:
         f.write(f'[model."{name}"]\nprovider = "openai_compatible"\nmodel = "{served}"\n'
                 f'base_url = "{server}/v1"\ntemperature = {cfg["temperature"]}\n'
-                f'request_params = {{ top_p = {cfg["top_p"]}, top_k = {cfg["top_k"]}, seed = 20260904, '
+                f'request_params = {{ top_p = {cfg["top_p"]}, top_k = {cfg["top_k"]}, seed = {20260903 + repeat}, '
                 f'chat_template_kwargs = {{ enable_thinking = true }} }}\n')
     t = time.time()
-    log(event="eval_start", model=name, dataset=cfg["eval_dataset"])
+    log(event="eval_start", model=name, repeat=repeat, dataset=cfg["eval_dataset"])
     sh("./target/release/btc-bench", "run", "--dataset", cfg["eval_dataset"], "--config", toml, "--model", name,
        "--tools", "none", "--attempts", "1", "--concurrency", str(cfg["concurrency"]), "--out", out)
     with open(f"{out}/grade.txt", "w") as g:
         sh("./target/release/btc-bench", "grade", "--dataset", cfg["eval_dataset"], "--responses",
            f"{out}/responses.jsonl", "--out", f"{out}/graded", stdout=g, stderr=subprocess.STDOUT)
-    log(event="eval_done", model=name, seconds=round(time.time() - t), grade=f"{out}/grade.txt")
+    log(event="eval_done", model=name, repeat=repeat, seconds=round(time.time() - t), grade=f"{out}/grade.txt")
 
 
 def main():
@@ -153,9 +155,11 @@ def main():
         # Every eval_every steps, pause rollouts to score the base model
         # (once) and the newest adapter on the frozen eval subset.
         if cfg.get("eval_every") and step % cfg["eval_every"] == 0:
-            evaluate(args.run, cfg, args.server, "base")
             pull_adapters(args.run)
-            evaluate(args.run, cfg, args.server, f"step-{max(local_steps(args.run))}")
+            newest = f"step-{max(local_steps(args.run))}"
+            for r in range(1, cfg.get("eval_repeats", 1) + 1):
+                evaluate(args.run, cfg, args.server, "base", r)
+                evaluate(args.run, cfg, args.server, newest, r)
 
 
 if __name__ == "__main__":
