@@ -187,6 +187,11 @@ def main():
         model.save_pretrained(tmp)
         torch.save(opt.state_dict(), f"{tmp}/optimizer.pt")
         os.replace(tmp, out)
+        # Only the newest optimizer state is needed to resume; one per step
+        # filled the Spark's disk at step 14 (1.7 GB each for the 27B).
+        stale = f"{args.adapters}/step-{step - 1}/optimizer.pt"
+        if os.path.exists(stale):
+            os.remove(stale)
         stats.update({"event": "step", "step": step, "seconds": round(time.time() - t),
                       "adapters_used": sorted({r["adapter"] for r in batch})})
         print(json.dumps(stats), flush=True)
