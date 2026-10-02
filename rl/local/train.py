@@ -48,6 +48,8 @@ CHUNK = 2048
 # Sequences longer than this are checkpointed in two levels (body_hidden).
 TWO_LEVEL_FROM = 32768
 SEGMENT = 8
+# In those, each MLP runs over the sequence in checkpointed chunks.
+MLP_CHUNK = 8192
 
 
 def truncated_logprobs(hidden, head, targets, temperature, top_k, top_p):
@@ -96,6 +98,24 @@ def body_hidden(body, ids):
     return body.norm(hidden)
 
 
+def chunk_long_mlps(body):
+    """Run each layer's MLP over sequences longer than TWO_LEVEL_FROM in
+    checkpointed MLP_CHUNK-token pieces. The MLP is per-token, so this
+    is exact; it bounds the activations a layer's backward pass holds,
+    about 60 GB in one piece at 131k tokens."""
+    for layer in body.layers:
+        mlp = layer.mlp
+        whole = mlp.forward
+
+        def forward(x, whole=whole):
+            if x.shape[1] <= TWO_LEVEL_FROM:
+                return whole(x)
+            return torch.cat([torch.utils.checkpoint.checkpoint(whole, x[:, i:i + MLP_CHUNK], use_reentrant=False)
+                              for i in range(0, x.shape[1], MLP_CHUNK)], dim=1)
+
+        mlp.forward = forward
+
+
 def sequence_logprobs(model, ids, n_prompt, args):
     """Log-probs of the response tokens (positions n_prompt..end)."""
     body = model.base_model.model.model.language_model
@@ -134,41 +154,38 @@ def train_on(model, opt, batch, args):
         return stats
     model.train()
     opt.zero_grad(set_to_none=True)
+    params = [p for p in model.parameters() if p.requires_grad]
     tokens = clipped = capped = outside = 0
     loss_sum, kl_sum = 0.0, 0.0
+    too_long = []
     for group in kept:
         group_tokens = sum(sum(r["response_mask"]) for r, _ in group)
         for r, adv in group:
-            ids = torch.tensor(r["prompt_ids"] + r["response_ids"], device="cuda")
-            mask = torch.tensor(r["response_mask"], device="cuda", dtype=torch.bool)
-            old = torch.tensor(r["rollout_logprobs"], device="cuda", dtype=torch.float32)
-            new = sequence_logprobs(model, ids, len(r["prompt_ids"]), args)
-            usable = mask & torch.isfinite(new)
-            outside += int((mask & ~torch.isfinite(new)).sum())
-            log_ratio = torch.where(usable, new - old, torch.zeros_like(new))
-            ratio = torch.exp(log_ratio)
-            if args.loss == "tis":
-                # Truncated importance sampling against the policy that
-                # sampled: REINFORCE on the trainer's log-probs, each token
-                # weighted by its (capped, detached) ratio to the rollout.
-                weight = ratio.detach().clamp(max=args.is_cap)
-                per_token = -weight * adv * torch.where(usable, new, torch.zeros_like(new))
-            else:
-                unclipped = ratio * adv
-                clipped_obj = torch.clamp(ratio, 1 - args.clip, 1 + args.clip) * adv
-                per_token = -torch.minimum(unclipped, clipped_obj)
-            # prompt-mean: each group weighs 1/len(kept), tokens averaged in-group
-            weight = 1.0 / (len(kept) * group_tokens)
-            loss = (per_token * usable).sum() * weight
-            loss.backward()
+            try:
+                grads, loss, ratio, log_ratio, usable, n_outside = sequence_grads(model, params, r, adv,
+                                                                                 len(kept) * group_tokens, args)
+            except torch.OutOfMemoryError:
+                # Over the memory limit set in main(): this rollout adds
+                # nothing to the step, and nothing partial either, since
+                # gradients are added to the step only once complete.
+                too_long.append(len(r["prompt_ids"]) + len(r["response_ids"]))
+                torch.cuda.empty_cache()
+                continue
             with torch.no_grad():
+                for p, g in zip(params, grads):
+                    if g is not None:
+                        p.grad = g if p.grad is None else p.grad.add_(g)
                 loss_sum += float(loss)
+                outside += n_outside
                 n = int(usable.sum())
                 tokens += n
                 clipped += int(((ratio - 1).abs() > args.clip)[usable].sum())
                 capped += int((ratio > args.is_cap)[usable].sum())
                 kl_sum += float((-log_ratio)[usable].sum())
-    grad_norm = torch.nn.utils.clip_grad_norm_([p for p in model.parameters() if p.requires_grad], args.grad_clip)
+    stats["skipped_out_of_memory"] = too_long
+    if tokens == 0:
+        return stats
+    grad_norm = torch.nn.utils.clip_grad_norm_(params, args.grad_clip)
     opt.step()
     opt.zero_grad(set_to_none=True)
     stats.update({"loss": loss_sum, "grad_norm": float(grad_norm), "tokens": tokens,
@@ -176,6 +193,33 @@ def train_on(model, opt, batch, args):
                   "outside_nucleus": outside,
                   "approx_kl_to_rollout": kl_sum / max(1, tokens)})
     return stats
+
+
+def sequence_grads(model, params, r, adv, denominator, args):
+    """One rollout's gradient contribution, computed whole before any of
+    it reaches the parameters' .grad."""
+    ids = torch.tensor(r["prompt_ids"] + r["response_ids"], device="cuda")
+    mask = torch.tensor(r["response_mask"], device="cuda", dtype=torch.bool)
+    old = torch.tensor(r["rollout_logprobs"], device="cuda", dtype=torch.float32)
+    new = sequence_logprobs(model, ids, len(r["prompt_ids"]), args)
+    usable = mask & torch.isfinite(new)
+    n_outside = int((mask & ~torch.isfinite(new)).sum())
+    log_ratio = torch.where(usable, new - old, torch.zeros_like(new))
+    ratio = torch.exp(log_ratio)
+    if args.loss == "tis":
+        # Truncated importance sampling against the policy that
+        # sampled: REINFORCE on the trainer's log-probs, each token
+        # weighted by its (capped, detached) ratio to the rollout.
+        weight = ratio.detach().clamp(max=args.is_cap)
+        per_token = -weight * adv * torch.where(usable, new, torch.zeros_like(new))
+    else:
+        unclipped = ratio * adv
+        clipped_obj = torch.clamp(ratio, 1 - args.clip, 1 + args.clip) * adv
+        per_token = -torch.minimum(unclipped, clipped_obj)
+    # prompt-mean: each group weighs 1/len(kept), tokens averaged in-group
+    loss = (per_token * usable).sum() / denominator
+    grads = torch.autograd.grad(loss, params, allow_unused=True)
+    return grads, loss.detach(), ratio.detach(), log_ratio.detach(), usable, n_outside
 
 
 def main():
@@ -195,13 +239,19 @@ def main():
     ap.add_argument("--temperature", type=float, required=True)
     ap.add_argument("--top-p", type=float, default=0.95)
     ap.add_argument("--top-k", type=int, default=20)
+    ap.add_argument("--memory-headroom-gb", type=float, default=10,
+                    help="GPU memory left to the rest of the machine; on the Spark's unified memory, "
+                         "going past it gets the trainer killed by the kernel instead of a rollout skipped")
     args = ap.parse_args()
+    total = torch.cuda.get_device_properties(0).total_memory
+    torch.cuda.set_per_process_memory_fraction(max(0.1, 1 - args.memory_headroom_gb * 2**30 / total))
     t = time.time()
     base = AutoModelForImageTextToText.from_pretrained(args.model_path, dtype=torch.bfloat16,
                                                        attn_implementation="flash_attention_2", device_map={"": 0})
     base.gradient_checkpointing_enable(gradient_checkpointing_kwargs={"use_reentrant": False})
     base.config.use_cache = False
     model = PeftModel.from_pretrained(base, f"{args.adapters}/step-{args.start_step}", is_trainable=True)
+    chunk_long_mlps(model.base_model.model.model.language_model)
     for p in model.parameters():
         if p.requires_grad:
             p.data = p.data.float()
@@ -210,7 +260,8 @@ def main():
     state = f"{args.adapters}/step-{args.start_step}/optimizer.pt"
     if os.path.exists(state):
         opt.load_state_dict(torch.load(state, map_location="cuda"))
-    print(json.dumps({"event": "loaded", "seconds": round(time.time() - t)}), flush=True)
+    print(json.dumps({"event": "loaded", "seconds": round(time.time() - t),
+                      "memory_limit_gb": round((total - args.memory_headroom_gb * 2**30) / 2**30, 1)}), flush=True)
     for step in range(args.start_step + 1, args.start_step + 1 + args.steps):
         path = f"{args.batches}/batch-{step}.jsonl"
         while not os.path.exists(path + ".done"):
