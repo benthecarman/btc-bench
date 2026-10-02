@@ -41,9 +41,13 @@ import torch
 import torch.utils.checkpoint
 from peft import PeftModel
 from transformers import AutoModelForImageTextToText
+from transformers.masking_utils import create_causal_mask
 
 INVALID_REWARD_VALUE = -999.0
 CHUNK = 2048
+# Sequences longer than this are checkpointed in two levels (body_hidden).
+TWO_LEVEL_FROM = 32768
+SEGMENT = 8
 
 
 def truncated_logprobs(hidden, head, targets, temperature, top_k, top_p):
@@ -62,11 +66,44 @@ def truncated_logprobs(hidden, head, targets, temperature, top_k, top_p):
     return torch.where(hit.any(-1), target_logit - logz, torch.full_like(logz, float("-inf")))
 
 
+def body_hidden(body, ids):
+    """body(input_ids=ids).last_hidden_state (Qwen3_5TextModel.forward with
+    no cache and no padding), with the layers checkpointed in two levels:
+    each run of SEGMENT layers keeps only its input, and the layers' own
+    checkpoints apply while that run is recomputed in the backward pass.
+    Per-layer checkpoints alone keep one hidden state per layer, 86 GB at
+    131k tokens, which with the 54 GB base is more than the Spark has.
+    Costs one more forward pass, so only long sequences use it."""
+    emb = body.embed_tokens(ids)
+    position_ids = torch.arange(emb.shape[1], device=emb.device).view(1, 1, -1).expand(4, 1, -1)
+    text_position_ids, position_ids = position_ids[0], position_ids[1:]
+    causal_mask = create_causal_mask(config=body.config, inputs_embeds=emb, attention_mask=None,
+                                     past_key_values=None, position_ids=text_position_ids)
+    linear_attn_mask = body._update_linear_attn_mask(None, None)
+    position_embeddings = body.rotary_emb(emb, position_ids)
+    layers = body.layers[: body.config.num_hidden_layers]
+
+    def run(hidden, start):
+        for i in range(start, min(start + SEGMENT, len(layers))):
+            mask = linear_attn_mask if body.config.layer_types[i] == "linear_attention" else causal_mask
+            hidden = layers[i](hidden, position_embeddings=position_embeddings, attention_mask=mask,
+                               position_ids=text_position_ids, past_key_values=None, use_cache=False)
+        return hidden
+
+    hidden = emb
+    for start in range(0, len(layers), SEGMENT):
+        hidden = torch.utils.checkpoint.checkpoint(run, hidden, start, use_reentrant=False)
+    return body.norm(hidden)
+
+
 def sequence_logprobs(model, ids, n_prompt, args):
     """Log-probs of the response tokens (positions n_prompt..end)."""
     body = model.base_model.model.model.language_model
     head = model.base_model.model.lm_head
-    hidden = body(input_ids=ids.unsqueeze(0)).last_hidden_state[0, n_prompt - 1:-1]
+    if len(ids) > TWO_LEVEL_FROM:
+        hidden = body_hidden(body, ids.unsqueeze(0))[0, n_prompt - 1:-1]
+    else:
+        hidden = body(input_ids=ids.unsqueeze(0)).last_hidden_state[0, n_prompt - 1:-1]
     targets = ids[n_prompt:]
     out = []
     for i in range(0, len(targets), CHUNK):

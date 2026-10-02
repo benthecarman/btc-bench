@@ -138,9 +138,10 @@ def main():
                    "--n", str(cfg["n"]), "--adapter", adapter, "--server", args.server,
                    "--model-path", f"/hfmodel/snapshots/{SNAPSHOT}", "--temperature", str(cfg["temperature"]),
                    "--top-p", str(cfg["top_p"]), "--top-k", str(cfg["top_k"]),
-                   "--response-length", str(cfg["response_length"]), "--concurrency", str(cfg["concurrency"]),
+                   "--concurrency", str(cfg["concurrency"]),
                    "--seed", str(cfg["seed"] * 100003 + step), "--out", out,
-                   *(["--tiers", json.dumps(cfg["tiers"])] if cfg.get("tiers") else []))
+                   *(["--tiers", json.dumps(cfg["tiers"])] if cfg.get("tiers") else []),
+                   *(["--response-length", str(cfg["response_length"])] if cfg.get("response_length") else []))
                 break
             except subprocess.CalledProcessError:
                 if attempt == 2:

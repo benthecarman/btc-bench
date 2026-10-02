@@ -40,17 +40,28 @@ class Roller:
         self.separator = initialize_turn_separator(self.pc, **TEMPLATE_KWARGS)
         self.eos = {self.tok.convert_tokens_to_ids(t) for t in ("<|im_end|>", "<|endoftext|>")}
         self.sem = asyncio.Semaphore(args.concurrency)
+        self.context = None  # the server's max_model_len, read on first use
 
     def prompt_ids(self, messages, request):
         text = apply_chat_template(self.pc, messages, tools=parse.served_tools(request), tokenize=False,
                                    add_generation_prompt=True, **TEMPLATE_KWARGS)
         return self.tok.encode(text, add_special_tokens=False)
 
+    async def server_context(self, session):
+        if self.context is None:
+            async with session.get(f"{self.args.server}/v1/models") as r:
+                r.raise_for_status()
+                # LoRA entries carry no max_model_len; the base model's does.
+                self.context = max(m["max_model_len"] for m in (await r.json())["data"] if m.get("max_model_len"))
+        return self.context
+
     async def generate(self, session, ids, max_tokens):
         a = self.args
-        body = {"model": a.adapter, "prompt": ids, "max_tokens": max_tokens, "temperature": a.temperature,
+        body = {"model": a.adapter, "prompt": ids, "temperature": a.temperature,
                 "top_p": a.top_p, "top_k": a.top_k, "logprobs": 0, "return_token_ids": True, "skip_special_tokens": False,
                 "seed": random.getrandbits(31)}
+        if max_tokens is not None:
+            body["max_tokens"] = max_tokens
         async with self.sem:
             async with session.post(f"{a.server}/v1/completions", json=body,
                                     timeout=aiohttp.ClientTimeout(total=None)) as r:
@@ -67,9 +78,13 @@ class Roller:
         tools_mode = row["agent_name"] == "btc_bench_tools"
         response, mask, logprobs = [], [], []
         info, reward, checks_used = new_info(), 0.0, 0
+        # No budget by default: like an evaluation run, a rollout ends only
+        # when the model stops or the server's context is full.
+        budget = self.args.response_length
+        context = await self.server_context(session)
         while True:
-            remaining = self.args.response_length - len(response)
-            if remaining < 1:
+            remaining = None if budget is None else budget - len(response)
+            if (remaining is not None and remaining < 1) or len(prompt) + len(response) >= context:
                 info["truncated"] = 1.0
                 break
             ids, lps = await self.generate(session, prompt + response, remaining)
@@ -96,7 +111,8 @@ class Roller:
             replies = [{"role": "tool" if r["tool_call_id"] else "user", "content": r["content"]}
                        for r in result["replies"]]
             reply = self.separator + render_after_turn(self.pc, self.tok, replies, TEMPLATE_KWARGS)
-            if len(response) + len(reply) >= self.args.response_length:
+            if ((budget is not None and len(response) + len(reply) >= budget)
+                    or len(prompt) + len(response) + len(reply) >= context):
                 info["truncated"] = 1.0
                 break
             response += reply
@@ -123,7 +139,8 @@ async def main():
     ap.add_argument("--temperature", type=float, required=True)
     ap.add_argument("--top-p", type=float, default=0.95)
     ap.add_argument("--top-k", type=int, default=20)
-    ap.add_argument("--response-length", type=int, default=32768)
+    ap.add_argument("--response-length", type=int,
+                    help="response token budget (default: none; only the server's context limits a rollout)")
     ap.add_argument("--concurrency", type=int, default=4)
     ap.add_argument("--seed", type=int, default=0)
     ap.add_argument("--out", required=True)
