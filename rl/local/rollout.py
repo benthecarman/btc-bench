@@ -57,11 +57,10 @@ class Roller:
 
     async def generate(self, session, ids, max_tokens):
         a = self.args
-        body = {"model": a.adapter, "prompt": ids, "temperature": a.temperature,
+        # max_tokens is always sent: /v1/completions without it stops at 16.
+        body = {"model": a.adapter, "prompt": ids, "max_tokens": max_tokens, "temperature": a.temperature,
                 "top_p": a.top_p, "top_k": a.top_k, "logprobs": 0, "return_token_ids": True, "skip_special_tokens": False,
                 "seed": random.getrandbits(31)}
-        if max_tokens is not None:
-            body["max_tokens"] = max_tokens
         async with self.sem:
             async with session.post(f"{a.server}/v1/completions", json=body,
                                     timeout=aiohttp.ClientTimeout(total=None)) as r:
@@ -83,8 +82,10 @@ class Roller:
         budget = self.args.response_length
         context = await self.server_context(session)
         while True:
-            remaining = None if budget is None else budget - len(response)
-            if (remaining is not None and remaining < 1) or len(prompt) + len(response) >= context:
+            remaining = context - len(prompt) - len(response)
+            if budget is not None:
+                remaining = min(remaining, budget - len(response))
+            if remaining < 1:
                 info["truncated"] = 1.0
                 break
             ids, lps = await self.generate(session, prompt + response, remaining)
