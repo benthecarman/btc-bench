@@ -162,7 +162,10 @@ async def main():
     else:
         idx = rng.sample(range(len(df)), args.prompts)
     roller = Roller(args)
-    async with aiohttp.ClientSession() as session:
+    # A fresh connection per request: a pooled one can be closed by the
+    # server's keep-alive timeout just as the next request goes out on it
+    # ("Server disconnected"). Requests take minutes, so reuse saves nothing.
+    async with aiohttp.ClientSession(connector=aiohttp.TCPConnector(force_close=True)) as session:
         jobs = [roller.rollout(session, df.iloc[i]) for i in idx for _ in range(args.n)]
         results = await asyncio.gather(*jobs)
     with open(args.out, "w") as f:
