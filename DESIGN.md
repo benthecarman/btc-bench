@@ -439,6 +439,51 @@ Guardrail: the service rejects configs where parse + decode +
 agreement exceeds 0.5 — a non-equivalent answer must never approach
 full credit, or the shaping itself becomes the reward hack.
 
+### Length (to do)
+
+Nothing in the training reward costs length, and the first 40-step
+27B run (rl27, local LoRA GRPO) shows what that does. Held-out score
+peaked at step 28, then fell while answers kept growing:
+
+| Checkpoint | Held-out score (sub80, 2 samples) | Median answer |
+|---|---:|---:|
+| base | 0.314 | 17k tokens |
+| step 28 | 0.491 | 24k tokens |
+| step 38 | 0.429 | 43k tokens |
+| step 40 | 0.434 | 49k tokens |
+
+Step 40 vs step 28 is −0.057 (P(better) 0.05). The extra length went
+mostly into answers that still failed: in the two step-40 samples,
+solved answers averaged 17k and 23k tokens, unsolved ones 42k and
+64k. The policy drifted longer because nothing in the reward pushed
+back. The next run must penalize length in the reward.
+
+It must not cap generation. Caps censor the long solvable tail and
+are ruled out (see CLAUDE.md, "No generation caps"). A rollout that
+fills the context already scores 0. The fix belongs in the reward,
+never in max_tokens. Options, cheapest first:
+
+- Group-relative length penalty (Kimi 1.5 style): within each rollout
+  group, give each answer a term from its length relative to the
+  group's shortest and longest. Correct answers get the full term, so
+  the shorter of two correct answers wins. Wrong answers get only its
+  negative part, so a wrong answer is never rewarded for being short.
+  It needs the whole group, so it lives in the trainer, not the reward
+  service. `score` stays the unchanged benchmark number either way.
+- Soft overlong penalty (DAPO style): a linear ramp of negative reward
+  over the last stretch before a soft length (e.g. 64k of the 131k
+  context). It is per-answer, so it could be a reward-service flag.
+  It only taxes length past the soft limit; nothing is cut off.
+- More frequent checkpoint evals (every 5 steps instead of 10), so the
+  peak is caught even if drift sets in.
+
+rl27's loss weights every token in a group equally (token-level, as
+in DAPO) rather than averaging per sequence. That avoids GRPO's
+per-sequence bias, where a long wrong answer's penalty is spread thin.
+It still gives a long answer more total gradient than a short one, in
+either direction. That is not a length reward in itself, so the
+penalty should still go in the reward.
+
 ## Fixtures and artifacts
 
 `datasets/` is gitignored; the headline benchmark is a *pinned seed*,
