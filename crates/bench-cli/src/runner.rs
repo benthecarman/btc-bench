@@ -144,19 +144,19 @@ fn auth_for(entry: &ModelEntry) -> Result<AuthMethod> {
     }
 }
 
+/// The entry's base URLs; empty when none is configured, so each
+/// provider falls back to its default endpoint.
 fn base_urls(entry: &ModelEntry) -> Result<Vec<String>> {
-    let raw = entry
-        .base_url
-        .clone()
-        .unwrap_or(toml::Value::String(String::new()));
-    match raw {
-        toml::Value::String(s) => Ok(vec![s]),
-        toml::Value::Array(arr) => Ok(arr
+    let urls = match entry.base_url.clone() {
+        None => vec![],
+        Some(toml::Value::String(s)) => vec![s],
+        Some(toml::Value::Array(arr)) => arr
             .into_iter()
             .filter_map(|v| v.as_str().map(String::from))
-            .collect()),
-        _ => anyhow::bail!("base_url must be a string or array of strings"),
-    }
+            .collect(),
+        Some(_) => anyhow::bail!("base_url must be a string or array of strings"),
+    };
+    Ok(urls.into_iter().filter(|u| !u.is_empty()).collect())
 }
 
 fn build_backends(entry: &ModelEntry) -> Result<Vec<Backend>> {
@@ -2724,6 +2724,18 @@ mod tests {
         assert!(err.to_string().contains("max_tokens"), "{err}");
         e.max_tokens = Some(128_000);
         assert!(build_backends(&e).is_ok());
+    }
+
+    #[test]
+    fn missing_base_url_means_provider_default() {
+        let mut e = entry("unused".into());
+        e.base_url = None;
+        assert!(base_urls(&e).unwrap().is_empty());
+        e.provider = "openai_compatible".into();
+        assert!(
+            build_backends(&e).is_err(),
+            "openai_compatible still requires base_url"
+        );
     }
 
     fn tmpdir(name: &str) -> std::path::PathBuf {
