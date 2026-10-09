@@ -16,7 +16,7 @@ bench-wallet = { path = "../bench-wallet" }
 bench-gen = { workspace = true }
 bitcoin = { workspace = true }
 miniscript = { workspace = true }
-goose-providers = { version = "=0.1.0-alpha.7", features = ["rustls-tls"] }
+goose-providers = { version = "=0.1.0-alpha.11", features = ["rustls-tls"] }
 rmcp = "3"
 tokio = { version = "1", features = ["rt-multi-thread", "macros"] }
 futures-util = { version = "0.3", default-features = false, features = ["std"] }

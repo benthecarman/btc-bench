@@ -29,6 +29,10 @@ api_key_env = "ANTHROPIC_API_KEY"
 max_tokens = 128000
 # Claude Opus 5.5 rejects sampling parameters; send none.
 omit_temperature = true
+# Adaptive-thinking effort (low, medium, high, xhigh, max). The client
+# library sends high when unset, while the API's own default is medium,
+# so set it explicitly.
+request_params = { thinking_effort = "medium" }
 
 # Optional per-model sampling override; default shown.
 # temperature = 0.0
