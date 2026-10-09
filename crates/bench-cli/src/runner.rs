@@ -49,6 +49,15 @@ pub struct ModelEntry {
     pub api_key_env: Option<String>,
     #[serde(default)]
     pub temperature: Option<f32>,
+    /// Send no sampling temperature at all, for models that reject the
+    /// parameter (Claude Opus 5.5). Default false: `temperature`, or
+    /// 0.0 when unset, is sent.
+    #[serde(default)]
+    pub omit_temperature: bool,
+    /// Output token limit sent with each request. Required for
+    /// `anthropic`: the API needs one, and the client library's own
+    /// default (4,096) would silently cap generation. Set it to the
+    /// model's maximum output.
     #[serde(default)]
     pub max_tokens: Option<i32>,
     /// Extra request body parameters, merged as-is (e.g. vLLM
@@ -186,6 +195,12 @@ fn build_backends(entry: &ModelEntry) -> Result<Vec<Backend>> {
             Ok(backends)
         }
         "anthropic" => {
+            if entry.max_tokens.is_none() {
+                bail!(
+                    "anthropic model entries require max_tokens (the model's maximum output); \
+                       the client default of 4,096 would cap generation"
+                );
+            }
             let hosts = base_urls(entry)?;
             let host = hosts
                 .into_iter()
@@ -1396,7 +1411,11 @@ pub async fn run_resume(
     let cfg = ModelConfig {
         model_name: entry.model.clone(),
         context_limit: None,
-        temperature: Some(entry.temperature.unwrap_or(0.0)),
+        temperature: if entry.omit_temperature {
+            None
+        } else {
+            Some(entry.temperature.unwrap_or(0.0))
+        },
         max_tokens: entry.max_tokens,
         toolshim: false,
         toolshim_model: None,
@@ -2686,12 +2705,25 @@ mod tests {
             base_url: Some(toml::Value::String(base_url)),
             api_key_env: None,
             temperature: Some(0.0),
+            omit_temperature: false,
             max_tokens: None,
             request_params: None,
             retries: None,
             // The canned mocks serve plain JSON, not SSE.
             stream: Some(false),
         }
+    }
+
+    #[test]
+    fn anthropic_entries_must_set_max_tokens() {
+        let mut e = entry("https://api.anthropic.com".into());
+        e.provider = "anthropic".into();
+        let err = build_backends(&e)
+            .err()
+            .expect("missing max_tokens must be rejected");
+        assert!(err.to_string().contains("max_tokens"), "{err}");
+        e.max_tokens = Some(128_000);
+        assert!(build_backends(&e).is_ok());
     }
 
     fn tmpdir(name: &str) -> std::path::PathBuf {
