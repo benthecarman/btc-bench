@@ -461,21 +461,35 @@ back. The next run must penalize length in the reward.
 It must not cap generation. Caps censor the long solvable tail and
 are ruled out (see CLAUDE.md, "No generation caps"). A rollout that
 fills the context already scores 0. The fix belongs in the reward,
-never in max_tokens. Options, cheapest first:
+never in max_tokens. The plan for the next run:
 
-- Group-relative length penalty (Kimi 1.5 style): within each rollout
-  group, give each answer a term from its length relative to the
-  group's shortest and longest. Correct answers get the full term, so
-  the shorter of two correct answers wins. Wrong answers get only its
-  negative part, so a wrong answer is never rewarded for being short.
-  It needs the whole group, so it lives in the trainer, not the reward
-  service. `score` stays the unchanged benchmark number either way.
-- Soft overlong penalty (DAPO style): a linear ramp of negative reward
-  over the last stretch before a soft length (e.g. 64k of the 131k
-  context). It is per-answer, so it could be a reward-service flag.
-  It only taxes length past the soft limit; nothing is cut off.
-- More frequent checkpoint evals (every 5 steps instead of 10), so the
-  peak is caught even if drift sets in.
+- Difficulty-scaled, correct-only length factor (GR³ form). For a
+  group with solve rate p̂ (share of its rollouts rewarded) and mean
+  length ℓ̄, a rollout with reward r and length ℓ trains on
+  r · (1 + α_g) / (1 + α_g · ℓ / ℓ̄), with α_g = 0.33 · p̂.
+  - Wrong answers stay at 0, so a short wrong answer is never
+    rewarded. Penalizing wrong-answer length (Kimi 1.5's other branch)
+    is the main collapse route reported in 2026 work.
+  - Difficulty comes from the solve rate, not the fixture tier: it is
+    measured for the current policy and follows a prompt as it gets
+    easier. An 8/8 prompt gets the full factor (a correct answer at
+    twice the group mean scores about 0.80); a 1/8 prompt barely any
+    (about 4%), so a rare long solution to a hard prompt is not
+    pushed shorter; an unsolved prompt gets none.
+  - A mean-length correct answer scores exactly 1, so the correctness
+    signal keeps its scale. Group mean-centred advantages, no std
+    division. Off for the first ~10 steps, then constant.
+  - It needs the whole group, so it lives in the trainer, not the
+    reward service. `score` stays the unchanged benchmark number.
+- In reserve, only if context hits exceed ~2% of rollouts: a small
+  soft overlong ramp (Magistral-size, −0.1 over the last stretch
+  before the context). It taxes length past a soft limit; nothing is
+  cut off.
+- Checkpoint evals every 5 steps instead of 10, so the peak is caught
+  even if drift sets in.
+
+The evidence and alternatives are in
+[the length-control report](reports/RL%20length%20control%20for%20reasoning.md).
 
 rl27's loss weights every token in a group equally (token-level, as
 in DAPO) rather than averaging per sequence. That avoids GRPO's
