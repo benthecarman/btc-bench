@@ -509,16 +509,23 @@ pub fn parse_script_answer_in(input: &str, dialect: AsmDialect) -> Result<Script
     if s.is_empty() {
         return Err(AnswerError::Empty);
     }
-    // Asm is recognized by an OP_ token. Core asm can be push-only with
-    // none (`0 <20-byte hash>` for P2WPKH), so in that dialect several
-    // whitespace-separated tokens also mean asm.
-    let asm =
-        s.contains("OP_") || (dialect == AsmDialect::Core && s.split_whitespace().nth(1).is_some());
-    if !asm {
-        let bytes = hex_decode(s)?;
-        return Ok(ScriptBuf::from_bytes(bytes));
+    // Asm is recognized by an OP_ token; anything else is hex, spaces
+    // between hex chunks allowed. Core asm can also be push-only with
+    // no OP_ token (`0 <20-byte hash>` for P2WPKH), so in that dialect
+    // a text that is not valid hex is read as asm before giving up.
+    if !s.contains("OP_") {
+        return match hex_decode(s) {
+            Ok(bytes) => Ok(ScriptBuf::from_bytes(bytes)),
+            Err(e) if dialect == AsmDialect::Core && s.split_whitespace().nth(1).is_some() => {
+                parse_asm_tokens(s, dialect).map_err(|_| e)
+            }
+            Err(e) => Err(e),
+        };
     }
+    parse_asm_tokens(s, dialect)
+}
 
+fn parse_asm_tokens(s: &str, dialect: AsmDialect) -> Result<ScriptBuf, AnswerError> {
     let mut out: Vec<u8> = Vec::new();
     let tokens: Vec<&str> = s.split_whitespace().collect();
     let mut i = 0;
@@ -879,6 +886,11 @@ mod tests {
         // Push-only P2WPKH, as Core prints it: no OP_ token.
         let pkh = "5b".repeat(20);
         assert_eq!(core(&format!("0 {pkh}")), format!("0014{pkh}"));
+        // Raw hex split into chunks is still hex (Sonnet 5.5 writes it).
+        assert_eq!(
+            core("6303e7470db17521 0216ca ac68"),
+            "6303e7470db175210216caac68"
+        );
         assert_eq!(
             core("0 -1 -5 144 OP_DROP"),
             "004f0185029000 75".replace(' ', "")

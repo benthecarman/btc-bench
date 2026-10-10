@@ -469,6 +469,12 @@ pub fn audit_dataset(dir: &Path) -> Result<AuditReport> {
         match f {
             Fixture::Write(w) => report.check_write(w),
             Fixture::Optimize(o) => report.check_optimize(o),
+            // Core asm of a push-only script (`1 29518` for P2A) is
+            // ambiguous with chunked hex, and identify is answered with a
+            // label, so its displays are never parsed back: in that
+            // dialect only displays a model can echo as an answer must
+            // round-trip.
+            Fixture::Identify(_) if f.asm_dialect() == bench_core::task::AsmDialect::Core => {}
             Fixture::Identify(i) => {
                 // Identify items carry no compiled answer key; params
                 // are static. But their scripts render in prompts, so
