@@ -72,8 +72,17 @@ impl core::fmt::Display for AnswerError {
                 "the answer is empty; submit the script as hex or Bitcoin Core asm"
             ),
             AnswerError::InvalidHexChar { context, pos, ch } => {
-                let start = pos.saturating_sub(8);
-                let end = (pos + 8).min(context.len());
+                // Byte offsets; widen to char boundaries so a multi-byte
+                // character near the error (a full-width digit) cannot
+                // split.
+                let mut start = pos.saturating_sub(8);
+                while !context.is_char_boundary(start) {
+                    start -= 1;
+                }
+                let mut end = (pos + 8).min(context.len()).max(pos + ch.len_utf8());
+                while !context.is_char_boundary(end) {
+                    end += 1;
+                }
                 write!(
                     f,
                     "invalid hex character '{ch}' at position {pos} (context: \"...{}{}{}...\")",
@@ -798,5 +807,20 @@ mod tests {
         assert!(parse_script_answer("OP_NOT_A_REAL_OPCODE").is_err());
         assert!(parse_script_answer("OP_DUP OP_HASH160 abc").is_err());
         assert!(parse_script_answer("OP_PUSHDATA1").is_err());
+    }
+
+    /// Non-ASCII characters next to the error position must not split
+    /// the context window (a Sonnet 5.5 answer with a full-width digit
+    /// crashed the runner).
+    #[test]
+    fn invalid_hex_context_respects_char_boundaries() {
+        for input in [
+            "aa\u{ff12}bb",
+            "\u{ff12}\u{ff12}\u{ff12}aa",
+            "aabbccdd\u{ff12}\u{ff12}\u{ff12}\u{ff12}",
+        ] {
+            let e = parse_script_answer(input).unwrap_err();
+            assert!(e.to_string().contains('\u{ff12}'), "{e}");
+        }
     }
 }
