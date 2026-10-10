@@ -215,11 +215,20 @@ reference witness with rust-miniscript's satisfier and real
 signatures, and keeps it only if Core accepts it. The audit re-checks
 every reference witness against Core.
 
-First measurement (2026-10-09, satisfy-s42-v1 from bench-s42-lite-v2,
-48 tasks): Sonnet 5.5 0.979 at ~400 output tokens per task. As built
-the task is easy for frontier models; the lever is situations the
-policy forbids (the answer is that no witness exists) and scoring the
-witness's weight.
+Every other task is a near miss the policy forbids: the generator trims
+an allowed situation to a minimal one, takes away one thing it relies
+on (a signer, a secret, or nLockTime/nSequence one step short of a
+timelock), and adds back distractors that do not restore the spend.
+The right answer there is that the output is unspendable. Ground truth
+is the oracle's policy semantics, cross-checked by rust-miniscript's
+satisfier finding no witness; a witness Core accepts always scores, so
+a wrong ground truth can only cost a model, never pay it.
+
+Measurements (2026-10-09, 48 tasks from bench-s42-lite-v2): Sonnet 5.5
+scored 0.979 on spendable-only satisfy-s42-v1 and 0.979 on
+satisfy-s42-v2 (half near misses: 24/24 near misses, 23/24 spends), at
+~400 output tokens per task. Executing scripts is easy for frontier
+models; this task is a lower rung, not a frontier discriminator.
 
 ## Correctness oracle
 

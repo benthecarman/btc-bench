@@ -516,10 +516,20 @@ pub fn audit_dataset(dir: &Path) -> Result<AuditReport> {
                         report.fail(format!("{}: signer {signer} has no key", sf.id));
                     }
                 }
-                let r = bench_core::grade_satisfy(sf, &sf.reference_witness);
+                if sf.spendable == sf.reference_witness.is_empty() {
+                    report.fail(format!(
+                        "{}: a reference witness belongs exactly to spendable situations",
+                        sf.id
+                    ));
+                }
+                let reference = bench_core::task::WitnessAnswer {
+                    witness: sf.reference_witness.clone(),
+                    unspendable: !sf.spendable,
+                };
+                let r = bench_core::grade_satisfy(sf, &reference);
                 if r.score < 1.0 {
                     report.fail(format!(
-                        "{}: reference witness does not spend: {}",
+                        "{}: reference answer does not score: {}",
                         sf.id,
                         r.reason.unwrap_or_default()
                     ));

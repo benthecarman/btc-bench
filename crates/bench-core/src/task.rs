@@ -51,6 +51,12 @@ pub struct KeyVar {
 fn is_false(v: &bool) -> bool {
     !*v
 }
+fn yes() -> bool {
+    true
+}
+fn is_true(v: &bool) -> bool {
+    *v
+}
 fn is_zero_u32(v: &u32) -> bool {
     *v == 0
 }
@@ -292,8 +298,13 @@ pub struct SatisfyFixture {
     /// The spending transaction's nLockTime and this input's nSequence.
     pub lock_time: u32,
     pub sequence: u32,
+    /// Whether the policy allows the spend in this situation. When it
+    /// does not, the right answer is that no witness spends.
+    #[serde(default = "yes", skip_serializing_if = "is_true")]
+    pub spendable: bool,
     /// A witness that spends, in serialization order, with `<sig:LABEL>`
     /// placeholders: the answer key, checked at generation and audit.
+    /// Empty when the situation is unspendable.
     pub reference_witness: Vec<String>,
     /// The fixture the script came from.
     pub source: String,
@@ -386,7 +397,11 @@ pub struct DescriptorAnswer {
 /// order (hex, `""` for empty, `<sig:LABEL>` for a signature).
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct WitnessAnswer {
+    #[serde(default)]
     pub witness: Vec<String>,
+    /// The answer that no witness can spend in this situation.
+    #[serde(default, skip_serializing_if = "is_false")]
+    pub unspendable: bool,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]

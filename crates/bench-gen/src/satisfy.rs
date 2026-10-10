@@ -13,7 +13,7 @@
 use std::collections::BTreeMap;
 
 use bench_core::satisfy::{grade_satisfy, locked, public_key, signatures, to_template};
-use bench_core::task::{ContextKind, Fixture, KeyVar, SatisfyFixture, PROMPT_V2};
+use bench_core::task::{ContextKind, Fixture, KeyVar, SatisfyFixture, WitnessAnswer, PROMPT_V2};
 use bench_core::truth::{eval, Atoms, TruthContext};
 use bitcoin::hashes::{hash160, Hash};
 use bitcoin::hex::FromHex;
@@ -165,7 +165,12 @@ fn sources(fixtures: &[Fixture]) -> Vec<Source<'_>> {
 
 /// One satisfy task from one source, or None when no situation with a
 /// Core-verified reference witness turns up.
-fn derive_one(src: &Source<'_>, id: &str, rng: &mut SeededRng) -> Option<SatisfyFixture> {
+fn derive_one(
+    src: &Source<'_>,
+    id: &str,
+    want_spendable: bool,
+    rng: &mut SeededRng,
+) -> Option<SatisfyFixture> {
     let ctx = src.context;
     let secp = bitcoin::secp256k1::Secp256k1::new();
     // Re-key.
@@ -220,41 +225,108 @@ fn derive_one(src: &Source<'_>, id: &str, rng: &mut SeededRng) -> Option<Satisfy
     };
     let digest_of = |h: &str| h.split_once(':').map(|(_, d)| d.to_string());
     let known_secret = |digest: &str| src.preimages.get(digest).cloned();
-
-    for _ in 0..200 {
-        let signers: Vec<usize> = (0..keys.len()).filter(|_| rng.bool()).collect();
-        let hashes: BTreeMap<String, bool> = atoms
-            .hashes
-            .iter()
-            .map(|h| (h.clone(), rng.bool()))
-            .collect();
-        let heights = atoms.heights();
-        let ages = atoms.ages();
-        let lock_time = if atoms.afters.is_empty() {
-            0
-        } else {
-            heights[rng.below(heights.len() as u64) as usize]
-        };
-        let sequence = if atoms.olders.is_empty() {
-            0xffff_fffe
-        } else {
-            ages[rng.below(ages.len() as u64) as usize]
-        };
-        let truth = TruthContext {
+    let allows = |sit: &Situation| {
+        semantic_eval(&TruthContext {
             keys: key_names
                 .iter()
                 .enumerate()
-                .map(|(i, k)| (k.clone(), signers.contains(&i)))
+                .map(|(i, k)| (k.clone(), sit.signers.contains(&i)))
                 .collect(),
-            hashes: hashes.clone(),
-            height: lock_time,
-            age: sequence,
+            hashes: sit.known.clone(),
+            height: sit.lock_time,
+            age: sit.sequence,
+        })
+    };
+    let heights = atoms.heights();
+    let ages = atoms.ages();
+
+    for _ in 0..200 {
+        let mut sit = Situation {
+            signers: (0..keys.len()).filter(|_| rng.bool()).collect(),
+            known: atoms
+                .hashes
+                .iter()
+                .map(|h| (h.clone(), rng.bool()))
+                .collect(),
+            lock_time: if atoms.afters.is_empty() {
+                0
+            } else {
+                heights[rng.below(heights.len() as u64) as usize]
+            },
+            sequence: if atoms.olders.is_empty() {
+                0xffff_fffe
+            } else {
+                ages[rng.below(ages.len() as u64) as usize]
+            },
         };
-        if !semantic_eval(&truth) {
+        if !allows(&sit) {
             continue;
         }
+        if !want_spendable {
+            // Trim to a minimal allowed situation, then take away one
+            // thing it relies on: the spend is a near miss.
+            for i in shuffled(rng, sit.signers.clone()) {
+                let mut t = sit.clone();
+                t.signers.retain(|&s| s != i);
+                if allows(&t) {
+                    sit = t;
+                }
+            }
+            for h in shuffled(rng, sit.known.keys().cloned().collect()) {
+                let mut t = sit.clone();
+                t.known.insert(h, false);
+                if allows(&t) {
+                    sit = t;
+                }
+            }
+            let mut misses: Vec<Situation> = Vec::new();
+            for &i in &sit.signers {
+                let mut t = sit.clone();
+                t.signers.retain(|&s| s != i);
+                misses.push(t);
+            }
+            for (h, k) in &sit.known {
+                if *k {
+                    let mut t = sit.clone();
+                    t.known.insert(h.clone(), false);
+                    misses.push(t);
+                }
+            }
+            for &a in &atoms.afters {
+                if a > 0 && sit.lock_time >= a {
+                    misses.push(Situation {
+                        lock_time: a - 1,
+                        ..sit.clone()
+                    });
+                }
+            }
+            for &o in &atoms.olders {
+                if o & 0xffff > 0 && (sit.sequence & 0xffff) >= (o & 0xffff) {
+                    misses.push(Situation {
+                        sequence: o - 1,
+                        ..sit.clone()
+                    });
+                }
+            }
+            let Some(miss) = shuffled(rng, misses).into_iter().find(|t| !allows(t)) else {
+                continue;
+            };
+            sit = miss;
+            // Distractors: extra signers and secrets that do not make
+            // the spend possible.
+            for i in shuffled(rng, (0..keys.len()).collect()) {
+                if !sit.signers.contains(&i) && rng.bool() {
+                    let mut t = sit.clone();
+                    t.signers.push(i);
+                    t.signers.sort();
+                    if !allows(&t) {
+                        sit = t;
+                    }
+                }
+            }
+        }
         let mut preimages = Vec::new();
-        for (h, known) in &hashes {
+        for (h, known) in &sit.known {
             if *known {
                 preimages.push(known_secret(&digest_of(h)?)?);
             }
@@ -266,14 +338,16 @@ fn derive_one(src: &Source<'_>, id: &str, rng: &mut SeededRng) -> Option<Satisfy
             context: ctx,
             script_hex: script.to_hex_string(),
             keys: keys.clone(),
-            signers: signers.iter().map(|&i| keys[i].label.clone()).collect(),
+            signers: sit.signers.iter().map(|&i| keys[i].label.clone()).collect(),
             preimages,
-            lock_time,
-            sequence,
+            lock_time: sit.lock_time,
+            sequence: sit.sequence,
+            spendable: want_spendable,
             reference_witness: Vec::new(),
             source: src.id.to_string(),
         };
-        // Reference witness: the satisfier with real signatures.
+        // The satisfier with real signatures: the reference witness, or,
+        // for a near miss, an independent check that none exists.
         let l = locked(&f).ok()?;
         let sigs = signatures(&f, &l).ok()?;
         let mut sat = RealSat {
@@ -282,10 +356,10 @@ fn derive_one(src: &Source<'_>, id: &str, rng: &mut SeededRng) -> Option<Satisfy
             pkh: BTreeMap::new(),
             xpkh: BTreeMap::new(),
             preimages: BTreeMap::new(),
-            lock_time: absolute::LockTime::from_consensus(lock_time),
-            sequence: Sequence(sequence),
+            lock_time: absolute::LockTime::from_consensus(sit.lock_time),
+            sequence: Sequence(sit.sequence),
         };
-        for &i in &signers {
+        for &i in &sit.signers {
             let label = &keys[i].label;
             let sk = bench_core::satisfy::secret_key(id, label);
             let bytes = &sigs[label];
@@ -304,7 +378,7 @@ fn derive_one(src: &Source<'_>, id: &str, rng: &mut SeededRng) -> Option<Satisfy
                 }
             }
         }
-        for (h, known) in &hashes {
+        for (h, known) in &sit.known {
             if *known {
                 let d = digest_of(h)?;
                 let pre: [u8; 32] = Vec::from_hex(&known_secret(&d)?).ok()?.try_into().ok()?;
@@ -326,18 +400,46 @@ fn derive_one(src: &Source<'_>, id: &str, rng: &mut SeededRng) -> Option<Satisfy
                 .ok()?
                 .satisfy_malleable(&sat),
         };
-        let Ok(items) = items else { continue };
-        f.reference_witness = to_template(&items, &sigs);
-        if grade_satisfy(&f, &f.reference_witness).score == 1.0 {
-            return Some(f);
+        match (want_spendable, items) {
+            (true, Ok(items)) => {
+                f.reference_witness = to_template(&items, &sigs);
+                let answer = WitnessAnswer {
+                    witness: f.reference_witness.clone(),
+                    unspendable: false,
+                };
+                if grade_satisfy(&f, &answer).score == 1.0 {
+                    return Some(f);
+                }
+            }
+            // The policy and the satisfier agree nothing spends.
+            (false, Err(_)) => return Some(f),
+            _ => {}
         }
     }
     None
 }
 
+/// Who signs, which secrets are known (by hash atom), and the
+/// transaction's nLockTime and nSequence.
+#[derive(Clone)]
+struct Situation {
+    signers: Vec<usize>,
+    known: BTreeMap<String, bool>,
+    lock_time: u32,
+    sequence: u32,
+}
+
+fn shuffled<T>(rng: &mut SeededRng, mut v: Vec<T>) -> Vec<T> {
+    for i in (1..v.len()).rev() {
+        v.swap(i, rng.below(i as u64 + 1) as usize);
+    }
+    v
+}
+
 /// Derive up to `count` satisfy tasks from a dataset, cycling through
-/// its write and optimize fixtures in order. Returns the tasks and how
-/// many sources were skipped.
+/// its write and optimize fixtures in order; every other task is a near
+/// miss the policy forbids. Returns the tasks and how many sources were
+/// skipped.
 pub fn derive(fixtures: &[Fixture], count: usize, seed: u64) -> (Vec<Fixture>, usize) {
     let mut rng = SeededRng::new(seed);
     let srcs = sources(fixtures);
@@ -348,7 +450,7 @@ pub fn derive(fixtures: &[Fixture], count: usize, seed: u64) -> (Vec<Fixture>, u
             break;
         }
         let id = format!("t6-{:04}", out.len());
-        match derive_one(src, &id, &mut rng) {
+        match derive_one(src, &id, out.len() % 2 == 0, &mut rng) {
             Some(f) => out.push(Fixture::Satisfy(f)),
             None => skipped += 1,
         }
@@ -371,16 +473,26 @@ mod tests {
         });
         let (a, skipped) = derive(&source, 10, 1);
         assert!(a.len() >= 8, "{} derived, {skipped} skipped", a.len());
+        let spendable = a
+            .iter()
+            .filter(|f| matches!(f, Fixture::Satisfy(s) if s.spendable))
+            .count();
+        assert!(spendable > 0 && spendable < a.len(), "both kinds appear");
         for f in &a {
             let Fixture::Satisfy(s) = f else {
                 panic!("not a satisfy task")
             };
-            assert_eq!(
-                grade_satisfy(s, &s.reference_witness).score,
-                1.0,
-                "{}",
-                s.id
-            );
+            let reference = WitnessAnswer {
+                witness: s.reference_witness.clone(),
+                unspendable: !s.spendable,
+            };
+            assert_eq!(grade_satisfy(s, &reference).score, 1.0, "{}", s.id);
+            // Claiming the opposite never scores.
+            let wrong = WitnessAnswer {
+                witness: vec![],
+                unspendable: s.spendable,
+            };
+            assert_eq!(grade_satisfy(s, &wrong).score, 0.0, "{}", s.id);
             // The keys are the derived ones the grader signs with.
             for k in &s.keys {
                 assert_eq!(k.pubkey, hex(&public_key(s.context, &s.id, &k.label)));

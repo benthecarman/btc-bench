@@ -13,6 +13,13 @@
 //! (libbitcoinconsensus, all consensus flags including taproot). Relay
 //! policy (MINIMALIF and NULLFAIL in segwit v0, CLEANSTACK in P2SH) is
 //! not checked; tapscript enforces MINIMALIF and NULLFAIL by consensus.
+//!
+//! Some situations do not allow the spend (one signer short, a secret
+//! not known, nLockTime one block early): there the right answer is
+//! that no witness spends. That ground truth is the oracle's policy
+//! semantics, cross-checked at generation by rust-miniscript's
+//! satisfier finding no witness. A witness Core accepts always scores,
+//! so a wrong ground truth can only cost the model, never pay it.
 
 use std::collections::BTreeMap;
 
@@ -28,7 +35,7 @@ use bitcoin::{
     Amount, OutPoint, ScriptBuf, Sequence, Transaction, TxIn, TxOut, Txid, Witness, XOnlyPublicKey,
 };
 
-use crate::task::{ContextKind, SatisfyFixture};
+use crate::task::{ContextKind, SatisfyFixture, WitnessAnswer};
 
 const AMOUNT: u64 = 100_000;
 
@@ -257,12 +264,24 @@ pub struct SatisfyResult {
     pub reason: Option<String>,
 }
 
-/// Task 6: assemble the spend and run it through Bitcoin Core.
-pub fn grade_satisfy(f: &SatisfyFixture, witness: &[String]) -> SatisfyResult {
+/// Task 6: assemble the spend and run it through Bitcoin Core, or
+/// check the claim that nothing spends.
+pub fn grade_satisfy(f: &SatisfyFixture, answer: &WitnessAnswer) -> SatisfyResult {
     let fail = |reason: String| SatisfyResult {
         score: 0.0,
         reason: Some(reason),
     };
+    if answer.unspendable {
+        return if f.spendable {
+            fail("a witness spends this output in this situation".to_string())
+        } else {
+            SatisfyResult {
+                score: 1.0,
+                reason: None,
+            }
+        };
+    }
+    let witness = &answer.witness;
     let l = match locked(f) {
         Ok(l) => l,
         Err(e) => return fail(format!("fixture script is invalid: {e}")),
@@ -332,6 +351,7 @@ mod tests {
             preimages: vec![],
             lock_time: 0,
             sequence: 0xffff_fffe,
+            spendable: true,
             reference_witness: vec![],
             source: "test".into(),
         }
@@ -353,7 +373,10 @@ mod tests {
                 .push_opcode(bitcoin::opcodes::all::OP_CHECKSIG)
                 .into_script();
             let f = fixture(context, script.clone(), &["Alice"]);
-            let w = |v: &[&str]| v.iter().map(|s| s.to_string()).collect::<Vec<_>>();
+            let w = |v: &[&str]| WitnessAnswer {
+                witness: v.iter().map(|s| s.to_string()).collect(),
+                unspendable: false,
+            };
             assert_eq!(
                 grade_satisfy(&f, &w(&["<sig:Alice>", "01"])).score,
                 1.0,

@@ -303,6 +303,7 @@ fn answer_from_value(v: serde_json::Value) -> Result<TaskAnswer> {
             .context("a witness answer must be an array of strings")?;
         return Ok(TaskAnswer::Witness(bench_core::task::WitnessAnswer {
             witness,
+            unspendable: false,
         }));
     }
     serde_json::from_value(v).context("answer must be a string or a task answer object")
@@ -562,7 +563,7 @@ fn grade_one(req: RewardRequest, default_shaping: &Shaping) -> Result<RewardResp
         }
         (Fixture::Satisfy(sf), TaskAnswer::Witness(a)) => {
             // Binary: the spend is valid under Core or it is not.
-            let r = bench_core::grade_satisfy(sf, &a.witness);
+            let r = bench_core::grade_satisfy(sf, a);
             Ok(RewardResponse {
                 task_id: sf.id.clone(),
                 score: r.score,

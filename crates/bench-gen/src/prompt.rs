@@ -372,7 +372,8 @@ pub fn satisfy_prompt(f: &bench_core::task::SatisfyFixture) -> String {
          input's nSequence is {}. {signers}{secrets}\n\
          \n\
          Give {items}: hex, \"\" for an empty item, and <sig:NAME> where NAME's \
-         signature goes ({sig}).",
+         signature goes ({sig}). If no witness can spend it in this situation, \
+         answer that it is unspendable instead.",
         key_block(&f.keys),
         f.lock_time,
         f.sequence,

@@ -455,9 +455,12 @@ fn submit_witness_tool() -> Tool {
                 "type": "array",
                 "items": {"type": "string"},
                 "description": "Witness items in serialization order: hex, \"\" for an empty item, <sig:NAME> for a signature"
+            },
+            "unspendable": {
+                "type": "boolean",
+                "description": "true when no witness can spend the output in this situation"
             }
-        },
-        "required": ["witness"]
+        }
     });
     Tool::new(
         "submit_witness",
@@ -640,7 +643,7 @@ fn json_args_to_call(
         Some(("submit_descriptor".to_string(), obj))
     } else if obj.contains_key("label") {
         Some(("submit_identify".to_string(), obj))
-    } else if obj.contains_key("witness") {
+    } else if obj.contains_key("witness") || obj.contains_key("unspendable") {
         Some(("submit_witness".to_string(), obj))
     } else {
         None
@@ -763,9 +766,18 @@ fn task_answer_from(
             })
         })
     } else if name == "submit_witness" {
-        args.get("witness")
-            .and_then(witness_items)
-            .map(|witness| TaskAnswer::Witness(bench_core::task::WitnessAnswer { witness }))
+        let unspendable = args
+            .get("unspendable")
+            .is_some_and(|v| v.as_bool() == Some(true) || v.as_str() == Some("true"));
+        let witness = match args.get("witness") {
+            Some(v) => witness_items(v)?,
+            None if unspendable => Vec::new(),
+            None => return None,
+        };
+        Some(TaskAnswer::Witness(bench_core::task::WitnessAnswer {
+            witness,
+            unspendable,
+        }))
     } else if name == "submit_identify" {
         let label = args
             .get("label")
@@ -988,7 +1000,7 @@ fn evaluate(fixture: &Fixture, answer: &TaskAnswer) -> Evaluation {
             }
         }
         (Fixture::Satisfy(sf), TaskAnswer::Witness(a)) => {
-            let r = bench_core::grade_satisfy(sf, &a.witness);
+            let r = bench_core::grade_satisfy(sf, a);
             Evaluation {
                 passed: r.score >= 1.0,
                 score: r.score,
@@ -1158,6 +1170,9 @@ fn extract_chat_answer(
                     .ok()
                     .map(|tr| tr.to_string()),
                 Fixture::Identify(_) => None,
+                Fixture::Satisfy(_) if code.trim().eq_ignore_ascii_case("unspendable") => {
+                    Some("unspendable".to_string())
+                }
                 Fixture::Satisfy(_) => serde_json::from_str::<serde_json::Value>(code.trim())
                     .ok()
                     .as_ref()
@@ -1190,13 +1205,22 @@ fn extract_chat_answer(
         Fixture::Identify(_) => TaskAnswer::Identify(IdentifyAnswer {
             label: answer.into(),
         }),
+        Fixture::Satisfy(_) if answer.trim().eq_ignore_ascii_case("unspendable") => {
+            TaskAnswer::Witness(bench_core::task::WitnessAnswer {
+                witness: Vec::new(),
+                unspendable: true,
+            })
+        }
         Fixture::Satisfy(_) => {
             match serde_json::from_str::<serde_json::Value>(answer.trim())
                 .ok()
                 .as_ref()
                 .and_then(witness_items)
             {
-                Some(witness) => TaskAnswer::Witness(bench_core::task::WitnessAnswer { witness }),
+                Some(witness) => TaskAnswer::Witness(bench_core::task::WitnessAnswer {
+                    witness,
+                    unspendable: false,
+                }),
                 None => return (None, raw, None),
             }
         }

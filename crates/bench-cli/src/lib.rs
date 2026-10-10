@@ -583,7 +583,7 @@ pub fn grade(
                 }
             }
             (Fixture::Satisfy(sf), TaskAnswer::Witness(a)) => {
-                let res = bench_core::grade_satisfy(sf, &a.witness);
+                let res = bench_core::grade_satisfy(sf, a);
                 TaskScore {
                     task_id: r.task_id.clone(),
                     score: res.score,
@@ -1116,6 +1116,7 @@ mod tests {
                 }
                 TaskAnswer::Witness(_) => TaskAnswer::Witness(bench_core::task::WitnessAnswer {
                     witness: vec!["garbage".into()],
+                    unspendable: false,
                 }),
             };
             garbage.push(g);
