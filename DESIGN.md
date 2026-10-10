@@ -335,7 +335,10 @@ On bench-s42 this made 89/300 optimize and 49/150 tree keys lighter.
 Re-graded against them, Opus 5.5 scores 0.820 on optimize (was 0.872)
 and 0.998 on tree (was 1.000); Sonnet 5.5 0.662 and 0.960.
 
-The search is a heuristic, not an optimality proof. The generation gates (baseline strictly heavier)
+The search is a heuristic, not an optimality proof. Graded tasks
+carry `below_reference_wu` when an equivalent answer is lighter than
+the key, and summaries count them, so a stronger model shows where the
+search needs to grow. The generation gates (baseline strictly heavier)
 still use the compiler and the balanced tree, so every seed samples
 the same tasks as before; only the keys change. Fixtures record the
 builder in `reference_search` (0 = compiler/balanced, 1 = searched);
@@ -511,6 +514,10 @@ fixtures and answers.
   accuracy given well-formed" — sweeps showed parse/decode failures
   were ~2/3 of zero scores, a different capability than wrong
   semantics.
+- Summaries carry a tier × kind table (missing answers as 0), so the
+  hard tiers stay visible when easy tasks dominate the headline mean,
+  and a count of answers lighter than their answer key (see
+  "Searched answer keys").
 - Write/optimize fixtures record the policy's boolean atom count
   (`atoms`), the continuous difficulty axis under the tiers; the
   report breaks scores down by atom count. `gen --tiers` overrides the

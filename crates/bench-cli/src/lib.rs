@@ -7,7 +7,7 @@ use std::io::Write as _;
 use std::path::Path;
 
 use anyhow::{bail, Context as _, Result};
-use bench_core::task::{Fixture, ResponseRecord, TaskAnswer};
+use bench_core::task::{Fixture, ResponseRecord, TaskAnswer, Tier};
 use bench_core::{grade_identify, grade_optimize, grade_write};
 use bench_gen::fixtures::{generate, GenParams};
 use serde::{Deserialize, Serialize};
@@ -199,6 +199,12 @@ pub struct TaskScore {
     /// (`bench_core::normalize`). Strict-Miniscript means count it as 0.
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub normalized: bool,
+    /// Weight units an equivalent optimize/tree answer saves below the
+    /// task's answer key. Set only when the answer is lighter: the
+    /// score clamps at 1, so this is where the reference search is
+    /// known to fall short.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub below_reference_wu: Option<usize>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -282,6 +288,25 @@ pub struct Summary {
     /// no tool_calls counts.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub tool_use: Option<ToolUse>,
+    /// Equivalent answers lighter than their task's answer key, per
+    /// weight-scored kind (see [`TaskScore::below_reference_wu`]).
+    #[serde(default)]
+    pub optimize_below_reference: usize,
+    #[serde(default)]
+    pub tree_below_reference: usize,
+    /// Mean score per (tier, kind), missing answers as 0, so the hard
+    /// tiers stay visible beside the overall means.
+    #[serde(default)]
+    pub by_tier: Vec<TierCell>,
+}
+
+/// One cell of the tier x kind breakdown.
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct TierCell {
+    pub tier: Tier,
+    pub kind: String,
+    pub mean: f64,
+    pub n: usize,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -469,6 +494,7 @@ pub fn grade(
                     lint,
                     failure,
                     normalized: res.normalized,
+                    below_reference_wu: None,
                 }
             }
             (Fixture::Optimize(o), TaskAnswer::Script(a)) => {
@@ -500,6 +526,10 @@ pub fn grade(
                     lint,
                     failure,
                     normalized: res.normalized,
+                    below_reference_wu: res
+                        .candidate
+                        .filter(|c| res.verdict.is_equivalent() && c.weight < o.optimal_weight)
+                        .map(|c| o.optimal_weight - c.weight),
                 }
             }
             (Fixture::Identify(i), TaskAnswer::Identify(a)) => {
@@ -512,6 +542,7 @@ pub fn grade(
                     lint: None,
                     failure: (!res.label_correct).then(|| "wrong label".to_string()),
                     normalized: false,
+                    below_reference_wu: None,
                 }
             }
             (Fixture::Judgment(j), TaskAnswer::Script(a)) => {
@@ -552,6 +583,7 @@ pub fn grade(
                     lint,
                     failure,
                     normalized: res.normalized,
+                    below_reference_wu: None,
                 }
             }
             (Fixture::Tree(t), TaskAnswer::Descriptor(a)) => {
@@ -580,6 +612,10 @@ pub fn grade(
                     lint,
                     failure,
                     normalized: false,
+                    below_reference_wu: res
+                        .candidate_weight
+                        .filter(|w| res.verdict.is_equivalent() && *w < t.reference_weight)
+                        .map(|w| t.reference_weight - w),
                 }
             }
             (Fixture::Satisfy(sf), TaskAnswer::Witness(a)) => {
@@ -592,6 +628,7 @@ pub fn grade(
                     reason: res.reason,
                     lint: None,
                     normalized: false,
+                    below_reference_wu: None,
                 }
             }
             (f, a) => bail!(
@@ -818,6 +855,35 @@ pub fn grade(
             n: a.len(),
         }
     });
+    let mut tier_sums: BTreeMap<(Tier, &'static str), (f64, usize)> = BTreeMap::new();
+    for f in fixtures {
+        let Some(tier) = f.tier() else { continue };
+        let score = scores
+            .iter()
+            .find(|s| s.task_id == f.id())
+            .map_or(0.0, |s| s.score);
+        let cell = tier_sums.entry((tier, f_kind(f))).or_default();
+        cell.0 += score;
+        cell.1 += 1;
+    }
+    let by_tier = tier_sums
+        .into_iter()
+        .map(|((tier, kind), (sum, n))| TierCell {
+            tier,
+            kind: kind.to_string(),
+            mean: sum / n as f64,
+            n,
+        })
+        .collect();
+    let below = |kind: fn(&Fixture) -> bool| {
+        scores
+            .iter()
+            .filter(|s| s.below_reference_wu.is_some())
+            .filter(|s| by_id.get(s.task_id.as_str()).is_some_and(|f| kind(f)))
+            .count()
+    };
+    let optimize_below_reference = below(|f| matches!(f, Fixture::Optimize(_)));
+    let tree_below_reference = below(|f| matches!(f, Fixture::Tree(_)));
     let summary = Summary {
         write_mean: div(w_sum, w_n),
         write_n: w_n,
@@ -853,6 +919,9 @@ pub fn grade(
         multi_turn,
         token_efficiency,
         tool_use,
+        optimize_below_reference,
+        tree_below_reference,
+        by_tier,
     };
     Ok((scores, summary))
 }
@@ -940,6 +1009,13 @@ pub fn summary_markdown(s: &Summary) -> String {
             s.tree_sem_mean,
         ));
     }
+    if s.optimize_below_reference + s.tree_below_reference > 0 {
+        out.push_str(&format!(
+            "Lighter than the answer key (scored 1.0; the reference search can improve): \
+             optimize {}, tree {}\n",
+            s.optimize_below_reference, s.tree_below_reference,
+        ));
+    }
     if s.normalized_n > 0 {
         out.push_str(&format!(
             "Read through an idiom rewrite (not Miniscript as written): {} answers, {} scored; \
@@ -974,6 +1050,35 @@ pub fn summary_markdown(s: &Summary) -> String {
             "Multi-turn: first-try {:.3}, solved {:.3}, discounted {:.3}, mean turns {:.2} (n={})\n",
             mt.first_try, mt.solved, mt.mt_score, mt.mean_turns_when_solved, mt.n
         ));
+    }
+    if !s.by_tier.is_empty() {
+        let kinds: Vec<&str> = ["write", "optimize", "tree", "judgment", "satisfy"]
+            .into_iter()
+            .filter(|k| s.by_tier.iter().any(|c| c.kind == *k))
+            .collect();
+        let mut tiers: Vec<Tier> = s.by_tier.iter().map(|c| c.tier).collect();
+        tiers.dedup();
+        out.push_str(&format!(
+            "\n| tier | {} |\n|---|{}\n",
+            kinds.join(" | "),
+            "---|".repeat(kinds.len())
+        ));
+        for t in tiers {
+            let cells: Vec<String> = kinds
+                .iter()
+                .map(|k| {
+                    s.by_tier
+                        .iter()
+                        .find(|c| c.tier == t && c.kind == *k)
+                        .map_or("—".to_string(), |c| format!("{:.3} (n={})", c.mean, c.n))
+                })
+                .collect();
+            out.push_str(&format!(
+                "| {} | {} |\n",
+                format!("{t:?}").to_lowercase(),
+                cells.join(" | ")
+            ));
+        }
     }
     out.push_str(&format!("\nGraded by btc-bench {}\n", build_stamp()));
     out
