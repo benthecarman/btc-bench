@@ -33,7 +33,7 @@
 use std::sync::Arc;
 
 use anyhow::{bail, Context as _, Result};
-use bench_core::answer::parse_script_answer;
+use bench_core::answer::parse_script_answer_in;
 use bench_core::task::{Fixture, ScriptAnswer, TaskAnswer};
 use bench_core::{
     decodes_in_context, grade_identify, grade_optimize, grade_write, semantic_agreement,
@@ -119,6 +119,10 @@ struct ToolRequest {
     #[serde(default)]
     context: Option<ContextKind>,
     input: String,
+    /// Prompt version of the task the call belongs to; decides the asm
+    /// dialect (0 = v1 Legacy, 2+ = Bitcoin Core asm).
+    #[serde(default)]
+    prompt_version: u32,
 }
 
 fn run_tool(req: ToolRequest) -> Result<serde_json::Value> {
@@ -127,7 +131,11 @@ fn run_tool(req: ToolRequest) -> Result<serde_json::Value> {
             let ctx = req
                 .context
                 .ok_or_else(|| anyhow::anyhow!("check_script requires a context"))?;
-            let c = bench_core::toolbox::check_script(ctx, &req.input);
+            let c = bench_core::toolbox::check_script_in(
+                ctx,
+                &req.input,
+                bench_core::task::dialect_for(req.prompt_version),
+            );
             Ok(json!({"report": c.render(), "detail": c}))
         }
         "check_descriptor" => {
@@ -292,12 +300,13 @@ fn answer_from_value(v: serde_json::Value) -> Result<TaskAnswer> {
 /// Signals for a script answer against a reference in a context.
 fn script_components(
     ctx: ContextKind,
+    dialect: bench_core::task::AsmDialect,
     reference_hex: &str,
     answer: &str,
     equivalent: bool,
     lint_count: usize,
 ) -> Components {
-    let Ok(candidate) = parse_script_answer(answer) else {
+    let Ok(candidate) = parse_script_answer_in(answer, dialect) else {
         return Components::default();
     };
     // Read the answer the way the grader does: through an idiom
@@ -419,6 +428,7 @@ fn grade_one(req: RewardRequest, default_shaping: &Shaping) -> Result<RewardResp
             let r = grade_write(w, &a.script);
             let c = script_components(
                 w.context,
+                task.asm_dialect(),
                 &w.reference_script_hex,
                 &a.script,
                 r.verdict.is_equivalent(),
@@ -436,7 +446,7 @@ fn grade_one(req: RewardRequest, default_shaping: &Shaping) -> Result<RewardResp
         }
         (Fixture::Judgment(j), TaskAnswer::Script(a)) => {
             let r = bench_core::grade_judgment(j, &a.script);
-            let script = parse_script_answer(&a.script).ok();
+            let script = parse_script_answer_in(&a.script, task.asm_dialect()).ok();
             let c = Components {
                 parsed: script.is_some(),
                 decoded: script.as_ref().is_some_and(|s| {
@@ -466,6 +476,7 @@ fn grade_one(req: RewardRequest, default_shaping: &Shaping) -> Result<RewardResp
             let r = grade_optimize(o, &a.script);
             let c = script_components(
                 o.context,
+                task.asm_dialect(),
                 &o.optimal_script_hex,
                 &a.script,
                 r.verdict.is_equivalent(),
@@ -473,7 +484,10 @@ fn grade_one(req: RewardRequest, default_shaping: &Shaping) -> Result<RewardResp
             );
             // Echo guard: the floor is earned by a distinct rewrite no
             // heavier than the given baseline, never by copying it.
-            let floor_eligible = match (parse_script_answer(&a.script), &r.candidate) {
+            let floor_eligible = match (
+                parse_script_answer_in(&a.script, task.asm_dialect()),
+                &r.candidate,
+            ) {
                 (Ok(script), Some(w)) => {
                     script.to_hex_string() != o.baseline_script_hex && w.weight <= o.baseline_weight
                 }
@@ -695,6 +709,7 @@ mod tests {
 
     fn write_fixture() -> WriteFixture {
         WriteFixture {
+            prompt_version: 0,
             choose_context: false,
             request: None,
             id: "t1-0000".into(),

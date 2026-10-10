@@ -364,9 +364,27 @@ fixtures and answers.
 - Embedded scripts (optimize baselines, identify scriptPubKeys) render as
   decoded Bitcoin Core asm by default; `--display hex` switches to raw
   hex. Answers are accepted in either notation regardless.
-- Display and answer parsing are ONE dialect, test-enforced: every
-  script the bench displays must re-parse byte-identically
-  (to_human_asm -> parse_script_answer). All-digit push tokens are
+- Prompt versions. Each fixture records `prompt_version`; prompts,
+  displayed asm and answer parsing follow it, so old runs re-grade
+  exactly as they were posed. Version 0/1 is the original surface
+  below. Version 2 (2026-10-09) removes scaffolding and uses real
+  Bitcoin Core asm: no strategy hints ("put the best spending path on
+  the key path"), no grading language ("Correctness is the gate ...
+  scores higher"), no "mechanically verifiable" nudge toward the
+  decode gate, no opcode names in specs ("(absolute timelock)" stays,
+  ", OP_CHECKLOCKTIMEVERIFY" goes), and the answer notation is stated
+  as what `bitcoin-cli decodescript` prints: pushes of up to four
+  bytes as decimal (`OP_SIZE 32`), `0`/`1`..`16` for the small-number
+  opcodes, longer pushes hex. The v1 house dialect called itself
+  "Bitcoin Core asm" but read `32` as the byte 0x32; on the authored
+  human suite, which states no notation, that misread about a fifth
+  of Opus 5.5's write answers. `btc-bench reprompt` derives a v2
+  dataset from a v1 one (same tasks and answer keys; the manifest
+  records the source); `gen --prompt-version 2` generates one.
+- Display and answer parsing are ONE dialect per prompt version,
+  test-enforced: every script the bench displays must re-parse
+  byte-identically (to_human_asm or to_core_asm ->
+  parse_script_answer_in). All-digit push tokens are
   ambiguous between hex and decimal; they resolve by position exactly
   as the renderer emits them — decimal directly before
   OP_CLTV/OP_CSV, raw hex everywhere else. The asymmetry this fixed

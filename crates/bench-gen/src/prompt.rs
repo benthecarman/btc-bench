@@ -6,9 +6,22 @@
 //! scriptPubKey/inner script) are rendered per [`DisplayFormat`] — hex
 //! or decoded Bitcoin Core asm. Answers are always accepted in either
 //! notation.
+//!
+//! Each fixture's `prompt_version` picks the surface. Version 0/1 is
+//! the original wording, kept byte-stable so old runs stay comparable.
+//! Version 2 removes scaffolding: no strategy hints, no grading
+//! language, no opcode names in specs (see
+//! [`crate::verbal::without_opcode_names`]), and real Bitcoin Core asm
+//! (`bitcoin-cli decodescript`) for displayed and answered scripts. It
+//! keeps what the task needs: keys, script type, the optimization
+//! objective, and the answer notation.
 
-use bench_core::task::{Fixture, OptimizeFixture, WriteFixture};
+use bench_core::task::{AsmDialect, Fixture, OptimizeFixture, WriteFixture, PROMPT_V2};
 use bitcoin::ScriptBuf;
+
+/// The answer-notation line of v2 prompts.
+const V2_ANSWER: &str = "Answer with the script as hex or as Bitcoin Core asm (the notation \
+                         `bitcoin-cli decodescript` prints).";
 
 /// How embedded scripts are displayed in prompts.
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Default)]
@@ -22,13 +35,19 @@ pub enum DisplayFormat {
 
 impl DisplayFormat {
     fn render(self, hex: &str) -> String {
-        match self {
-            DisplayFormat::Hex => hex.to_string(),
-            DisplayFormat::Asm => bench_core::human_asm::to_human_asm(
-                ScriptBuf::from_hex(hex)
-                    .expect("fixture hex is valid")
-                    .as_script(),
-            ),
+        self.render_in(hex, AsmDialect::Legacy)
+    }
+
+    fn render_in(self, hex: &str, dialect: AsmDialect) -> String {
+        let script = || ScriptBuf::from_hex(hex).expect("fixture hex is valid");
+        match (self, dialect) {
+            (DisplayFormat::Hex, _) => hex.to_string(),
+            (DisplayFormat::Asm, AsmDialect::Legacy) => {
+                bench_core::human_asm::to_human_asm(script().as_script())
+            }
+            (DisplayFormat::Asm, AsmDialect::Core) => {
+                bench_core::human_asm::to_core_asm(script().as_script())
+            }
         }
     }
 
@@ -51,6 +70,22 @@ fn key_block(keys: &[bench_core::task::KeyVar]) -> String {
 pub fn write_prompt(f: &WriteFixture) -> String {
     if let Some(request) = &f.request {
         return request.clone();
+    }
+    if f.prompt_version >= PROMPT_V2 {
+        return format!(
+            "Write a Bitcoin Script for the spending condition below.\n\
+             \n\
+             Script type: {}.\n\
+             \n\
+             Keys:\n{}\n\
+             \n\
+             {}\n\
+             \n\
+             {V2_ANSWER}",
+            f.context.script_noun(),
+            key_block(&f.keys),
+            f.spec_en,
+        );
     }
     format!(
         "Write a Bitcoin Script for the spending condition below.\n\
@@ -79,6 +114,22 @@ pub fn write_prompt(f: &WriteFixture) -> String {
     )
 }
 pub fn optimize_prompt(f: &OptimizeFixture, display: DisplayFormat) -> String {
+    if f.prompt_version >= PROMPT_V2 {
+        return format!(
+            "The following Bitcoin Script (a {}) is correct but unoptimized {}:\n\
+             \n\
+             {}\n\
+             \n\
+             Write a script with the same spending conditions and a lower \
+             input weight (script plus witness, the quantity transaction \
+             fees are paid for).\n\
+             \n\
+             {V2_ANSWER}",
+            f.context.script_noun(),
+            display.label(),
+            display.render_in(&f.baseline_script_hex, AsmDialect::Core),
+        );
+    }
     format!(
         "The following Bitcoin Script (a {}) is correct but unoptimized {}:\n\
          \n\
@@ -107,6 +158,23 @@ pub fn optimize_prompt(f: &OptimizeFixture, display: DisplayFormat) -> String {
 pub fn tree_prompt(f: &bench_core::task::TreeFixture) -> String {
     if let Some(request) = &f.request {
         return request.clone();
+    }
+    if f.prompt_version >= PROMPT_V2 {
+        return format!(
+            "Design a Taproot output for the spending condition below, \
+             minimizing the worst-case input weight (script plus witness).\n\
+             \n\
+             Keys:\n{}\n\
+             - NUMS (provably unspendable): {}\n\
+             \n\
+             {}\n\
+             \n\
+             Answer with a tr() descriptor (BIP 386) whose tapleaves are \
+             Miniscript, e.g. tr(KEY,{{pk(A),{{and_v(v:pk(B),older(144)),pk(C)}}}}).",
+            key_block(&f.keys),
+            f.unspendable_key,
+            f.spec_en,
+        );
     }
     format!(
         "Design a Taproot output for the spending condition below.\n\
@@ -155,11 +223,12 @@ fn address_line(spk_hex: &str) -> String {
 }
 
 pub fn identify_prompt(f: &bench_core::task::IdentifyFixture, display: DisplayFormat) -> String {
+    let dialect = bench_core::task::dialect_for(f.prompt_version);
     let inner = match &f.inner_script_hex {
         Some(h) => format!(
             "\nRedeem script / witness script {}: {}\n",
             display.label(),
-            display.render(h)
+            display.render_in(h, dialect)
         ),
         // A lone newline keeps the blank line before the call
         // instruction when there is no inner script.
@@ -174,7 +243,7 @@ pub fn identify_prompt(f: &bench_core::task::IdentifyFixture, display: DisplayFo
          Call the submit_identify tool with one of the following labels:\n\
          - {}",
         display.label(),
-        display.render(&f.spk_hex),
+        display.render_in(&f.spk_hex, dialect),
         address_line(&f.spk_hex),
         inner,
         crate::corpus::FAMILIES.join(", "),
@@ -185,6 +254,13 @@ pub fn identify_prompt(f: &bench_core::task::IdentifyFixture, display: DisplayFo
 /// No policy tree, no notation lecture beyond the answer format: the
 /// point is to see whether the model can design against a brief.
 pub fn judgment_prompt(f: &bench_core::task::JudgmentFixture) -> String {
+    if f.prompt_version >= PROMPT_V2 {
+        return format!(
+            "{}\n\nKeys:\n{}\n\n{V2_ANSWER}",
+            f.spec_en,
+            key_block(&f.keys)
+        );
+    }
     format!(
         "{}\n\nKeys:\n{}\n\n\
          Answer with the script as a hex string or Bitcoin Core asm. \
@@ -195,6 +271,39 @@ pub fn judgment_prompt(f: &bench_core::task::JudgmentFixture) -> String {
         f.spec_en,
         key_block(&f.keys),
     )
+}
+
+/// The same fixture posed at another prompt version: version 2 also
+/// drops opcode names from the spec. Answer keys are untouched.
+pub fn at_prompt_version(f: &Fixture, version: u32) -> Fixture {
+    let spec = |s: &str| {
+        if version >= PROMPT_V2 {
+            crate::verbal::without_opcode_names(s)
+        } else {
+            s.to_string()
+        }
+    };
+    let mut f = f.clone();
+    match &mut f {
+        Fixture::Write(w) => {
+            w.prompt_version = version;
+            w.spec_en = spec(&w.spec_en);
+        }
+        Fixture::Optimize(o) => {
+            o.prompt_version = version;
+            o.spec_en = spec(&o.spec_en);
+        }
+        Fixture::Identify(i) => i.prompt_version = version,
+        Fixture::Tree(t) => {
+            t.prompt_version = version;
+            t.spec_en = spec(&t.spec_en);
+        }
+        Fixture::Judgment(j) => {
+            j.prompt_version = version;
+            j.spec_en = spec(&j.spec_en);
+        }
+    }
+    f
 }
 
 pub fn for_fixture(f: &Fixture) -> String {
@@ -302,6 +411,76 @@ mod tests {
                     );
                 }
             }
+        }
+    }
+
+    /// Version 2 removes scaffolding and keeps what the task needs.
+    #[test]
+    fn v2_prompts_drop_scaffolding() {
+        let params = crate::fixtures::GenParams {
+            seed: 3,
+            write: 6,
+            optimize: 6,
+            identify: 1,
+            tree: 6,
+            judgment: 2,
+            ..crate::fixtures::GenParams::default()
+        };
+        for f in crate::fixtures::generate(&params) {
+            let p = for_fixture(&at_prompt_version(&f, PROMPT_V2));
+            for hint in [
+                "mechanically verifiable",
+                "Correctness is the gate",
+                "scores higher",
+                "put the best spending path",
+                "do not invent keys",
+                "OP_CHECKLOCKTIMEVERIFY)",
+                "OP_CHECKSEQUENCEVERIFY)",
+                "Hash conditions use the fragment",
+            ] {
+                assert!(!p.contains(hint), "{}: {hint:?} in {p}", f.id());
+            }
+            match &f {
+                Fixture::Write(_) | Fixture::Optimize(_) | Fixture::Judgment(_) => {
+                    assert!(p.contains("`bitcoin-cli decodescript`"), "{p}");
+                    assert!(
+                        !p.contains("Miniscript"),
+                        "the decode gate stays implicit: {p}"
+                    );
+                }
+                Fixture::Tree(_) => {
+                    assert!(p.contains("minimizing the worst-case input weight"), "{p}");
+                    assert!(p.contains("- NUMS (provably unspendable):"), "{p}");
+                }
+                Fixture::Identify(_) => assert!(p.contains("submit_identify")),
+            }
+            if let Fixture::Optimize(o) = &f {
+                // Displayed in Core asm: OP_1..OP_16 as numbers, no
+                // rust-bitcoin names.
+                assert!(!p.contains("OP_PUSHNUM"), "{p}");
+                assert!(!p.contains("OP_CLTV ") && !p.contains("OP_CSV "), "{p}");
+                let shown = bench_core::human_asm::to_core_asm(
+                    ScriptBuf::from_hex(&o.baseline_script_hex)
+                        .unwrap()
+                        .as_script(),
+                );
+                assert!(p.contains(&shown));
+            }
+        }
+    }
+
+    /// Version 0 prompts are byte-stable: re-versioning to 0 is a no-op.
+    #[test]
+    fn v1_prompts_unchanged_by_versioning() {
+        let params = crate::fixtures::GenParams {
+            seed: 3,
+            write: 2,
+            optimize: 2,
+            tree: 2,
+            ..crate::fixtures::GenParams::default()
+        };
+        for f in crate::fixtures::generate(&params) {
+            assert_eq!(for_fixture(&f), for_fixture(&at_prompt_version(&f, 0)));
         }
     }
 

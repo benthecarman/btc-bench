@@ -437,7 +437,8 @@ pub fn grade(
         let ts = match (f, &r.answer) {
             (Fixture::Write(w), TaskAnswer::Script(a)) => {
                 let res = grade_write(w, &a.script);
-                let parsed = bench_core::answer::parse_script_answer(&a.script).is_ok();
+                let parsed =
+                    bench_core::answer::parse_script_answer_in(&a.script, f.asm_dialect()).is_ok();
                 let lint = (!res.lint.is_empty()).then(|| res.lint.clone());
                 let (score, reason, failure) = if standard && !res.lint.is_empty() {
                     gated.insert(r.task_id.clone());
@@ -465,7 +466,8 @@ pub fn grade(
             }
             (Fixture::Optimize(o), TaskAnswer::Script(a)) => {
                 let res = grade_optimize(o, &a.script);
-                let parsed = bench_core::answer::parse_script_answer(&a.script).is_ok();
+                let parsed =
+                    bench_core::answer::parse_script_answer_in(&a.script, f.asm_dialect()).is_ok();
                 let lint = (!res.lint.is_empty()).then(|| res.lint.clone());
                 let (weight, size, reason, failure) = if standard && !res.lint.is_empty() {
                     gated.insert(r.task_id.clone());

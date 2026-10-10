@@ -366,6 +366,16 @@ pub fn spec_styled(p: &Abs, keys: &[KeyVar], style: Style) -> String {
     }
 }
 
+/// Prompt version 2 drops opcode names from specs: "(absolute
+/// timelock, OP_CHECKLOCKTIMEVERIFY)" becomes "(absolute timelock)".
+/// The kind of timelock is information the request carries; which
+/// opcode implements it is part of the task. The jargon family's
+/// "(CLTV)"/"(CSV)" is how people say it and stays.
+pub fn without_opcode_names(spec: &str) -> String {
+    spec.replace(", OP_CHECKLOCKTIMEVERIFY)", ")")
+        .replace(", OP_CHECKSEQUENCEVERIFY)", ")")
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

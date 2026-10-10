@@ -408,15 +408,15 @@ fn run_check(
     match (name, fixture) {
         ("check_script", Fixture::Write(w)) => {
             let text = args.get("script").and_then(|v| v.as_str()).unwrap_or("");
-            bench_core::toolbox::check_script(w.context, text).render()
+            bench_core::toolbox::check_script_in(w.context, text, fixture.asm_dialect()).render()
         }
         ("check_script", Fixture::Judgment(j)) => {
             let text = args.get("script").and_then(|v| v.as_str()).unwrap_or("");
-            bench_core::toolbox::check_script(j.context, text).render()
+            bench_core::toolbox::check_script_in(j.context, text, fixture.asm_dialect()).render()
         }
         ("check_script", Fixture::Optimize(o)) => {
             let text = args.get("script").and_then(|v| v.as_str()).unwrap_or("");
-            bench_core::toolbox::check_script(o.context, text).render()
+            bench_core::toolbox::check_script_in(o.context, text, fixture.asm_dialect()).render()
         }
         ("check_descriptor", Fixture::Tree(_)) => {
             let text = args
@@ -801,10 +801,8 @@ fn evaluate(fixture: &Fixture, answer: &TaskAnswer) -> Evaluation {
     // facts, and the exact ones that defuse "it's still
     // consensus-valid" reasoning. Violations only — validity is never
     // certified.
-    let consensus_note =
-        |ctx: bench_core::ContextKind, answer: &str| match bench_core::answer::parse_script_answer(
-            answer,
-        ) {
+    let consensus_note = |ctx: bench_core::ContextKind, answer: &str| {
+        match bench_core::answer::parse_script_answer_in(answer, fixture.asm_dialect()) {
             Ok(script) => {
                 let notes = bench_core::toolbox::consensus_notes(ctx, &script);
                 if notes.is_empty() {
@@ -814,7 +812,8 @@ fn evaluate(fixture: &Fixture, answer: &TaskAnswer) -> Evaluation {
                 }
             }
             Err(_) => String::new(),
-        };
+        }
+    };
     match (fixture, answer) {
         (Fixture::Write(w), TaskAnswer::Script(a)) => {
             let r = bench_core::grade_write(w, &a.script);
@@ -1104,7 +1103,7 @@ fn extract_chat_answer(
                     .ok()
                     .map(|tr| tr.to_string()),
                 Fixture::Identify(_) => None,
-                _ => bench_core::answer::parse_script_answer(code)
+                _ => bench_core::answer::parse_script_answer_in(code, fixture.asm_dialect())
                     .ok()
                     .map(|script| script.to_hex_string()),
             };
@@ -3462,6 +3461,7 @@ mod tests {
     fn graded_feedback_carries_consensus_violations() {
         let k = "32a9c1b6aa84caf9b6898e162f8967d618a2eba4f4e185481e5a373c874a6a14";
         let fixture = Fixture::Write(bench_core::task::WriteFixture {
+            prompt_version: 0,
             choose_context: false,
             request: None,
             id: "t1-x".into(),
@@ -3501,6 +3501,7 @@ mod tests {
     #[test]
     fn identify_feedback_is_group_bounded() {
         let fixture = Fixture::Identify(bench_core::task::IdentifyFixture {
+            prompt_version: 0,
             id: "t3-x".into(),
             family: "ln_offered_htlc".into(),
             params: Default::default(),

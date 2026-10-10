@@ -60,6 +60,7 @@ fn item(
         ))
         .into_script();
     IdentifyFixture {
+        prompt_version: 0,
         id: id.to_string(),
         family: family.to_string(),
         params: params
@@ -84,6 +85,7 @@ fn tr_item(
         .push_slice(push(output_key))
         .into_script();
     IdentifyFixture {
+        prompt_version: 0,
         id: id.to_string(),
         family: family.to_string(),
         params: params

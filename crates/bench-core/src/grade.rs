@@ -5,9 +5,10 @@ use miniscript::descriptor::{TapTree, Tr};
 use miniscript::ScriptContext;
 use miniscript::{Descriptor, Legacy, Miniscript, Segwitv0, Tap};
 
-use crate::answer::parse_script_answer;
+use crate::answer::parse_script_answer_in;
 use crate::normalize::{decodable, Decodable};
 use crate::oracle::{check_equivalence, Verdict};
+use crate::task::dialect_for;
 use crate::task::{ContextKind, IdentifyAnswer, IdentifyFixture, OptimizeFixture, WriteFixture};
 
 /// Deterministic unspendable internal key for taproot weight wrapping.
@@ -224,7 +225,7 @@ fn check_chosen_context(
 
 /// Task 1: parse, decode-gate, prove equivalence.
 pub fn grade_write(fixture: &WriteFixture, answer: &str) -> WriteResult {
-    let candidate = match parse_script_answer(answer) {
+    let candidate = match parse_script_answer_in(answer, dialect_for(fixture.prompt_version)) {
         Ok(s) => s,
         Err(e) => {
             return WriteResult {
@@ -310,7 +311,7 @@ fn curve(base: usize, cand: usize, optimal: usize) -> f64 {
 
 /// Task 2: equivalence gate + weight/size improvement curve.
 pub fn grade_optimize(fixture: &OptimizeFixture, answer: &str) -> OptimizeResult {
-    let candidate = match parse_script_answer(answer) {
+    let candidate = match parse_script_answer_in(answer, dialect_for(fixture.prompt_version)) {
         Ok(s) => s,
         Err(e) => {
             return OptimizeResult {
@@ -566,7 +567,7 @@ pub fn grade_judgment(fixture: &crate::task::JudgmentFixture, answer: &str) -> J
                 .into(),
         );
     }
-    let script = match parse_script_answer(answer) {
+    let script = match parse_script_answer_in(answer, dialect_for(fixture.prompt_version)) {
         Ok(s) => s,
         Err(e) => return fail(e.to_string()),
     };
@@ -713,6 +714,7 @@ mod tests {
 
     fn fix(reference_hex: String) -> WriteFixture {
         WriteFixture {
+            prompt_version: 0,
             choose_context: false,
             request: None,
             id: "t1-0001".into(),
@@ -877,6 +879,7 @@ mod tests {
         let opt_script = ScriptBuf::from_hex(&optimal).unwrap();
         let w = weights_for(ContextKind::SegwitV0, &opt_script).unwrap();
         let f = OptimizeFixture {
+            prompt_version: 0,
             id: "t2-0001".into(),
             tier: Tier::Easy,
             context: ContextKind::SegwitV0,
@@ -929,6 +932,7 @@ mod tests {
         let baseline_weight = baseline.max_weight_to_satisfy().unwrap().to_wu() as usize;
         assert!(baseline_weight > reference_weight, "task would be vacuous");
         let f = TreeFixture {
+            prompt_version: 0,
             request: None,
             id: "t4-0000".into(),
             tier: Tier::Easy,
@@ -1027,6 +1031,7 @@ mod tests {
         let mut params = BTreeMap::new();
         params.insert("k".to_string(), ParamValue::Int(2));
         let f = IdentifyFixture {
+            prompt_version: 0,
             id: "t3-0001".into(),
             family: "p2wsh_multisig".into(),
             params,
@@ -1054,6 +1059,7 @@ mod tests {
     }
     fn judgment_fixture(policy: String) -> crate::task::JudgmentFixture {
         crate::task::JudgmentFixture {
+            prompt_version: 0,
             contract_version: 1,
             id: "t5-test".into(),
             tier: Tier::Hard,

@@ -483,6 +483,7 @@ fn tree_attempt(
     // marks, and every reference leaf must be executable (the same
     // dual-oracle discipline as write/optimize, applied per leaf).
     let fixture = TreeFixture {
+        prompt_version: 0,
         request: None,
         id: String::new(),
         tier,
@@ -577,6 +578,7 @@ pub fn generate(params: &GenParams) -> Vec<Fixture> {
         let c = compile_task(&mut rng, tier, ctx, false, style, &params.exclude)
             .unwrap_or_else(|| panic!("write task {i} ({tier:?}/{ctx:?}) failed to generate"));
         out.push(Fixture::Write(WriteFixture {
+            prompt_version: 0,
             choose_context: false,
             request: None,
             id: format!("t1-{i:04}"),
@@ -599,6 +601,7 @@ pub fn generate(params: &GenParams) -> Vec<Fixture> {
         let c = compile_task(&mut rng, tier, ctx, true, style, &params.exclude)
             .unwrap_or_else(|| panic!("optimize task {i} ({tier:?}/{ctx:?}) failed to generate"));
         out.push(Fixture::Optimize(OptimizeFixture {
+            prompt_version: 0,
             id: format!("t2-{i:04}"),
             tier,
             context: ctx,
@@ -659,6 +662,7 @@ pub fn generate(params: &GenParams) -> Vec<Fixture> {
             let kvars = key_vars(&ks, ctx);
             let reqs = crate::judgment::requirements_for(&abs, &kvars, &mut rng2);
             let fixture = bench_core::task::JudgmentFixture {
+                prompt_version: 0,
                 contract_version: 1,
                 id: format!("t5-{i:04}"),
                 tier,
@@ -686,6 +690,7 @@ pub fn generate(params: &GenParams) -> Vec<Fixture> {
         let c = compile_tree_task(&mut rng, tier, style, &params.exclude)
             .unwrap_or_else(|| panic!("tree task {i} ({tier:?}) failed to generate"));
         out.push(Fixture::Tree(TreeFixture {
+            prompt_version: 0,
             request: None,
             id: format!("t4-{i:04}"),
             tier,

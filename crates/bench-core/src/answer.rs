@@ -16,9 +16,17 @@
 //!   only in that same timelock position.
 //! - `OP_PUSHDATA1/2/4` followed by one hex chunk is an explicit push
 //! - `[hex]` bracket form is accepted for data pushes
+//!
+//! That is the v1 (Legacy) reading. Prompt version 2 reads real Bitcoin
+//! Core asm (the notation `bitcoin-cli decodescript` prints): every push
+//! of up to four bytes is its decimal value (`32`, `-1`, `744813`), so
+//! an all-digit token is decimal wherever it reads as such a value, and
+//! hex otherwise (see [`AsmDialect`]).
 
 use bitcoin::blockdata::opcodes::Opcode;
 use bitcoin::ScriptBuf;
+
+pub use crate::task::AsmDialect;
 
 /// Parse failures with the detail a model (or human) needs to repair
 /// the answer: token positions, offending characters, and a did-you-mean
@@ -472,13 +480,41 @@ fn push_explicit(out: &mut Vec<u8>, op: Opcode, data: &[u8]) -> Result<(), Answe
     Ok(())
 }
 
-/// Parse a script answer (hex or asm) into script bytes.
+/// Bitcoin Core asm prints every push of up to four bytes as its
+/// decimal value and longer pushes as hex. An all-digit token is
+/// decimal when it reads as such a value: an optional minus sign, no
+/// leading zero, magnitude below 2^31, or 2^39 directly before a
+/// timelock opcode (whose operand may be five bytes).
+fn core_number(tok: &str, before_timelock: bool) -> Option<i64> {
+    let digits = tok.strip_prefix('-').unwrap_or(tok);
+    if digits.is_empty() || !digits.bytes().all(|c| c.is_ascii_digit()) {
+        return None;
+    }
+    if digits.len() > 1 && digits.starts_with('0') {
+        return None;
+    }
+    let v: i64 = tok.parse().ok()?;
+    let limit: u64 = if before_timelock { 1 << 39 } else { 1 << 31 };
+    (v.unsigned_abs() < limit).then_some(v)
+}
+
+/// Parse a script answer (hex or v1 Legacy-dialect asm) into script bytes.
 pub fn parse_script_answer(input: &str) -> Result<ScriptBuf, AnswerError> {
+    parse_script_answer_in(input, AsmDialect::Legacy)
+}
+
+/// Parse a script answer (hex or asm in `dialect`) into script bytes.
+pub fn parse_script_answer_in(input: &str, dialect: AsmDialect) -> Result<ScriptBuf, AnswerError> {
     let s = input.trim();
     if s.is_empty() {
         return Err(AnswerError::Empty);
     }
-    if !s.contains("OP_") {
+    // Asm is recognized by an OP_ token. Core asm can be push-only with
+    // none (`0 <20-byte hash>` for P2WPKH), so in that dialect several
+    // whitespace-separated tokens also mean asm.
+    let asm =
+        s.contains("OP_") || (dialect == AsmDialect::Core && s.split_whitespace().nth(1).is_some());
+    if !asm {
         let bytes = hex_decode(s)?;
         return Ok(ScriptBuf::from_bytes(bytes));
     }
@@ -545,6 +581,11 @@ pub fn parse_script_answer(input: &str) -> Result<ScriptBuf, AnswerError> {
             } else {
                 out.push(op.to_u8());
             }
+        } else if let Some(v) = (dialect == AsmDialect::Core)
+            .then(|| core_number(tok, timelock_follows(&tokens, i)))
+            .flatten()
+        {
+            push_int(&mut out, v);
         } else if is_decimal(tok) && timelock_follows(&tokens, i) {
             // All-digit token directly before a timelock opcode: the
             // decimal value, matching the display dialect (`36 OP_CSV`
@@ -807,6 +848,47 @@ mod tests {
         assert!(parse_script_answer("OP_NOT_A_REAL_OPCODE").is_err());
         assert!(parse_script_answer("OP_DUP OP_HASH160 abc").is_err());
         assert!(parse_script_answer("OP_PUSHDATA1").is_err());
+    }
+
+    /// Prompt version 2 reads Bitcoin Core asm: pushes of up to four
+    /// bytes are decimal anywhere, longer ones hex.
+    #[test]
+    fn core_dialect_reads_core_asm() {
+        let core = |s: &str| {
+            parse_script_answer_in(s, AsmDialect::Core)
+                .unwrap()
+                .to_hex_string()
+        };
+        let h = "11".repeat(32);
+        assert_eq!(
+            core(&format!("OP_SIZE 32 OP_EQUALVERIFY OP_SHA256 {h} OP_EQUAL")),
+            format!("82012088a820{h}87")
+        );
+        // The same text in the v1 dialect reads 32 as the byte 0x32.
+        assert_eq!(
+            parse_script_answer(&format!("OP_SIZE 32 OP_EQUALVERIFY OP_SHA256 {h} OP_EQUAL"))
+                .unwrap()
+                .to_hex_string(),
+            format!("82013288a820{h}87")
+        );
+        let k = format!("02{}", "22".repeat(32));
+        assert_eq!(
+            core(&format!("2 {k} {k} 2 OP_CHECKMULTISIG")),
+            format!("5221{k}21{k}52ae")
+        );
+        // Push-only P2WPKH, as Core prints it: no OP_ token.
+        let pkh = "5b".repeat(20);
+        assert_eq!(core(&format!("0 {pkh}")), format!("0014{pkh}"));
+        assert_eq!(
+            core("0 -1 -5 144 OP_DROP"),
+            "004f0185029000 75".replace(' ', "")
+        );
+        // Leading zeros mean hex; 5-byte locktimes stay decimal before
+        // the timelock opcodes.
+        assert_eq!(core("0012 OP_DROP"), "02001275");
+        assert_eq!(core("3000000000 OP_CHECKLOCKTIMEVERIFY"), "05005ed0b200b1");
+        // A single hex token is still hex.
+        assert_eq!(core("51"), "51");
     }
 
     /// Non-ASCII characters next to the error position must not split

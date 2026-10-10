@@ -52,6 +52,7 @@ fn fixture(
     inner: Option<ScriptBuf>,
 ) -> IdentifyFixture {
     IdentifyFixture {
+        prompt_version: 0,
         id: id.to_string(),
         family: family.to_string(),
         params: params

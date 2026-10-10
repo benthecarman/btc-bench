@@ -7,7 +7,7 @@ use std::fs;
 use std::path::PathBuf;
 
 use anyhow::{bail, Context as _, Result};
-use bench_cli::{gen_dataset, grade, load_dataset, load_responses, summary_markdown};
+use bench_cli::{grade, load_dataset, load_responses, summary_markdown};
 use bench_gen::fixtures::GenParams;
 use clap::{Parser, Subcommand};
 
@@ -85,6 +85,21 @@ enum Command {
         /// weight it. Default: even legacy/segwit/tap rotation.
         #[arg(long, value_delimiter = ',')]
         contexts: Vec<String>,
+        /// Prompt surface (0 = original; 2 = scaffolding removed, real
+        /// Bitcoin Core asm). See bench_gen::prompt.
+        #[arg(long, default_value_t = 0)]
+        prompt_version: u32,
+    },
+    /// Derive a dataset that poses the same tasks at another prompt
+    /// version. Answer keys are unchanged; the manifest records the
+    /// source. The source is never modified.
+    Reprompt {
+        #[arg(long)]
+        dataset: PathBuf,
+        #[arg(long)]
+        out: PathBuf,
+        #[arg(long)]
+        prompt_version: u32,
     },
     /// Emit one JSONL line per fixture: {id, kind, prompt}.
     Prompts {
@@ -336,6 +351,7 @@ fn main() -> Result<()> {
             tiers,
             exclude,
             contexts,
+            prompt_version,
         } => {
             if let Some(f) = verbal_families
                 .iter()
@@ -419,8 +435,82 @@ fn main() -> Result<()> {
                 contexts,
                 judgment,
             };
-            let n = gen_dataset(&out, &params, env!("CARGO_PKG_VERSION"))?;
+            let fixtures: Vec<_> = bench_gen::fixtures::generate(&params)
+                .iter()
+                .map(|f| bench_gen::prompt::at_prompt_version(f, prompt_version))
+                .collect();
+            let n = bench_cli::write_dataset(&out, &fixtures, seed, env!("CARGO_PKG_VERSION"))?;
+            if prompt_version != 0 {
+                let path = out.join("manifest.json");
+                let mut manifest: serde_json::Value =
+                    serde_json::from_str(&fs::read_to_string(&path)?)?;
+                manifest["prompt_version"] = prompt_version.into();
+                fs::write(path, serde_json::to_string_pretty(&manifest)?)?;
+            }
             println!("wrote {n} fixtures to {}", out.display());
+            Ok(())
+        }
+        Command::Reprompt {
+            dataset,
+            out,
+            prompt_version,
+        } => {
+            use bitcoin::hashes::{sha256, Hash};
+            if out.join("fixtures.jsonl").exists() {
+                bail!(
+                    "{} already contains fixtures; choose a new directory",
+                    out.display()
+                );
+            }
+            let source: serde_json::Value =
+                serde_json::from_str(&fs::read_to_string(dataset.join("manifest.json"))?)?;
+            let fixtures: Vec<_> = load_dataset(&dataset)?
+                .iter()
+                .map(|f| bench_gen::prompt::at_prompt_version(f, prompt_version))
+                .collect();
+            let seed = source["seed"].as_u64().unwrap_or(0);
+            let n = bench_cli::write_dataset(&out, &fixtures, seed, &bench_cli::build_stamp())?;
+            // Keep the source's descriptive fields (suite, subset_of,
+            // evaluation_only, ...); restate the hashes and provenance.
+            let mut manifest = source.clone();
+            let fresh: serde_json::Value =
+                serde_json::from_str(&fs::read_to_string(out.join("manifest.json"))?)?;
+            for key in ["generated_by", "counts", "pins", "schema_version"] {
+                manifest[key] = fresh[key].clone();
+            }
+            manifest["prompt_version"] = prompt_version.into();
+            manifest["fixtures_sha256"] =
+                sha256::Hash::hash(&fs::read(out.join("fixtures.jsonl"))?)
+                    .to_string()
+                    .into();
+            manifest["reprompted_from"] = serde_json::json!({
+                "dataset": dataset.display().to_string(),
+                "fixtures_sha256": sha256::Hash::hash(&fs::read(dataset.join("fixtures.jsonl"))?)
+                    .to_string(),
+            });
+            fs::write(
+                out.join("manifest.json"),
+                serde_json::to_string_pretty(&manifest)?,
+            )?;
+            // Side files (human-suite groups and notes) carry over.
+            for entry in fs::read_dir(&dataset)? {
+                let path = entry?.path();
+                let name = path
+                    .file_name()
+                    .unwrap_or_default()
+                    .to_string_lossy()
+                    .to_string();
+                if path.is_file()
+                    && !["fixtures.jsonl", "manifest.json", "prompts.jsonl"]
+                        .contains(&name.as_str())
+                {
+                    fs::copy(&path, out.join(&name))?;
+                }
+            }
+            println!(
+                "wrote {n} fixtures at prompt version {prompt_version} to {}",
+                out.display()
+            );
             Ok(())
         }
         Command::Prompts {

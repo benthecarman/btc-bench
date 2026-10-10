@@ -42,6 +42,9 @@ pub struct AuditReport {
     /// Byte drift between stored and recompiled reference scripts that
     /// the oracle still proves equivalent (dependency drift).
     pub warnings: Vec<String>,
+    /// Asm dialect of the fixture being checked (its prompt version's).
+    #[serde(skip)]
+    dialect: Option<bench_core::task::AsmDialect>,
 }
 
 fn recompile(context: ContextKind, policy: &str) -> Result<(String, String)> {
@@ -79,8 +82,13 @@ impl AuditReport {
     /// displayed notation is silently misgraded (the even-length
     /// decimal timelock bug hit 21% of displayed scripts).
     fn check_display_roundtrip(&mut self, id: &str, script: &ScriptBuf, what: &str) {
-        let asm = bench_core::human_asm::to_human_asm(script.as_script());
-        match bench_core::answer::parse_script_answer(&asm) {
+        use bench_core::task::AsmDialect;
+        let dialect = self.dialect.unwrap_or(AsmDialect::Legacy);
+        let asm = match dialect {
+            AsmDialect::Legacy => bench_core::human_asm::to_human_asm(script.as_script()),
+            AsmDialect::Core => bench_core::human_asm::to_core_asm(script.as_script()),
+        };
+        match bench_core::answer::parse_script_answer_in(&asm, dialect) {
             Ok(p) if &p == script => {}
             Ok(_) => self.fail(format!(
                 "{id}: {what} displayed asm re-parses to different bytes ({asm})"
@@ -457,6 +465,7 @@ pub fn audit_dataset(dir: &Path) -> Result<AuditReport> {
     }
     for f in &fixtures {
         report.fixtures_checked += 1;
+        report.dialect = Some(f.asm_dialect());
         match f {
             Fixture::Write(w) => report.check_write(w),
             Fixture::Optimize(o) => report.check_optimize(o),

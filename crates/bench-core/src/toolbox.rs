@@ -14,9 +14,9 @@ use miniscript::descriptor::{TapTree, Tr};
 use miniscript::{Descriptor, Legacy, Miniscript, Segwitv0, Tap};
 use serde::Serialize;
 
-use crate::answer::parse_script_answer;
+use crate::answer::{parse_script_answer_in, AsmDialect};
 use crate::grade::{lint_report, parse_tr_answer};
-use crate::human_asm::to_human_asm;
+use crate::human_asm::{to_core_asm, to_human_asm};
 use crate::task::ContextKind;
 
 /// Everything the toolbox can mechanically determine about a
@@ -327,7 +327,13 @@ fn decoded_miniscript(kind: ContextKind, script: &ScriptBuf) -> Result<String, S
 
 /// Full diagnostic pass over a candidate script (hex or asm).
 pub fn check_script(kind: ContextKind, text: &str) -> ScriptCheck {
-    let script = match parse_script_answer(text) {
+    check_script_in(kind, text, AsmDialect::Legacy)
+}
+
+/// [`check_script`] reading and showing asm in `dialect` (the one the
+/// task's prompt uses).
+pub fn check_script_in(kind: ContextKind, text: &str, dialect: AsmDialect) -> ScriptCheck {
+    let script = match parse_script_answer_in(text, dialect) {
         Ok(s) => s,
         Err(e) => {
             return ScriptCheck {
@@ -340,7 +346,10 @@ pub fn check_script(kind: ContextKind, text: &str) -> ScriptCheck {
     let mut check = ScriptCheck {
         parsed: true,
         hex: Some(script.to_hex_string()),
-        asm: Some(to_human_asm(script.as_script())),
+        asm: Some(match dialect {
+            AsmDialect::Legacy => to_human_asm(script.as_script()),
+            AsmDialect::Core => to_core_asm(script.as_script()),
+        }),
         consensus: consensus_notes(kind, &script),
         ..Default::default()
     };

@@ -61,6 +61,12 @@ fn is_zero_usize(v: &usize) -> bool {
 /// Task 1: write the inner script satisfying the English spec.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct WriteFixture {
+    /// Prompt surface the fixture is posed with (0 = the original v1
+    /// prompts and asm dialect; 2 = scaffolding removed, real Bitcoin
+    /// Core asm). Recorded with the data so old runs re-grade exactly
+    /// as they were posed.
+    #[serde(default, skip_serializing_if = "is_zero_u32")]
+    pub prompt_version: u32,
     /// The request leaves the script context to the model. Reference keys
     /// are compressed; tapscript answers use their corresponding x-only keys.
     #[serde(default, skip_serializing_if = "is_false")]
@@ -100,6 +106,12 @@ pub struct WriteFixture {
 /// Task 2: optimize the baseline script.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct OptimizeFixture {
+    /// Prompt surface the fixture is posed with (0 = the original v1
+    /// prompts and asm dialect; 2 = scaffolding removed, real Bitcoin
+    /// Core asm). Recorded with the data so old runs re-grade exactly
+    /// as they were posed.
+    #[serde(default, skip_serializing_if = "is_zero_u32")]
+    pub prompt_version: u32,
     pub id: String,
     pub tier: Tier,
     pub context: ContextKind,
@@ -133,6 +145,12 @@ pub struct OptimizeFixture {
 /// taproot design a single-leaf task cannot measure.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct TreeFixture {
+    /// Prompt surface the fixture is posed with (0 = the original v1
+    /// prompts and asm dialect; 2 = scaffolding removed, real Bitcoin
+    /// Core asm). Recorded with the data so old runs re-grade exactly
+    /// as they were posed.
+    #[serde(default, skip_serializing_if = "is_zero_u32")]
+    pub prompt_version: u32,
     /// Complete authored request, used verbatim instead of a generated wrapper.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub request: Option<String>,
@@ -181,6 +199,12 @@ pub enum ParamValue {
 /// Task 3: identify what the script does.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct IdentifyFixture {
+    /// Prompt surface the fixture is posed with (0 = the original v1
+    /// prompts and asm dialect; 2 = scaffolding removed, real Bitcoin
+    /// Core asm). Recorded with the data so old runs re-grade exactly
+    /// as they were posed.
+    #[serde(default, skip_serializing_if = "is_zero_u32")]
+    pub prompt_version: u32,
     pub id: String,
     /// Flat family label, e.g. "offered_htlc".
     pub family: String,
@@ -215,6 +239,12 @@ pub struct Requirement {
 /// Version 1 permits any equivalent encoding; spending behavior is explicit.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct JudgmentFixture {
+    /// Prompt surface the fixture is posed with (0 = the original v1
+    /// prompts and asm dialect; 2 = scaffolding removed, real Bitcoin
+    /// Core asm). Recorded with the data so old runs re-grade exactly
+    /// as they were posed.
+    #[serde(default, skip_serializing_if = "is_zero_u32")]
+    pub prompt_version: u32,
     /// Version 1 states the complete spending policy in the request.
     /// Version 0 is the retired sparse-row format and must be regenerated.
     #[serde(default)]
@@ -245,7 +275,45 @@ pub enum Fixture {
     Judgment(JudgmentFixture),
 }
 
+/// How asm in answers is read (and embedded scripts are shown).
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+pub enum AsmDialect {
+    /// The v1 house dialect: all-digit tokens are decimal only directly
+    /// before OP_CHECKLOCKTIMEVERIFY/OP_CHECKSEQUENCEVERIFY, raw hex
+    /// elsewhere; displayed opcodes use rust-bitcoin names.
+    Legacy,
+    /// Bitcoin Core's asm (`bitcoin-cli decodescript`): pushes of up to
+    /// four bytes are decimal numbers, longer pushes hex, OP_1..OP_16 as
+    /// `1`..`16`.
+    Core,
+}
+
+/// First prompt version with scaffolding removed and Core asm.
+pub const PROMPT_V2: u32 = 2;
+
+pub fn dialect_for(prompt_version: u32) -> AsmDialect {
+    if prompt_version >= PROMPT_V2 {
+        AsmDialect::Core
+    } else {
+        AsmDialect::Legacy
+    }
+}
+
 impl Fixture {
+    pub fn prompt_version(&self) -> u32 {
+        match self {
+            Fixture::Write(f) => f.prompt_version,
+            Fixture::Optimize(f) => f.prompt_version,
+            Fixture::Identify(f) => f.prompt_version,
+            Fixture::Tree(f) => f.prompt_version,
+            Fixture::Judgment(f) => f.prompt_version,
+        }
+    }
+
+    pub fn asm_dialect(&self) -> AsmDialect {
+        dialect_for(self.prompt_version())
+    }
+
     pub fn id(&self) -> &str {
         match self {
             Fixture::Write(f) => &f.id,

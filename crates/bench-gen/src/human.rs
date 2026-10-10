@@ -363,6 +363,7 @@ fn build(case: &Case, notes: &mut Vec<String>) -> Result<Fixture, String> {
             }
             bench_core::execution_check(case.context, &script, &typed)?;
             let fixture = WriteFixture {
+                prompt_version: 0,
                 choose_context: case.choose_context,
                 id: format!("t1-human-{}", case.id),
                 request: Some(prompt),
@@ -415,6 +416,7 @@ fn build(case: &Case, notes: &mut Vec<String>) -> Result<Fixture, String> {
                 }
             }
             let fixture = TreeFixture {
+                prompt_version: 0,
                 id: format!("t4-human-{}", case.id),
                 request: Some(prompt),
                 tier: case.tier,

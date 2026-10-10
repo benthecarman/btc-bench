@@ -191,3 +191,132 @@ mod tests {
         assert_eq!(parsed, s);
     }
 }
+
+/// Render a script exactly as Bitcoin Core's asm (`ScriptToAsmStr`,
+/// what `bitcoin-cli decodescript` prints): every push of up to four
+/// bytes is its decimal value (as `CScriptNum`, sign-magnitude), longer
+/// pushes are hex, `OP_0`/`OP_1NEGATE`/`OP_1`..`OP_16` are `0`/`-1`/
+/// `1`..`16`, other opcodes carry Core's names. A truncated push ends
+/// the output with `[error]`, as in Core.
+pub fn to_core_asm(script: &bitcoin::Script) -> String {
+    let mut parts: Vec<String> = Vec::new();
+    for item in script.instructions() {
+        match item {
+            Ok(Instruction::PushBytes(bytes)) => {
+                let b = bytes.as_bytes();
+                parts.push(if b.len() <= 4 {
+                    script_num_lossy(b).to_string()
+                } else {
+                    b.iter().map(|x| format!("{x:02x}")).collect()
+                });
+            }
+            Ok(Instruction::Op(op)) => parts.push(core_op_name(op)),
+            Err(_) => {
+                parts.push("[error]".to_string());
+                break;
+            }
+        }
+    }
+    parts.join(" ")
+}
+
+/// `CScriptNum(vch, false).getint()` for a push of at most four bytes.
+fn script_num_lossy(bytes: &[u8]) -> i64 {
+    let Some(&last) = bytes.last() else {
+        return 0;
+    };
+    let mut magnitude: i64 = 0;
+    for (i, b) in bytes.iter().enumerate() {
+        let b = if i + 1 == bytes.len() { b & 0x7f } else { *b };
+        magnitude |= i64::from(b) << (8 * i);
+    }
+    if last & 0x80 != 0 {
+        -magnitude
+    } else {
+        magnitude
+    }
+}
+
+/// Bitcoin Core's `GetOpName` for a non-push opcode.
+fn core_op_name(op: bitcoin::opcodes::Opcode) -> String {
+    let b = op.to_u8();
+    if b == all::OP_PUSHNUM_NEG1.to_u8() {
+        "-1".to_string()
+    } else if (all::OP_PUSHNUM_1.to_u8()..=all::OP_PUSHNUM_16.to_u8()).contains(&b) {
+        (b - all::OP_PUSHNUM_1.to_u8() + 1).to_string()
+    } else if b == all::OP_CLTV.to_u8() {
+        "OP_CHECKLOCKTIMEVERIFY".to_string()
+    } else if b == all::OP_CSV.to_u8() {
+        "OP_CHECKSEQUENCEVERIFY".to_string()
+    } else if (0xbb..=0xfe).contains(&b) {
+        // Unassigned in Core (OP_SUCCESS in tapscript): GetOpName's default.
+        "OP_UNKNOWN".to_string()
+    } else {
+        format!("{op}")
+    }
+}
+
+#[cfg(test)]
+mod core_asm_tests {
+    use super::*;
+    use crate::answer::{parse_script_answer_in, AsmDialect};
+    use bitcoin::ScriptBuf;
+
+    /// The `asm` field `bitcoin-cli decodescript` prints for these
+    /// scripts (checked against Bitcoin Core 31.1).
+    #[test]
+    fn matches_bitcoin_core() {
+        let s = |hex: &str| ScriptBuf::from_hex(hex).unwrap();
+        // OP_SIZE <0x20> OP_EQUALVERIFY OP_SHA256 <32 bytes> OP_EQUAL
+        let h = "11".repeat(32);
+        assert_eq!(
+            to_core_asm(&s(&format!("82012088a820{h}87"))),
+            format!("OP_SIZE 32 OP_EQUALVERIFY OP_SHA256 {h} OP_EQUAL")
+        );
+        // OP_2 <33> <33> OP_2 OP_CHECKMULTISIG
+        let k = format!("02{}", "22".repeat(32));
+        assert_eq!(
+            to_core_asm(&s(&format!("5221{k}21{k}52ae"))),
+            format!("2 {k} {k} 2 OP_CHECKMULTISIG")
+        );
+        // 870375 OP_CLTV OP_DROP, 144 OP_CSV, OP_0, OP_1NEGATE, -5
+        assert_eq!(
+            to_core_asm(&s("03e7470db175029000b2004f0185")),
+            "870375 OP_CHECKLOCKTIMEVERIFY OP_DROP 144 OP_CHECKSEQUENCEVERIFY 0 -1 -5"
+        );
+        // A non-minimal push prints its value, as in Core.
+        assert_eq!(to_core_asm(&s("020100")), "1");
+        // Truncated push.
+        assert_eq!(to_core_asm(&s("0302")), "[error]");
+        // Opcode names, including Core's OP_UNKNOWN for unassigned bytes.
+        assert_eq!(
+            to_core_asm(&s("bab0bbfeff6150626566898a6a")),
+            "OP_CHECKSIGADD OP_NOP1 OP_UNKNOWN OP_UNKNOWN OP_INVALIDOPCODE OP_NOP \
+             OP_RESERVED OP_VER OP_VERIF OP_VERNOTIF OP_RESERVED1 OP_RESERVED2 OP_RETURN"
+        );
+    }
+
+    /// Core asm of a minimally encoded script parses back to the same
+    /// bytes in the Core dialect.
+    #[test]
+    fn round_trips_through_the_core_dialect() {
+        let k = format!("03{}", "ab".repeat(32));
+        let x = "cd".repeat(32);
+        for hex in [
+            format!("21{k}ac736421{k}ad03e7470db168"),
+            format!("82012088a820{}87", "11".repeat(32)),
+            format!("20{x}ac20{x}ba52a2"),
+            format!("2102{}ac0300f0ffb2", "00".repeat(32)),
+            "00".to_string(),
+            "4f9c".to_string(),
+        ] {
+            let script = ScriptBuf::from_hex(&hex).unwrap();
+            let asm = to_core_asm(&script);
+            let back = parse_script_answer_in(&format!("{asm} OP_NOP"), AsmDialect::Core)
+                .unwrap_or_else(|e| panic!("{asm}: {e:?}"));
+            let mut want = script.to_bytes();
+            want.push(0x61);
+            assert_eq!(back.to_bytes(), want, "{asm}");
+        }
+    }
+}
