@@ -1,10 +1,16 @@
 # rl27 results: local LoRA GRPO on Qwen3.8-27B
 
-The step-28 adapter scores **0.381 on the headline suite against the base
-model's 0.254**: +0.127, or **+50%** relative. Write, optimize and tree
-improve beyond noise; identify and judgment improve but within it.
-Later checkpoints scored lower on the held-out set as answers doubled in
-length, so step 28 is the run's result.
+The step-28 adapter scores **0.401 on the headline suite against the base
+model's 0.262**: +0.139, or **+53%** relative (95% CI [+0.086, +0.195]).
+Write, optimize and tree improve beyond noise; identify and judgment
+improve but within it. Later checkpoints scored lower on the held-out set
+as answers doubled in length, so step 28 is the run's result.
+
+These are the scores after commit 9c2ef62 (2026-10-09), which grades
+working hand-written idioms (`<n> OP_CLTV OP_DROP` and others) on their
+meaning instead of rejecting them at the Miniscript decode gate. The
+strict-Miniscript scores the run was first reported with (0.381 vs
+0.254) are reproduced by the grade report's strict line.
 
 ## Run
 
@@ -68,6 +74,36 @@ bootstrap. One sample per model, so per-kind results carry real noise.
 Three of step 28's four unanswered tasks hit the 131k context without
 submitting (one optimize, one identify, one judgment). The fourth was a
 write task that ended without a tool call.
+
+## Other models on the same suite
+
+Same 246 tasks and v1 prompts, one attempt, no tools, no generation cap,
+graded with the idiom rewrites. API models run at their defaults unless
+an effort is named (Opus 5.5 low/high via `output_config.effort`).
+
+| Model | write | optimize | identify | tree | judgment | overall | output tokens |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| Qwen3.8-27B base | 0.104 | 0.052 | 0.538 | 0.440 | 0.146 | 0.262 | 12.3M |
+| step-28 LoRA | 0.250 | 0.208 | 0.596 | 0.695 | 0.229 | 0.401 | 7.5M |
+| GLM 5.3 Flash | 0.396 | 0.264 | 0.769 | 0.837 | 0.500 | 0.559 | 3.7M |
+| GLM 5.3 | 0.729 | 0.625 | 0.673 | 0.740 | 0.667 | 0.687 | 6.7M |
+| Claude Sonnet 5.5 | 0.979 | 0.705 | 0.865 | 0.979 | 0.938 | 0.893 | 179k |
+| Claude Opus 5.5 (low) | 0.938 | 0.683 | 0.962 | 1.000 | 0.958 | 0.910 | 157k |
+| Claude Opus 5.5 (medium) | 1.000 | 0.872 | 1.000 | 1.000 | 0.979 | 0.971 | 168k |
+| Claude Opus 5.5 (high) | 1.000 | 0.799 | 1.000 | 1.000 | 0.958 | 0.953 | 193k |
+
+- Opus 5.5 nearly saturates the suite. Before the idiom rewrites it
+  scored 0.734: most of its gap was Miniscript spelling, not meaning.
+  Effort barely matters: high vs medium is −0.018 (CI [−0.042,
+  +0.003]); only optimize moves, where low is clearly worse.
+- The GLM models ran through OpenCode Zen with `max_tokens = 131072`,
+  their documented maximum; OpenCode's default of 65,536 truncated 16
+  answers before it was set. GLM 5.3 has 12 unanswered tasks: 6 ran
+  into the 131,072-token maximum without answering, and 6 ended with no
+  finish reason or token count (dropped streams, not yet retried).
+  Flash has 2 unanswered, both at the maximum.
+- The Claude models answer in 157–193k output tokens for the whole
+  suite; the open models use 3.7–12.3M.
 
 ## Caveats
 
