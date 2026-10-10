@@ -801,7 +801,7 @@ mod tests {
         let mut excluded = std::collections::BTreeSet::new();
         for f in &eval {
             match f {
-                Fixture::Judgment(_) => {}
+                Fixture::Judgment(_) | Fixture::Satisfy(_) => {}
                 Fixture::Write(w) => {
                     excluded.insert(w.reference_script_hex.clone());
                 }
@@ -833,7 +833,7 @@ mod tests {
         });
         for f in &train {
             let shipped: Vec<String> = match f {
-                Fixture::Judgment(_) => vec![],
+                Fixture::Judgment(_) | Fixture::Satisfy(_) => vec![],
                 Fixture::Write(w) => vec![w.reference_script_hex.clone()],
                 Fixture::Optimize(o) => {
                     vec![o.optimal_script_hex.clone(), o.baseline_script_hex.clone()]
@@ -947,7 +947,7 @@ mod tests {
                 Fixture::Write(w) => Some(w.reference_script_hex.clone()),
                 Fixture::Optimize(o) => Some(o.optimal_script_hex.clone()),
                 Fixture::Tree(t) => Some(t.reference_descriptor.clone()),
-                Fixture::Identify(_) | Fixture::Judgment(_) => None,
+                Fixture::Identify(_) | Fixture::Judgment(_) | Fixture::Satisfy(_) => None,
             })
             .collect();
         // Same seed + exclusion: every colliding task must be resampled.
@@ -960,7 +960,7 @@ mod tests {
                 Fixture::Write(w) => &w.reference_script_hex,
                 Fixture::Optimize(o) => &o.optimal_script_hex,
                 Fixture::Tree(t) => &t.reference_descriptor,
-                Fixture::Identify(_) | Fixture::Judgment(_) => continue,
+                Fixture::Identify(_) | Fixture::Judgment(_) | Fixture::Satisfy(_) => continue,
             };
             assert!(
                 !keys.contains(hex),

@@ -265,6 +265,40 @@ pub struct JudgmentFixture {
     pub reference_policy: String,
 }
 
+/// Task 6: produce the witness that spends a given script in a given
+/// situation (who signs, which secrets are known, the transaction's
+/// nLockTime and nSequence). Graded by running the spend through
+/// Bitcoin Core's consensus script verification.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct SatisfyFixture {
+    /// See [`WriteFixture::prompt_version`].
+    #[serde(default, skip_serializing_if = "is_zero_u32")]
+    pub prompt_version: u32,
+    pub id: String,
+    pub tier: Tier,
+    pub context: ContextKind,
+    /// The script being spent: P2SH redeem script, P2WSH witness
+    /// script, or tapleaf script (under an unspendable internal key).
+    pub script_hex: String,
+    /// Keys in the script. Their private keys are derived from the task
+    /// id and label ([`crate::satisfy::secret_key`]), so the grader can
+    /// sign for the placeholders.
+    pub keys: Vec<KeyVar>,
+    /// Labels of the keys that will sign.
+    pub signers: Vec<String>,
+    /// Secrets (hash preimages, hex) the spender knows.
+    #[serde(default)]
+    pub preimages: Vec<String>,
+    /// The spending transaction's nLockTime and this input's nSequence.
+    pub lock_time: u32,
+    pub sequence: u32,
+    /// A witness that spends, in serialization order, with `<sig:LABEL>`
+    /// placeholders: the answer key, checked at generation and audit.
+    pub reference_witness: Vec<String>,
+    /// The fixture the script came from.
+    pub source: String,
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(tag = "task", rename_all = "lowercase")]
 pub enum Fixture {
@@ -273,6 +307,7 @@ pub enum Fixture {
     Identify(IdentifyFixture),
     Tree(TreeFixture),
     Judgment(JudgmentFixture),
+    Satisfy(SatisfyFixture),
 }
 
 /// How asm in answers is read (and embedded scripts are shown).
@@ -307,6 +342,7 @@ impl Fixture {
             Fixture::Identify(f) => f.prompt_version,
             Fixture::Tree(f) => f.prompt_version,
             Fixture::Judgment(f) => f.prompt_version,
+            Fixture::Satisfy(f) => f.prompt_version,
         }
     }
 
@@ -321,6 +357,7 @@ impl Fixture {
             Fixture::Identify(f) => &f.id,
             Fixture::Tree(f) => &f.id,
             Fixture::Judgment(f) => &f.id,
+            Fixture::Satisfy(f) => &f.id,
         }
     }
 }
@@ -345,12 +382,20 @@ pub struct DescriptorAnswer {
     pub descriptor: String,
 }
 
+/// A model's answer to a satisfy task: witness items in serialization
+/// order (hex, `""` for empty, `<sig:LABEL>` for a signature).
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct WitnessAnswer {
+    pub witness: Vec<String>,
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(tag = "task", rename_all = "lowercase")]
 pub enum TaskAnswer {
     Script(ScriptAnswer),
     Identify(IdentifyAnswer),
     Descriptor(DescriptorAnswer),
+    Witness(WitnessAnswer),
 }
 
 /// One line of a responses JSONL file consumed by the grader.

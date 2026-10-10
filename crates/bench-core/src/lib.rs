@@ -13,6 +13,7 @@ pub mod grade;
 pub mod human_asm;
 pub mod normalize;
 pub mod oracle;
+pub mod satisfy;
 pub mod task;
 pub mod toolbox;
 pub mod truth;
@@ -32,5 +33,6 @@ pub use task::{
 };
 
 pub use normalize::{decodable, normalize, Decodable};
+pub use satisfy::{grade_satisfy, SatisfyResult};
 
 pub use exec::{execution_check, HashPreimages, PreimageMap};

@@ -447,6 +447,43 @@ fn submit_script_tool() -> Tool {
     )
 }
 
+fn submit_witness_tool() -> Tool {
+    let schema = json!({
+        "type": "object",
+        "properties": {
+            "witness": {
+                "type": "array",
+                "items": {"type": "string"},
+                "description": "Witness items in serialization order: hex, \"\" for an empty item, <sig:NAME> for a signature"
+            }
+        },
+        "required": ["witness"]
+    });
+    Tool::new(
+        "submit_witness",
+        "Submit your final witness stack.",
+        Arc::new(schema.as_object().expect("object schema").clone()),
+    )
+}
+
+/// Witness items from an argument: a JSON array of strings, or a string
+/// holding one (models sometimes encode the array).
+fn witness_items(v: &serde_json::Value) -> Option<Vec<String>> {
+    let parse = |arr: &Vec<serde_json::Value>| {
+        arr.iter()
+            .map(|x| x.as_str().map(str::to_string))
+            .collect::<Option<Vec<_>>>()
+    };
+    match v {
+        serde_json::Value::Array(a) => parse(a),
+        serde_json::Value::String(s) => match serde_json::from_str::<serde_json::Value>(s.trim()) {
+            Ok(serde_json::Value::Array(a)) => parse(&a),
+            _ => None,
+        },
+        _ => None,
+    }
+}
+
 fn submit_descriptor_tool() -> Tool {
     let schema = json!({
         "type": "object",
@@ -522,6 +559,7 @@ fn tag_wrapped_call(text: &str) -> Option<(String, serde_json::Map<String, serde
         ("submit_script", "script"),
         ("submit_descriptor", "descriptor"),
         ("submit_identify", "label"),
+        ("submit_witness", "witness"),
     ];
     for (tool, arg) in TOOLS {
         let open = format!("<{tool}>");
@@ -602,6 +640,8 @@ fn json_args_to_call(
         Some(("submit_descriptor".to_string(), obj))
     } else if obj.contains_key("label") {
         Some(("submit_identify".to_string(), obj))
+    } else if obj.contains_key("witness") {
+        Some(("submit_witness".to_string(), obj))
     } else {
         None
     }
@@ -722,6 +762,10 @@ fn task_answer_from(
                 descriptor: d.to_string(),
             })
         })
+    } else if name == "submit_witness" {
+        args.get("witness")
+            .and_then(witness_items)
+            .map(|witness| TaskAnswer::Witness(bench_core::task::WitnessAnswer { witness }))
     } else if name == "submit_identify" {
         let label = args
             .get("label")
@@ -943,12 +987,23 @@ fn evaluate(fixture: &Fixture, answer: &TaskAnswer) -> Evaluation {
                 }
             }
         }
+        (Fixture::Satisfy(sf), TaskAnswer::Witness(a)) => {
+            let r = bench_core::grade_satisfy(sf, &a.witness);
+            Evaluation {
+                passed: r.score >= 1.0,
+                score: r.score,
+                feedback: match r.reason {
+                    None => "Accepted.".to_string(),
+                    Some(reason) => format!("Your answer was rejected: {reason}"),
+                },
+            }
+        }
         (f, _) => Evaluation {
             passed: false,
             score: 0.0,
             feedback: format!(
                 "Wrong answer shape for this {} task; answer with the submit tool appropriate to the task.",
-                match f { Fixture::Write(_) => "write", Fixture::Optimize(_) => "optimize", Fixture::Identify(_) => "identify", Fixture::Tree(_) => "tree", Fixture::Judgment(_) => "judgment" }
+                match f { Fixture::Write(_) => "write", Fixture::Optimize(_) => "optimize", Fixture::Identify(_) => "identify", Fixture::Tree(_) => "tree", Fixture::Judgment(_) => "judgment", Fixture::Satisfy(_) => "satisfy" }
             ),
         },
     }
@@ -1103,6 +1158,11 @@ fn extract_chat_answer(
                     .ok()
                     .map(|tr| tr.to_string()),
                 Fixture::Identify(_) => None,
+                Fixture::Satisfy(_) => serde_json::from_str::<serde_json::Value>(code.trim())
+                    .ok()
+                    .as_ref()
+                    .and_then(witness_items)
+                    .map(|w| w.join("\u{0}")),
                 _ => bench_core::answer::parse_script_answer_in(code, fixture.asm_dialect())
                     .ok()
                     .map(|script| script.to_hex_string()),
@@ -1130,6 +1190,16 @@ fn extract_chat_answer(
         Fixture::Identify(_) => TaskAnswer::Identify(IdentifyAnswer {
             label: answer.into(),
         }),
+        Fixture::Satisfy(_) => {
+            match serde_json::from_str::<serde_json::Value>(answer.trim())
+                .ok()
+                .as_ref()
+                .and_then(witness_items)
+            {
+                Some(witness) => TaskAnswer::Witness(bench_core::task::WitnessAnswer { witness }),
+                None => return (None, raw, None),
+            }
+        }
         _ => TaskAnswer::Script(ScriptAnswer {
             script: answer.into(),
         }),
@@ -1480,6 +1550,7 @@ pub async fn run_resume(
                 let (submit, is_identify) = match &f {
                     Fixture::Identify(_) => (submit_identify_tool(), true),
                     Fixture::Tree(_) => (submit_descriptor_tool(), false),
+                    Fixture::Satisfy(_) => (submit_witness_tool(), false),
                     _ => (submit_script_tool(), false),
                 };
                 let mut tools = if tool_mode == ToolMode::Chat {
@@ -1502,6 +1573,9 @@ pub async fn run_resume(
                         // already in the prompt, and anything more
                         // would trivialize the recall task.
                         Fixture::Identify(_) => {}
+                        // No checker would leave the witness unanswered
+                        // without running the spend, which is the grade.
+                        Fixture::Satisfy(_) => {}
                     }
                 }
                 // Multi-turn attempt loop: after a graded failure the

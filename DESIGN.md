@@ -190,6 +190,37 @@ few-idiom problem.
    never the reference). Reward service: same shaping rungs, with
    agreement computed on the lifted policies.
 
+### Task 6 — satisfy a script
+
+The model gets a script (P2SH redeem script, P2WSH witness script, or a
+tapleaf under an unspendable internal key, shown in Bitcoin Core asm),
+its keys, and a situation: who will sign, which secrets the spender
+knows, the transaction's nLockTime and the input's nSequence. It
+answers with the witness items in serialization order (as `bitcoin-cli`
+shows `txinwitness`; for P2SH the scriptSig pushes), writing
+`<sig:NAME>` where a signature goes.
+
+Grading builds the real spend and runs it through Bitcoin Core's
+consensus script verification (libbitcoinconsensus 26, all consensus
+flags including taproot): placeholders become real signatures from
+keys derived from the task id, so the grader can sign. Relay policy
+(MINIMALIF and NULLFAIL in segwit v0, CLEANSTACK in P2SH) is not
+checked. A signature placeholder for someone not signing is rejected.
+
+`btc-bench gen-satisfy --from <dataset>` derives the tasks from a
+dataset's write references and optimize baselines (alternating, so
+both compiled and hand-bloated scripts appear): it re-keys the script,
+samples situations until the policy allows the spend, builds the
+reference witness with rust-miniscript's satisfier and real
+signatures, and keeps it only if Core accepts it. The audit re-checks
+every reference witness against Core.
+
+First measurement (2026-10-09, satisfy-s42-v1 from bench-s42-lite-v2,
+48 tasks): Sonnet 5.5 0.979 at ~400 output tokens per task. As built
+the task is easy for frontier models; the lever is situations the
+policy forbids (the answer is that no witness exists) and scoring the
+witness's weight.
+
 ## Correctness oracle
 
 Judge-free, complete for our task distribution:

@@ -35,6 +35,7 @@ fn kind_of(f: &Fixture) -> &'static str {
         Fixture::Identify(_) => "identify",
         Fixture::Tree(_) => "tree",
         Fixture::Judgment(_) => "judgment",
+        Fixture::Satisfy(_) => "satisfy",
     }
 }
 
@@ -45,6 +46,7 @@ fn tier_of(f: &Fixture) -> Option<Tier> {
         Fixture::Identify(_) => None,
         Fixture::Tree(t) => Some(t.tier),
         Fixture::Judgment(j) => Some(j.tier),
+        Fixture::Satisfy(s) => Some(s.tier),
     }
 }
 
@@ -57,6 +59,7 @@ fn ctx_of(f: &Fixture) -> Option<ContextKind> {
         // the context table keeps it a write/optimize comparison.
         Fixture::Tree(_) => None,
         Fixture::Judgment(j) => Some(j.context),
+        Fixture::Satisfy(s) => Some(s.context),
     }
 }
 
@@ -70,7 +73,7 @@ fn atoms_of(f: &Fixture) -> Option<usize> {
         Fixture::Tree(t) => (t.atoms > 0).then_some(t.atoms),
         // Judgment difficulty is the requirement count, not an atom
         // count; it is reported on its own axis.
-        Fixture::Judgment(_) => None,
+        Fixture::Judgment(_) | Fixture::Satisfy(_) => None,
     }
 }
 
@@ -82,7 +85,7 @@ fn family_of(f: &Fixture) -> Option<u32> {
         Fixture::Tree(t) => Some(t.spec_family),
         // Judgment briefs are stated as requirements, not verbalized
         // from a template family.
-        Fixture::Judgment(_) => None,
+        Fixture::Judgment(_) | Fixture::Satisfy(_) => None,
     }
 }
 
@@ -595,7 +598,12 @@ mod tests {
         let perfect_answer = |f: &Fixture| match f {
             Fixture::Write(w) => w.reference_script_hex.clone(),
             Fixture::Optimize(o) => o.optimal_script_hex.clone(),
-            Fixture::Identify(_) | Fixture::Tree(_) | Fixture::Judgment(_) => unreachable!(),
+            Fixture::Identify(_)
+            | Fixture::Tree(_)
+            | Fixture::Judgment(_)
+            | Fixture::Satisfy(_) => {
+                unreachable!()
+            }
         };
 
         for (label, sabotage) in [("a", false), ("b", true)] {
@@ -665,7 +673,12 @@ mod tests {
                     }
                 }
                 Fixture::Optimize(o) => o.optimal_script_hex.clone(),
-                Fixture::Identify(_) | Fixture::Tree(_) | Fixture::Judgment(_) => unreachable!(),
+                Fixture::Identify(_)
+                | Fixture::Tree(_)
+                | Fixture::Judgment(_)
+                | Fixture::Satisfy(_) => {
+                    unreachable!()
+                }
             };
             text.push_str(
                 &serde_json::json!({

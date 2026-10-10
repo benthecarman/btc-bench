@@ -11,6 +11,10 @@ miniscript = { workspace = true }
 bitcoin = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
+# Bitcoin Core's consensus script verification (libbitcoinconsensus from
+# Core 26, built from vendored C++ with the cc crate): the satisfy task
+# runs submitted witnesses through it.
+bitcoinconsensus = "0.106"
 # Bitcoin Core's script interpreter (libbitcoinkernel), used only by the
 # kernel-check test that runs normalize.rs's rewrites through real
 # consensus execution. Building it needs CMake and Boost headers:

@@ -294,6 +294,17 @@ fn answer_from_value(v: serde_json::Value) -> Result<TaskAnswer> {
             script: s.to_string(),
         }));
     }
+    // A bare array of strings is a satisfy task's witness.
+    if let Some(items) = v.as_array() {
+        let witness = items
+            .iter()
+            .map(|x| x.as_str().map(str::to_string))
+            .collect::<Option<Vec<_>>>()
+            .context("a witness answer must be an array of strings")?;
+        return Ok(TaskAnswer::Witness(bench_core::task::WitnessAnswer {
+            witness,
+        }));
+    }
     serde_json::from_value(v).context("answer must be a string or a task answer object")
 }
 
@@ -509,7 +520,7 @@ fn grade_one(req: RewardRequest, default_shaping: &Shaping) -> Result<RewardResp
             let text = match &answer {
                 TaskAnswer::Descriptor(d) => d.descriptor.clone(),
                 TaskAnswer::Script(s) => s.script.clone(),
-                TaskAnswer::Identify(_) => unreachable!(),
+                TaskAnswer::Identify(_) | TaskAnswer::Witness(_) => unreachable!(),
             };
             let r = bench_core::grade_tree(t, &text);
             let parsed = bench_core::parse_tr_answer(&text).is_ok();
@@ -545,6 +556,19 @@ fn grade_one(req: RewardRequest, default_shaping: &Shaping) -> Result<RewardResp
                 shaped: r.score,
                 size_score: None,
                 reason: None,
+                lint: Vec::new(),
+                components: Components::default(),
+            })
+        }
+        (Fixture::Satisfy(sf), TaskAnswer::Witness(a)) => {
+            // Binary: the spend is valid under Core or it is not.
+            let r = bench_core::grade_satisfy(sf, &a.witness);
+            Ok(RewardResponse {
+                task_id: sf.id.clone(),
+                score: r.score,
+                shaped: r.score,
+                size_score: None,
+                reason: r.reason,
                 lint: Vec::new(),
                 components: Components::default(),
             })

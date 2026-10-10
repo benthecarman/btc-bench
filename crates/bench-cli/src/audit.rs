@@ -445,6 +445,7 @@ pub fn audit_dataset(dir: &Path) -> Result<AuditReport> {
             Fixture::Identify(_) => "t3",
             Fixture::Tree(_) => "t4",
             Fixture::Judgment(_) => "t5",
+            Fixture::Satisfy(_) => "t6",
         };
         *seen_counts.entry(kind.to_string()).or_insert(0) += 1;
     }
@@ -497,6 +498,33 @@ pub fn audit_dataset(dir: &Path) -> Result<AuditReport> {
                 Ok(script) => report.check_display_roundtrip(&j.id, &script, "contract witness"),
                 Err(e) => report.fail(format!("{}: {e}", j.id)),
             },
+            Fixture::Satisfy(sf) => {
+                // Keys must be the ones the grader can sign for, and the
+                // answer key must spend under Bitcoin Core.
+                for k in &sf.keys {
+                    let derived: String =
+                        bench_core::satisfy::public_key(sf.context, &sf.id, &k.label)
+                            .iter()
+                            .map(|b| format!("{b:02x}"))
+                            .collect();
+                    if derived != k.pubkey {
+                        report.fail(format!("{}: key {} is not the derived key", sf.id, k.label));
+                    }
+                }
+                for signer in &sf.signers {
+                    if !sf.keys.iter().any(|k| &k.label == signer) {
+                        report.fail(format!("{}: signer {signer} has no key", sf.id));
+                    }
+                }
+                let r = bench_core::grade_satisfy(sf, &sf.reference_witness);
+                if r.score < 1.0 {
+                    report.fail(format!(
+                        "{}: reference witness does not spend: {}",
+                        sf.id,
+                        r.reason.unwrap_or_default()
+                    ));
+                }
+            }
         }
     }
     Ok(report)

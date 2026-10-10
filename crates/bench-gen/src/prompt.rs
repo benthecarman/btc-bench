@@ -302,8 +302,81 @@ pub fn at_prompt_version(f: &Fixture, version: u32) -> Fixture {
             j.prompt_version = version;
             j.spec_en = spec(&j.spec_en);
         }
+        Fixture::Satisfy(s) => s.prompt_version = version,
     }
     f
+}
+
+/// Satisfy prompts state the script, the keys, and the situation; the
+/// answer is the witness stack. Always Bitcoin Core asm.
+pub fn satisfy_prompt(f: &bench_core::task::SatisfyFixture) -> String {
+    use bench_core::task::ContextKind;
+    let script = bench_core::human_asm::to_core_asm(
+        ScriptBuf::from_hex(&f.script_hex)
+            .expect("fixture hex is valid")
+            .as_script(),
+    );
+    let (output, items, sig) = match f.context {
+        ContextKind::Legacy => (
+            "a P2SH output with this redeem script",
+            "the scriptSig pushes that come before the redeem script, first push first",
+            "a DER signature with SIGHASH_ALL",
+        ),
+        ContextKind::SegwitV0 => (
+            "a P2WSH output with this witness script",
+            "the witness items that come before the witness script, in serialization \
+             order (as `bitcoin-cli` shows txinwitness)",
+            "a DER signature with SIGHASH_ALL",
+        ),
+        ContextKind::Tap => (
+            "a Taproot output, spent through this tapleaf script (the internal key is \
+             unspendable)",
+            "the witness items that come before the tapleaf script and control block, \
+             in serialization order (as `bitcoin-cli` shows txinwitness)",
+            "a 64-byte Schnorr signature with SIGHASH_DEFAULT",
+        ),
+    };
+    let signers = match f.signers.as_slice() {
+        [] => "No one will sign.".to_string(),
+        [one] => format!("{one} will sign; no one else will."),
+        many => format!(
+            "{} and {} will sign; no one else will.",
+            many[..many.len() - 1].join(", "),
+            many[many.len() - 1]
+        ),
+    };
+    let has_hash = ["OP_SHA256", "OP_HASH256", "OP_RIPEMD160", "OP_HASH160"]
+        .iter()
+        .any(|op| script.contains(op));
+    let secrets = match (f.preimages.as_slice(), has_hash) {
+        ([], false) => String::new(),
+        ([], true) => " You know none of the hash preimages.".to_string(),
+        (known, _) => format!(
+            " You know {}: {}.",
+            if known.len() == 1 {
+                "this secret"
+            } else {
+                "these secrets"
+            },
+            known.join(", ")
+        ),
+    };
+    format!(
+        "Spend {output} (Bitcoin Core asm):\n\
+         \n\
+         {script}\n\
+         \n\
+         Keys:\n{}\n\
+         \n\
+         The spending transaction is version 2 with nLockTime {}, and this \
+         input's nSequence is {}. {signers}{secrets}\n\
+         \n\
+         Give {items}: hex, \"\" for an empty item, and <sig:NAME> where NAME's \
+         signature goes ({sig}).",
+        key_block(&f.keys),
+        f.lock_time,
+        f.sequence,
+    )
 }
 
 pub fn for_fixture(f: &Fixture) -> String {
@@ -317,6 +390,7 @@ pub fn for_fixture_fmt(f: &Fixture, display: DisplayFormat) -> String {
         Fixture::Identify(i) => identify_prompt(i, display),
         Fixture::Tree(t) => tree_prompt(t),
         Fixture::Judgment(j) => judgment_prompt(j),
+        Fixture::Satisfy(s) => satisfy_prompt(s),
     }
 }
 
@@ -384,6 +458,7 @@ mod tests {
                         "the decode gate stays implicit by design"
                     );
                 }
+                Fixture::Satisfy(_) => unreachable!("gen never produces satisfy tasks"),
                 Fixture::Identify(_) => {
                     assert!(p.contains("scriptPubKey"));
                     assert!(p.contains("submit_identify"), "prompt names the real tool");
@@ -453,6 +528,7 @@ mod tests {
                     assert!(p.contains("- NUMS (provably unspendable):"), "{p}");
                 }
                 Fixture::Identify(_) => assert!(p.contains("submit_identify")),
+                Fixture::Satisfy(_) => unreachable!("gen never produces satisfy tasks"),
             }
             if let Fixture::Optimize(o) = &f {
                 // Displayed in Core asm: OP_1..OP_16 as numbers, no
@@ -511,6 +587,7 @@ mod tests {
                     assert!(hex_prompt.contains(&o.baseline_script_hex));
                     assert!(!asm_prompt.contains(&o.baseline_script_hex));
                 }
+                Fixture::Satisfy(_) => unreachable!("gen never produces satisfy tasks"),
                 Fixture::Identify(i) => {
                     let _ = i;
                     assert_ne!(hex_prompt, asm_prompt);

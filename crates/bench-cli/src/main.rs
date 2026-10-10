@@ -101,6 +101,19 @@ enum Command {
         #[arg(long)]
         prompt_version: u32,
     },
+    /// Derive satisfy tasks (t6) from a dataset's write and optimize
+    /// fixtures: their scripts, re-keyed, with a sampled situation and a
+    /// reference witness verified against Bitcoin Core.
+    GenSatisfy {
+        #[arg(long)]
+        from: PathBuf,
+        #[arg(long)]
+        out: PathBuf,
+        #[arg(long, default_value_t = 48)]
+        count: usize,
+        #[arg(long, default_value_t = 0)]
+        seed: u64,
+    },
     /// Emit one JSONL line per fixture: {id, kind, prompt}.
     Prompts {
         #[arg(long)]
@@ -406,6 +419,9 @@ fn main() -> Result<()> {
                                 bench_gen::judgment::validate(&j).map_err(anyhow::Error::msg)?;
                             excluded.insert(script.to_hex_string());
                         }
+                        bench_core::task::Fixture::Satisfy(sf) => {
+                            excluded.insert(sf.script_hex);
+                        }
                         bench_core::task::Fixture::Identify(i) => {
                             excluded.insert(i.spk_hex);
                             if let Some(inner) = i.inner_script_hex {
@@ -448,6 +464,42 @@ fn main() -> Result<()> {
                 fs::write(path, serde_json::to_string_pretty(&manifest)?)?;
             }
             println!("wrote {n} fixtures to {}", out.display());
+            Ok(())
+        }
+        Command::GenSatisfy {
+            from,
+            out,
+            count,
+            seed,
+        } => {
+            use bitcoin::hashes::{sha256, Hash};
+            if out.join("fixtures.jsonl").exists() {
+                bail!(
+                    "{} already contains fixtures; choose a new directory",
+                    out.display()
+                );
+            }
+            let source = load_dataset(&from)?;
+            let (fixtures, skipped) = bench_gen::satisfy::derive(&source, count, seed);
+            let n = bench_cli::write_dataset(&out, &fixtures, seed, &bench_cli::build_stamp())?;
+            let path = out.join("manifest.json");
+            let mut manifest: serde_json::Value =
+                serde_json::from_str(&fs::read_to_string(&path)?)?;
+            manifest["prompt_version"] = bench_core::task::PROMPT_V2.into();
+            manifest["fixtures_sha256"] =
+                sha256::Hash::hash(&fs::read(out.join("fixtures.jsonl"))?)
+                    .to_string()
+                    .into();
+            manifest["derived_from"] = serde_json::json!({
+                "dataset": from.display().to_string(),
+                "fixtures_sha256": sha256::Hash::hash(&fs::read(from.join("fixtures.jsonl"))?)
+                    .to_string(),
+            });
+            fs::write(path, serde_json::to_string_pretty(&manifest)?)?;
+            println!(
+                "wrote {n} satisfy tasks to {} ({skipped} sources skipped)",
+                out.display()
+            );
             Ok(())
         }
         Command::Reprompt {
@@ -533,6 +585,7 @@ fn main() -> Result<()> {
                     bench_core::task::Fixture::Identify(_) => "identify",
                     bench_core::task::Fixture::Tree(_) => "tree",
                     bench_core::task::Fixture::Judgment(_) => "judgment",
+                    bench_core::task::Fixture::Satisfy(_) => "satisfy",
                 };
                 let line = serde_json::json!({
                     "id": f.id(),
@@ -775,6 +828,10 @@ fn main() -> Result<()> {
                     // — that is the point of them. They train through
                     // the reward server, not through SFT pairs.
                     bench_core::task::Fixture::Judgment(_) => continue,
+                    bench_core::task::Fixture::Satisfy(sf) => serde_json::json!({
+                        "task_id": sf.id, "kind": "satisfy", "prompt": prompt,
+                        "target_witness": sf.reference_witness,
+                    }),
                 };
                 if casual {
                     line.as_object_mut()

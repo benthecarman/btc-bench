@@ -221,6 +221,13 @@ pub struct Summary {
     pub judgment_mean: f64,
     pub judgment_n: usize,
     pub judgment_ci: Option<(f64, f64)>,
+    /// Satisfy tasks (t6): the witness spends under Bitcoin Core.
+    #[serde(default)]
+    pub satisfy_mean: f64,
+    #[serde(default)]
+    pub satisfy_n: usize,
+    #[serde(default)]
+    pub satisfy_ci: Option<(f64, f64)>,
     pub missing: usize,
     /// 95% bootstrap CIs over tasks (missing counted as zeros), per
     /// headline mean. None when the kind has no tasks.
@@ -575,6 +582,18 @@ pub fn grade(
                     normalized: false,
                 }
             }
+            (Fixture::Satisfy(sf), TaskAnswer::Witness(a)) => {
+                let res = bench_core::grade_satisfy(sf, &a.witness);
+                TaskScore {
+                    task_id: r.task_id.clone(),
+                    score: res.score,
+                    size_score: None,
+                    failure: res.reason.as_ref().map(|_| "does not spend".to_string()),
+                    reason: res.reason,
+                    lint: None,
+                    normalized: false,
+                }
+            }
             (f, a) => bail!(
                 "task {} is {} but answer is {}",
                 r.task_id,
@@ -600,6 +619,8 @@ pub fn grade(
     let mut j_scores: Vec<f64> = Vec::new();
     let (mut normalized_n, mut normalized_scored) = (0usize, 0usize);
     let (mut w_strict, mut o_strict, mut j_strict) = (0.0, 0.0, 0.0);
+    let (mut s_sum, mut s_n) = (0.0, 0usize);
+    let mut s_scores: Vec<f64> = Vec::new();
     for f in fixtures {
         let id = f.id();
         if !seen.contains(id) {
@@ -623,6 +644,10 @@ pub fn grade(
                 Fixture::Judgment(_) => {
                     j_n += 1;
                     j_scores.push(0.0);
+                }
+                Fixture::Satisfy(_) => {
+                    s_n += 1;
+                    s_scores.push(0.0);
                 }
             }
             continue;
@@ -677,6 +702,11 @@ pub fn grade(
                 j_strict += strict;
                 j_n += 1;
                 j_scores.push(ts.score);
+            }
+            Fixture::Satisfy(_) => {
+                s_sum += ts.score;
+                s_n += 1;
+                s_scores.push(ts.score);
             }
         }
     }
@@ -806,6 +836,9 @@ pub fn grade(
         identify_ci: bootstrap_ci(&i_scores, 1000, 3),
         tree_ci: bootstrap_ci(&t_scores, 1000, 4),
         judgment_ci: bootstrap_ci(&j_scores, 1000, 5),
+        satisfy_mean: div(s_sum, s_n),
+        satisfy_n: s_n,
+        satisfy_ci: bootstrap_ci(&s_scores, 1000, 6),
         write_wellformed_n: w_wf_n,
         write_sem_mean: div(w_wf_sum, w_wf_n),
         optimize_wellformed_n: o_wf_n,
@@ -831,6 +864,7 @@ fn f_kind(f: &Fixture) -> &'static str {
         Fixture::Identify(_) => "identify",
         Fixture::Tree(_) => "tree",
         Fixture::Judgment(_) => "judgment",
+        Fixture::Satisfy(_) => "satisfy",
     }
 }
 
@@ -839,6 +873,7 @@ fn a_kind(a: &TaskAnswer) -> &'static str {
         TaskAnswer::Script(_) => "script",
         TaskAnswer::Identify(_) => "identify",
         TaskAnswer::Descriptor(_) => "descriptor",
+        TaskAnswer::Witness(_) => "witness",
     }
 }
 
@@ -848,6 +883,18 @@ pub fn summary_markdown(s: &Summary) -> String {
         Some((lo, hi)) => format!("[{lo:.3}, {hi:.3}]"),
         None => "—".to_string(),
     };
+    // The satisfy row appears only when the dataset has satisfy tasks,
+    // so reports for older datasets keep their exact shape.
+    let satisfy_row = if s.satisfy_n > 0 {
+        format!(
+            "| satisfy (spends under Core) | {:.3} | {} | {} |\n",
+            s.satisfy_mean,
+            ci(&s.satisfy_ci),
+            s.satisfy_n
+        )
+    } else {
+        String::new()
+    };
     let mut out = format!(
         "# btc-bench results\n\n\
          | task | mean score | 95% CI | n |\n|---|---|---|---|\n\
@@ -856,7 +903,8 @@ pub fn summary_markdown(s: &Summary) -> String {
          | optimize (size) | {:.3} | | {} |\n\
          | identify | {:.3} | {} | {} |\n\
          | tree (weight) | {:.3} | {} | {} |\n\
-         | judgment (requirements) | {:.3} | {} | {} |\n\n\
+         | judgment (requirements) | {:.3} | {} | {} |\n\
+         {satisfy_row}\n\
          Unanswered tasks counted as zero: {}\n",
         s.write_mean,
         ci(&s.write_ci),
@@ -1023,7 +1071,7 @@ mod tests {
                 }),
                 // Judgment tasks have no reference answer; the
                 // perfect-answers fixture set skips them.
-                Fixture::Judgment(_) => {}
+                Fixture::Judgment(_) | Fixture::Satisfy(_) => {}
                 Fixture::Tree(t) => responses.push(ResponseRecord {
                     task_id: t.id.clone(),
                     answer: TaskAnswer::Descriptor(bench_core::task::DescriptorAnswer {
@@ -1066,6 +1114,9 @@ mod tests {
                         descriptor: "garbage".into(),
                     })
                 }
+                TaskAnswer::Witness(_) => TaskAnswer::Witness(bench_core::task::WitnessAnswer {
+                    witness: vec!["garbage".into()],
+                }),
             };
             garbage.push(g);
         }
