@@ -195,6 +195,10 @@ pub struct TaskScore {
     /// text and are not a stable classification surface.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub failure: Option<String>,
+    /// The script decoded only through an idiom rewrite
+    /// (`bench_core::normalize`). Strict-Miniscript means count it as 0.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub normalized: bool,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -244,6 +248,20 @@ pub struct Summary {
     pub tree_wellformed_n: usize,
     #[serde(default)]
     pub tree_sem_mean: f64,
+    /// Script answers the oracle read through an idiom rewrite
+    /// (`bench_core::normalize`), and how many of those scored above 0.
+    #[serde(default)]
+    pub normalized_n: usize,
+    #[serde(default)]
+    pub normalized_scored: usize,
+    /// Means with rewritten answers counted as 0: the strict-Miniscript
+    /// numbers, comparable with runs graded before the rewrites.
+    #[serde(default)]
+    pub strict_write_mean: f64,
+    #[serde(default)]
+    pub strict_optimize_weight_mean: f64,
+    #[serde(default)]
+    pub strict_judgment_mean: f64,
     /// Multi-turn columns, present when attempts were supplied:
     /// first_try = solved on attempt 1; solved = solved on any attempt;
     /// mt = graded score x turn factor (1.0 first try, linear to the
@@ -442,6 +460,7 @@ pub fn grade(
                     reason,
                     lint,
                     failure,
+                    normalized: res.normalized,
                 }
             }
             (Fixture::Optimize(o), TaskAnswer::Script(a)) => {
@@ -471,6 +490,7 @@ pub fn grade(
                     reason,
                     lint,
                     failure,
+                    normalized: res.normalized,
                 }
             }
             (Fixture::Identify(i), TaskAnswer::Identify(a)) => {
@@ -482,6 +502,7 @@ pub fn grade(
                     reason: None,
                     lint: None,
                     failure: (!res.label_correct).then(|| "wrong label".to_string()),
+                    normalized: false,
                 }
             }
             (Fixture::Judgment(j), TaskAnswer::Script(a)) => {
@@ -521,6 +542,7 @@ pub fn grade(
                     reason,
                     lint,
                     failure,
+                    normalized: res.normalized,
                 }
             }
             (Fixture::Tree(t), TaskAnswer::Descriptor(a)) => {
@@ -548,6 +570,7 @@ pub fn grade(
                     reason,
                     lint,
                     failure,
+                    normalized: false,
                 }
             }
             (f, a) => bail!(
@@ -573,6 +596,8 @@ pub fn grade(
     let (mut t_wf_sum, mut t_wf_n) = (0.0, 0usize);
     let (mut j_sum, mut j_n) = (0.0, 0usize);
     let mut j_scores: Vec<f64> = Vec::new();
+    let (mut normalized_n, mut normalized_scored) = (0usize, 0usize);
+    let (mut w_strict, mut o_strict, mut j_strict) = (0.0, 0.0, 0.0);
     for f in fixtures {
         let id = f.id();
         if !seen.contains(id) {
@@ -604,9 +629,15 @@ pub fn grade(
             .iter()
             .find(|s| s.task_id == id)
             .expect("seen implies scored");
+        let strict = if ts.normalized { 0.0 } else { ts.score };
+        if ts.normalized {
+            normalized_n += 1;
+            normalized_scored += usize::from(ts.score > 0.0);
+        }
         match f {
             Fixture::Write(_) => {
                 w_sum += ts.score;
+                w_strict += strict;
                 w_n += 1;
                 w_scores.push(ts.score);
                 if is_wellformed(ts.score, &ts.failure, &ts.reason) {
@@ -616,6 +647,7 @@ pub fn grade(
             }
             Fixture::Optimize(_) => {
                 o_w_sum += ts.score;
+                o_strict += strict;
                 o_s_sum += ts.size_score.unwrap_or(0.0);
                 o_n += 1;
                 o_scores.push(ts.score);
@@ -640,6 +672,7 @@ pub fn grade(
             }
             Fixture::Judgment(_) => {
                 j_sum += ts.score;
+                j_strict += strict;
                 j_n += 1;
                 j_scores.push(ts.score);
             }
@@ -777,6 +810,11 @@ pub fn grade(
         optimize_sem_mean: div(o_wf_sum, o_wf_n),
         tree_wellformed_n: t_wf_n,
         tree_sem_mean: div(t_wf_sum, t_wf_n),
+        normalized_n,
+        normalized_scored,
+        strict_write_mean: div(w_strict, w_n),
+        strict_optimize_weight_mean: div(o_strict, o_n),
+        strict_judgment_mean: div(j_strict, j_n),
         multi_turn,
         token_efficiency,
         tool_use,
@@ -850,6 +888,17 @@ pub fn summary_markdown(s: &Summary) -> String {
             s.tree_wellformed_n,
             s.tree_n,
             s.tree_sem_mean,
+        ));
+    }
+    if s.normalized_n > 0 {
+        out.push_str(&format!(
+            "Read through an idiom rewrite (not Miniscript as written): {} answers, {} scored; \
+             strict-Miniscript means: write {:.3}, optimize (weight) {:.3}, judgment {:.3}\n",
+            s.normalized_n,
+            s.normalized_scored,
+            s.strict_write_mean,
+            s.strict_optimize_weight_mean,
+            s.strict_judgment_mean,
         ));
     }
     if let Some(te) = &s.token_efficiency {

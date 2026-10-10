@@ -70,8 +70,30 @@ one draw in four); hard 7–12 atoms, timelocks + hashes + `thresh`,
 every shape census-verified shippable. Split 40/40/20. Write/optimize
 prompts state the asm notation rule (opcode names carry the OP_
 prefix). The Miniscript decode-gate requirement is deliberately NOT
-stated in prompts: producing a script that composes into valid
-Miniscript is part of what the benchmark measures.
+stated in prompts. The gate is how the oracle reads a script's meaning,
+not a style requirement: a working script must not score 0 for being
+spelled the textbook way. Opus 5.5's 24 write failures on
+bench-s42-lite (2026-10-09) were all decode rejects of correct scripts,
+20 of them BIP65's `<n> OP_CLTV OP_DROP`. So candidates that fail to
+decode are retried through `bench_core::normalize`, a small table of
+witness-preserving rewrites (timelock `OP_DROP` → `OP_VERIFY`;
+`OP_CHECKSIGADD` thresholds with `OP_GREATERTHANOREQUAL`/`OP_EQUAL`, or
+a bare count, → `OP_NUMEQUAL`; hash checks without `OP_SIZE 32` get it).
+Each rule either preserves execution for every witness or provably
+preserves who can spend; the proofs are in the module docs, and
+`tests/normalize_kernel.rs` (`--features kernel-check`) checks every
+rule against Bitcoin Core's interpreter: for each template and every
+resource set, Core's spendability of the submitted script must equal
+the oracle's verdict on the rewrite. Rules fire only on exact shapes
+(literal positive locktimes, 32-byte keys in a `multi_a`-shaped chain,
+no stack-duplicating opcodes), so anything else, including genuinely
+broken scripts such as a timelock left on the stack, still fails with
+the decoder's error about the submitted bytes. Grade reports carry a
+strict-Miniscript mean (rewritten answers as 0), equal to pre-rewrite
+scores, so earlier runs stay comparable. Adding a rule needs the same
+proof and Core check; a symbolic executor for arbitrary scripts was
+considered and rejected as a large, hard-to-trust answer to a
+few-idiom problem.
 
 ### Task 2 — write a more optimized script
 

@@ -16,7 +16,7 @@ experiments remain available as historical work.
 
 | Task | What the model does | Grading |
 |------|-------------------|--------|
-| **Write** | Compose a script from an English spending policy | Decode-gated as Miniscript, then proven semantically equivalent by exhaustive truth-table evaluation over the task's closed atom set |
+| **Write** | Compose a script from an English spending policy | Decode-gated as Miniscript (common hand-written idioms read through witness-preserving rewrites), then proven semantically equivalent by exhaustive truth-table evaluation over the task's closed atom set |
 | **Optimize** | Shrink a deliberately naive baseline script | Equivalence-gated, scored by weight improvement toward the compiler optimum |
 | **Identify** | Label a scriptPubKey (plus redeem/witness script) with its protocol family | Label-only, binary: right family or wrong family (parameter naming is a vocabulary tax, not comprehension) |
 | **Tree** | Design a full Taproot output — internal key + script tree — as a `tr()` descriptor | Lifted-semantics equivalence (unspendable key pinned false), then scored on worst-case weight between a single-leaf baseline and a balanced reference tree |
@@ -114,7 +114,15 @@ The correctness oracle is structurally anti-cheat:
 
 - **Decode gate**: answers must parse as valid, type-checked Miniscript
   in the task's script context. An always-true script (`OP_1`) decodes
-  fine but fails equivalence — it scores 0.
+  fine but fails equivalence — it scores 0. Common hand-written idioms
+  that Miniscript spells differently (BIP65/112 `<n> OP_CLTV OP_DROP`,
+  `OP_CHECKSIGADD` thresholds compared with `OP_GREATERTHANOREQUAL`,
+  hash checks without `OP_SIZE 32`) are read through witness-preserving
+  rewrites (`bench_core::normalize`), so a working script is graded on
+  its meaning, not its spelling. Each rewrite is proved in the module
+  docs and checked against Bitcoin Core's interpreter
+  (`--features kernel-check`); reports also give strict-Miniscript
+  means for comparison with earlier runs.
 - **Execution cross-check**: at fixture build (and audit) time the
   reference and baseline are proven spendable end-to-end — a real
   witness from the crate satisfier (known hash preimages, real

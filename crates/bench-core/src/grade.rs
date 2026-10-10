@@ -6,6 +6,7 @@ use miniscript::ScriptContext;
 use miniscript::{Descriptor, Legacy, Miniscript, Segwitv0, Tap};
 
 use crate::answer::parse_script_answer;
+use crate::normalize::{decodable, Decodable};
 use crate::oracle::{check_equivalence, Verdict};
 use crate::task::{ContextKind, IdentifyAnswer, IdentifyFixture, OptimizeFixture, WriteFixture};
 
@@ -74,6 +75,58 @@ pub fn weights_for(kind: ContextKind, script: &ScriptBuf) -> Result<Weights, Str
     }
 }
 
+fn push_opcode_size(len: usize) -> usize {
+    match len {
+        0..=75 => 1,
+        76..=0xff => 2,
+        0x100..=0xffff => 3,
+        _ => 5,
+    }
+}
+
+fn varint_len(n: usize) -> usize {
+    bitcoin::VarInt(n as u64).size()
+}
+
+/// Weights of a submitted script read through its decodable form. The
+/// rewrites in [`crate::normalize`] leave the witness unchanged, so only
+/// the script's own bytes differ: this is the decodable form's
+/// satisfaction weight with the submitted script's length put back,
+/// following rust-miniscript's `max_weight_to_satisfy` formulas.
+pub fn submitted_weights(
+    kind: ContextKind,
+    read_as: &Decodable,
+    submitted: &ScriptBuf,
+) -> Result<Weights, String> {
+    let w = weights_for(kind, &read_as.script)?;
+    if !read_as.normalized {
+        return Ok(w);
+    }
+    Ok(Weights {
+        size: submitted.len(),
+        weight: with_script_len(kind, w.weight, read_as.script.len(), submitted.len()),
+    })
+}
+
+/// A max satisfaction weight computed for a `from`-byte script, with
+/// the script's own contribution changed to `to` bytes (same witness).
+pub fn with_script_len(kind: ContextKind, weight: usize, from: usize, to: usize) -> usize {
+    match kind {
+        ContextKind::Legacy => {
+            // 4 × (S + varint_len(S) − 1), S = scriptSig bytes: the
+            // redeem script push plus the satisfaction.
+            let vb = weight / 4;
+            let s = if vb < 0xfd { vb } else { vb - 2 };
+            let s = s - (push_opcode_size(from) + from) + (push_opcode_size(to) + to);
+            4 * (s + varint_len(s) - 1)
+        }
+        // The script is one witness element: varint length + bytes.
+        ContextKind::SegwitV0 | ContextKind::Tap => {
+            weight - (varint_len(from) + from) + (varint_len(to) + to)
+        }
+    }
+}
+
 /// Insanity categories detected on a decodable script (miniscript's
 /// analyzable predicates: safety, malleability, resource limits,
 /// repeated keys, timelock mixing, raw pkh). Empty for a sane script or
@@ -126,6 +179,9 @@ pub struct WriteResult {
     /// Insanity findings on the decoded candidate (see [`lint_report`]).
     /// Reported, never scored, outside standard mode.
     pub lint: Vec<String>,
+    /// The candidate decoded only after an idiom rewrite
+    /// ([`crate::normalize`]); strict-Miniscript scoring counts it as 0.
+    pub normalized: bool,
 }
 
 /// Compare a context-free request to a candidate in one possible context.
@@ -176,13 +232,15 @@ pub fn grade_write(fixture: &WriteFixture, answer: &str) -> WriteResult {
                 score: 0.0,
                 reason: Some(e.to_string()),
                 lint: Vec::new(),
+                normalized: false,
             }
         }
     };
     let reference =
         ScriptBuf::from_hex(&fixture.reference_script_hex).expect("fixture hex is valid");
     let mut context = fixture.context;
-    let mut verdict = check_equivalence(context, &reference, &candidate);
+    let mut read_as = decodable(context, &candidate);
+    let mut verdict = check_equivalence(context, &reference, &read_as.script);
     if fixture.choose_context {
         for choice in [
             fixture.context,
@@ -190,7 +248,8 @@ pub fn grade_write(fixture: &WriteFixture, answer: &str) -> WriteResult {
             ContextKind::SegwitV0,
             ContextKind::Tap,
         ] {
-            let checked = check_chosen_context(fixture, choice, &candidate);
+            let choice_read = decodable(choice, &candidate);
+            let checked = check_chosen_context(fixture, choice, &choice_read.script);
             let equivalent = checked.is_equivalent();
             // Prefer semantic failures to a decode error from another dialect.
             // Between two decode errors, keep the fixture context's.
@@ -201,6 +260,7 @@ pub fn grade_write(fixture: &WriteFixture, answer: &str) -> WriteResult {
             {
                 verdict = checked;
                 context = choice;
+                read_as = choice_read;
             }
             if equivalent {
                 break;
@@ -208,7 +268,7 @@ pub fn grade_write(fixture: &WriteFixture, answer: &str) -> WriteResult {
         }
     }
     let score = if verdict.is_equivalent() { 1.0 } else { 0.0 };
-    let lint = lint_report(context, &candidate)
+    let lint = lint_report(context, &read_as.script)
         .into_iter()
         .map(str::to_string)
         .collect();
@@ -221,6 +281,7 @@ pub fn grade_write(fixture: &WriteFixture, answer: &str) -> WriteResult {
         lint,
         verdict,
         score,
+        normalized: read_as.normalized,
     }
 }
 
@@ -235,6 +296,8 @@ pub struct OptimizeResult {
     pub reason: Option<String>,
     /// Insanity findings on the decoded candidate (see [`lint_report`]).
     pub lint: Vec<String>,
+    /// See [`WriteResult::normalized`].
+    pub normalized: bool,
 }
 
 fn curve(base: usize, cand: usize, optimal: usize) -> f64 {
@@ -257,11 +320,13 @@ pub fn grade_optimize(fixture: &OptimizeFixture, answer: &str) -> OptimizeResult
                 candidate: None,
                 reason: Some(e.to_string()),
                 lint: Vec::new(),
+                normalized: false,
             }
         }
     };
     let reference = ScriptBuf::from_hex(&fixture.optimal_script_hex).expect("fixture hex is valid");
-    let verdict = check_equivalence(fixture.context, &reference, &candidate);
+    let read_as = decodable(fixture.context, &candidate);
+    let verdict = check_equivalence(fixture.context, &reference, &read_as.script);
     if !verdict.is_equivalent() {
         let reason = verdict.to_string();
         return OptimizeResult {
@@ -270,13 +335,14 @@ pub fn grade_optimize(fixture: &OptimizeFixture, answer: &str) -> OptimizeResult
             size_score: 0.0,
             candidate: None,
             reason: Some(reason),
-            lint: lint_report(fixture.context, &candidate)
+            lint: lint_report(fixture.context, &read_as.script)
                 .into_iter()
                 .map(str::to_string)
                 .collect(),
+            normalized: read_as.normalized,
         };
     }
-    let cand_weights = match weights_for(fixture.context, &candidate) {
+    let cand_weights = match submitted_weights(fixture.context, &read_as, &candidate) {
         Ok(w) => w,
         Err(e) => {
             return OptimizeResult {
@@ -286,6 +352,7 @@ pub fn grade_optimize(fixture: &OptimizeFixture, answer: &str) -> OptimizeResult
                 candidate: None,
                 reason: Some(e),
                 lint: Vec::new(),
+                normalized: read_as.normalized,
             }
         }
     };
@@ -303,10 +370,11 @@ pub fn grade_optimize(fixture: &OptimizeFixture, answer: &str) -> OptimizeResult
         candidate: Some(cand_weights),
         verdict,
         reason: None,
-        lint: lint_report(fixture.context, &candidate)
+        lint: lint_report(fixture.context, &read_as.script)
             .into_iter()
             .map(str::to_string)
             .collect(),
+        normalized: read_as.normalized,
     }
 }
 
@@ -427,6 +495,8 @@ pub struct JudgmentResult {
     /// Any candidate spend forbidden by the contract, across the union
     /// of reference and candidate atoms and timelock boundaries.
     pub unsafe_spend: bool,
+    /// See [`WriteResult::normalized`].
+    pub normalized: bool,
 }
 
 fn judge_in_context<Ctx: ScriptContext>(
@@ -488,6 +558,7 @@ pub fn grade_judgment(fixture: &crate::task::JudgmentFixture, answer: &str) -> J
         weight: None,
         agreement: None,
         unsafe_spend: false,
+        normalized: false,
     };
     if fixture.contract_version != 1 {
         return fail(
@@ -499,14 +570,20 @@ pub fn grade_judgment(fixture: &crate::task::JudgmentFixture, answer: &str) -> J
         Ok(s) => s,
         Err(e) => return fail(e.to_string()),
     };
+    let read_as = decodable(fixture.context, &script);
     let judged = match fixture.context {
-        ContextKind::Legacy => judge_in_context::<Legacy>(&script, fixture),
-        ContextKind::SegwitV0 => judge_in_context::<Segwitv0>(&script, fixture),
-        ContextKind::Tap => judge_in_context::<Tap>(&script, fixture),
+        ContextKind::Legacy => judge_in_context::<Legacy>(&read_as.script, fixture),
+        ContextKind::SegwitV0 => judge_in_context::<Segwitv0>(&read_as.script, fixture),
+        ContextKind::Tap => judge_in_context::<Tap>(&read_as.script, fixture),
     };
     let (agreement, met) = match judged {
         Ok(v) => v,
-        Err(e) => return fail(e),
+        Err(e) => {
+            return JudgmentResult {
+                normalized: read_as.normalized,
+                ..fail(e)
+            }
+        }
     };
     let unsafe_spend = agreement.ref_false_agree != agreement.ref_false_total;
     let equivalent = !unsafe_spend && agreement.ref_true_agree == agreement.ref_true_total;
@@ -517,13 +594,16 @@ pub fn grade_judgment(fixture: &crate::task::JudgmentFixture, answer: &str) -> J
         // Counterexamples are not model feedback.
         failures: Vec::new(),
         reason: (!equivalent).then(|| Verdict::NotEquivalent.to_string()),
-        lint: lint_report(fixture.context, &script)
+        lint: lint_report(fixture.context, &read_as.script)
             .into_iter()
             .map(str::to_string)
             .collect(),
-        weight: weights_for(fixture.context, &script).ok().map(|w| w.weight),
+        weight: submitted_weights(fixture.context, &read_as, &script)
+            .ok()
+            .map(|w| w.weight),
         agreement: Some(agreement.balanced()),
         unsafe_spend,
+        normalized: read_as.normalized,
     }
 }
 
@@ -679,10 +759,10 @@ mod tests {
             label: "A".into(),
             pubkey: key.into(),
         }];
-        // Textbook CLTV-then-signature (a real answer): not Miniscript, so
-        // SegWit v0 rejects its shape, while tapscript first rejects the
-        // 33-byte key.
-        let answer = format!("900000 OP_CHECKLOCKTIMEVERIFY OP_DROP {key} OP_CHECKSIG");
+        // CLTV-then-signature missing its OP_DROP (a real answer; it
+        // leaves the locktime on the stack): SegWit v0 rejects its shape,
+        // while tapscript first rejects the 33-byte key.
+        let answer = format!("900000 OP_CHECKLOCKTIMEVERIFY {key} OP_CHECKSIG");
         let script = crate::answer::parse_script_answer(&answer).unwrap();
         let segwit_error =
             miniscript::Miniscript::<bitcoin::PublicKey, Segwitv0>::decode_consensus(
@@ -693,6 +773,64 @@ mod tests {
         let r = grade_write(&f, &answer);
         assert_eq!(r.score, 0.0);
         assert_eq!(r.reason.as_deref(), Some(segwit_error.as_str()));
+    }
+
+    /// The BIP65 idiom `<n> OP_CLTV OP_DROP` is a working script: it is
+    /// read through the idiom rewrite and graded on its meaning.
+    #[test]
+    fn textbook_timelock_idiom_is_graded_on_meaning() {
+        let key = "02c6047f9441ed7d6d3045406e95c07cd85c778e4b8cef3ca7abac09b95c709ee5";
+        let mut f = fix(ms_hex(&format!("and_v(v:pk({key}),after(900000))")));
+        f.reference_policy = format!("and(pk({key}),after(900000))");
+        let answer = format!("900000 OP_CHECKLOCKTIMEVERIFY OP_DROP {key} OP_CHECKSIG");
+        let r = grade_write(&f, &answer);
+        assert_eq!(r.score, 1.0, "{:?}", r.reason);
+        assert!(r.normalized);
+        // A different locktime is still wrong.
+        let wrong = format!("900001 OP_CHECKLOCKTIMEVERIFY OP_DROP {key} OP_CHECKSIG");
+        let r = grade_write(&f, &wrong);
+        assert_eq!(r.score, 0.0);
+        assert_eq!(r.verdict, Verdict::NotEquivalent);
+    }
+
+    /// A rewrite changes only script bytes, so the submitted script's
+    /// weight is the rewrite's with the length difference taken back
+    /// out: once per byte in a witness, four times in a scriptSig.
+    #[test]
+    fn submitted_weights_count_the_submitted_bytes() {
+        let a = "8dbde3dfe6d2bd25bb577264fbe5dbf2ae62596f9bed580ca4f95a73f4ed0d55";
+        let b = "746a23c9785e0973d8c2bcf6c01203ca235a71bc65f3bc5f1e796c43be40dc80";
+        // Tapscript CHECKSIGADD count ending the script: the rewrite
+        // appends OP_1 OP_NUMEQUAL (2 bytes).
+        let tap =
+            crate::answer::parse_script_answer(&format!("{a} OP_CHECKSIG {b} OP_CHECKSIGADD"))
+                .unwrap();
+        let read_as = decodable(ContextKind::Tap, &tap);
+        assert!(read_as.normalized);
+        let full = weights_for(ContextKind::Tap, &read_as.script).unwrap();
+        let w = submitted_weights(ContextKind::Tap, &read_as, &tap).unwrap();
+        assert_eq!(w.size, full.size - 2);
+        assert_eq!(w.weight, full.weight - 2);
+        // Legacy hash without a size check: the rewrite inserts 4 bytes
+        // of OP_SIZE <32> OP_EQUALVERIFY into the redeem script.
+        let k = "0305fb297329fc11a2a06c96dd9d816dbc4ae9f5a765a216be9ec44bf5c72c4aa3";
+        let legacy = crate::answer::parse_script_answer(&format!(
+            "{k} OP_CHECKSIGVERIFY OP_HASH160 376c98b536b360076ed3f0c0bbc7df58bf28ebb7 OP_EQUAL"
+        ))
+        .unwrap();
+        let read_as = decodable(ContextKind::Legacy, &legacy);
+        assert!(read_as.normalized);
+        let full = weights_for(ContextKind::Legacy, &read_as.script).unwrap();
+        let w = submitted_weights(ContextKind::Legacy, &read_as, &legacy).unwrap();
+        assert_eq!(w.size, full.size - 4);
+        assert_eq!(w.weight, full.weight - 16);
+        // A script that decodes as written is untouched.
+        let ms = ScriptBuf::from_hex(&ms_hex(&format!("pk({k})"))).unwrap();
+        let read_as = decodable(ContextKind::Legacy, &ms);
+        assert_eq!(
+            submitted_weights(ContextKind::Legacy, &read_as, &ms).unwrap(),
+            weights_for(ContextKind::Legacy, &ms).unwrap()
+        );
     }
 
     #[test]

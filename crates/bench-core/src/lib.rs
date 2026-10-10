@@ -2,7 +2,8 @@
 //! oracle, and the graders. No network I/O.
 //!
 //! The oracle is judge-free: candidate scripts must decode as Miniscript
-//! in the task's script context, then prove semantic equivalence to the
+//! in the task's script context (directly, or after the witness-preserving
+//! idiom rewrites in [`normalize`]), then prove semantic equivalence to the
 //! reference by exhaustive evaluation over the task's closed atom set.
 //! See DESIGN.md for the completeness argument.
 
@@ -10,6 +11,7 @@ pub mod answer;
 pub mod exec;
 pub mod grade;
 pub mod human_asm;
+pub mod normalize;
 pub mod oracle;
 pub mod task;
 pub mod toolbox;
@@ -28,5 +30,7 @@ pub use task::{
     ContextKind, DescriptorAnswer, Fixture, IdentifyAnswer, IdentifyFixture, KeyVar,
     OptimizeFixture, ParamValue, ResponseRecord, TaskAnswer, Tier, TreeFixture, WriteFixture,
 };
+
+pub use normalize::{decodable, normalize, Decodable};
 
 pub use exec::{execution_check, HashPreimages, PreimageMap};

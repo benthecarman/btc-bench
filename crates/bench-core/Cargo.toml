@@ -11,6 +11,15 @@ miniscript = { workspace = true }
 bitcoin = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
+# Bitcoin Core's script interpreter (libbitcoinkernel), used only by the
+# kernel-check test that runs normalize.rs's rewrites through real
+# consensus execution. Building it needs CMake and Boost headers:
+#   BOOST=$(nix build --no-link --print-out-paths nixpkgs#boost.dev)
+#   CMAKE_PREFIX_PATH=$BOOST cargo test -p bench-core --features kernel-check --release
+bitcoinkernel = { version = "0.2", optional = true }
+
+[features]
+kernel-check = ["dep:bitcoinkernel"]
 
 [dev-dependencies]
 # The tree-grading tests build reference descriptors with compile_tr;

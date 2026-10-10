@@ -344,7 +344,11 @@ pub fn check_script(kind: ContextKind, text: &str) -> ScriptCheck {
         consensus: consensus_notes(kind, &script),
         ..Default::default()
     };
-    match decoded_miniscript(kind, &script) {
+    // Read the script the way the grader does: through an idiom
+    // rewrite when it is not Miniscript as written. Decode errors
+    // always describe the submitted bytes.
+    let read_as = crate::normalize::decodable(kind, &script);
+    match decoded_miniscript(kind, &read_as.script) {
         Ok(ms) => {
             check.decoded = true;
             check.miniscript = Some(ms);
@@ -354,14 +358,19 @@ pub fn check_script(kind: ContextKind, text: &str) -> ScriptCheck {
             return check;
         }
     }
-    check.lint = lint_report(kind, &script)
+    check.lint = lint_report(kind, &read_as.script)
         .into_iter()
         .map(str::to_string)
         .collect();
-    match safe_weights(kind, &script) {
-        Ok((weight, size)) => {
-            check.weight = Some(weight);
-            check.size = Some(size);
+    match safe_weights(kind, &read_as.script) {
+        Ok((weight, _)) => {
+            check.weight = Some(crate::grade::with_script_len(
+                kind,
+                weight,
+                read_as.script.len(),
+                script.len(),
+            ));
+            check.size = Some(script.len());
         }
         Err(e) => check.weight_error = Some(e),
     }

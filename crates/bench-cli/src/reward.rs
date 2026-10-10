@@ -300,10 +300,13 @@ fn script_components(
     let Ok(candidate) = parse_script_answer(answer) else {
         return Components::default();
     };
-    let decoded = decodes_in_context(ctx, &candidate);
+    // Read the answer the way the grader does: through an idiom
+    // rewrite when it is not Miniscript as written.
+    let read_as = bench_core::decodable(ctx, &candidate);
+    let decoded = decodes_in_context(ctx, &read_as.script);
     let reference = ScriptBuf::from_hex(reference_hex).expect("fixture hex is valid");
     let agreement = if decoded {
-        semantic_agreement(ctx, &reference, &candidate)
+        semantic_agreement(ctx, &reference, &read_as.script)
     } else {
         None
     };
@@ -436,9 +439,9 @@ fn grade_one(req: RewardRequest, default_shaping: &Shaping) -> Result<RewardResp
             let script = parse_script_answer(&a.script).ok();
             let c = Components {
                 parsed: script.is_some(),
-                decoded: script
-                    .as_ref()
-                    .is_some_and(|s| decodes_in_context(j.context, s)),
+                decoded: script.as_ref().is_some_and(|s| {
+                    decodes_in_context(j.context, &bench_core::decodable(j.context, s).script)
+                }),
                 equivalent: r.score == 1.0,
                 agreement: r.agreement,
                 lint_count: r.lint.len(),
