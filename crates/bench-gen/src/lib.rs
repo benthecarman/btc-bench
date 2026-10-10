@@ -13,6 +13,7 @@ pub mod naive;
 pub mod policy;
 pub mod prompt;
 pub mod protocol;
+pub mod reference;
 pub mod rng;
 pub mod satisfy;
 pub mod verbal;

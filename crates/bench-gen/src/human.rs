@@ -426,6 +426,7 @@ fn build(case: &Case, notes: &mut Vec<String>) -> Result<Fixture, String> {
                 keys: key_vars,
                 unspendable_key: fixtures::UNSPENDABLE_KEY.into(),
                 reference_policy: policy,
+                reference_search: 0,
                 reference_descriptor: reference,
                 reference_weight: rw,
                 baseline_descriptor: baseline,

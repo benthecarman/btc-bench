@@ -60,6 +60,10 @@ btc-bench grade --dataset datasets/my-set --responses runs/my-run/responses.json
 # Re-verify a dataset (answer keys, weights, spendability)
 btc-bench audit --dataset datasets/my-set
 
+# Copy a dataset with searched optimize/tree answer keys (the compiler
+# and the balanced tree are beatable; tasks and prompts are unchanged)
+btc-bench rereference --dataset datasets/my-set --out datasets/my-set-ref1
+
 # Gate insanity findings (malleable, unsafe, ...) instead of just reporting them
 btc-bench grade --dataset datasets/my-set --responses runs/my-run/responses.jsonl \
     --out runs/my-run/graded --standard-mode

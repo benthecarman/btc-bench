@@ -60,6 +60,12 @@ pub struct GenParams {
     /// through exactly these (repeat to weight), for curriculum pools
     /// that oversample one context (e.g. all-tap multi_a training).
     pub contexts: Vec<ContextKind>,
+    /// Optimize tasks must leave at least this many weight units
+    /// between the baseline and the reference. 0 = any strict gain
+    /// (the historical rule, which keeps old seeds byte-stable). Small
+    /// gaps make the score curve coarse: a 1 WU miss on a 2 WU gap
+    /// scores 0.5.
+    pub min_optimize_gain: usize,
 }
 
 impl Default for GenParams {
@@ -76,6 +82,7 @@ impl Default for GenParams {
             exclude: BTreeSet::new(),
             contexts: Vec::new(),
             judgment: 0,
+            min_optimize_gain: 0,
         }
     }
 }
@@ -211,10 +218,11 @@ fn compile_task(
     need_baseline: bool,
     style: verbal::Style,
     exclude: &BTreeSet<String>,
+    min_gain: usize,
 ) -> Option<Compiled> {
     // Bounded deterministic retries; a fresh policy each attempt.
     for _ in 0..64 {
-        if let Some(c) = attempt(rng, tier, context, need_baseline, style, exclude) {
+        if let Some(c) = attempt(rng, tier, context, need_baseline, style, exclude, min_gain) {
             return Some(c);
         }
     }
@@ -228,6 +236,7 @@ fn attempt(
     need_baseline: bool,
     style: verbal::Style,
     exclude: &BTreeSet<String>,
+    min_gain: usize,
 ) -> Option<Compiled> {
     {
         let mut pre = policy::Preimages::default();
@@ -318,6 +327,21 @@ fn attempt(
             return None;
         }
         if need_baseline && bench_core::execution_check(context, &naive_script, &typed).is_err() {
+            return None;
+        }
+        // Optimize answer keys are searched (see crate::reference). The
+        // gates above stay on the plain compile, so the sampled task
+        // stream is the same as before the search existed.
+        let (ms_text, script, opt_weight, opt_size) = if need_baseline {
+            let r = crate::reference::optimize_reference(context, &p_text, &typed).ok()?;
+            if exclude.contains(&r.script.to_hex_string()) {
+                return None;
+            }
+            (r.miniscript, r.script, r.weight, r.size)
+        } else {
+            (ms_text, script, opt_weight, opt_size)
+        };
+        if need_baseline && min_gain > 0 && naive_weight < opt_weight + min_gain {
             return None;
         }
         return Some(Compiled {
@@ -461,7 +485,7 @@ fn tree_attempt(
     let kvars = key_vars(&ks, ContextKind::Tap);
     let spec = verbal::spec_styled(&abs, &kvars, style);
 
-    let (reference, baseline) = tree_descriptors_for_policy(&p_text, UNSPENDABLE_KEY).ok()?;
+    let (balanced, baseline) = tree_descriptors_for_policy(&p_text, UNSPENDABLE_KEY).ok()?;
     let weight_of = |s: &str| -> Option<usize> {
         s.parse::<Descriptor<XOnlyPublicKey>>()
             .ok()?
@@ -469,14 +493,23 @@ fn tree_attempt(
             .ok()
             .map(|w| w.to_wu() as usize)
     };
-    let reference_weight = weight_of(&reference)?;
+    let balanced_weight = weight_of(&balanced)?;
     let baseline_weight = weight_of(&baseline)?;
     // The task must have something to design: the tree must strictly
-    // beat the single leaf on the metric.
-    if baseline_weight <= reference_weight {
+    // beat the single leaf on the metric. Gated on the balanced tree,
+    // as before the searched reference existed, so the sampled task
+    // stream is unchanged; the searched one is never heavier.
+    if baseline_weight <= balanced_weight {
         return None;
     }
-    if !exclude.is_empty() && exclude.contains(&reference.to_string()) {
+    if !exclude.is_empty() && exclude.contains(&balanced) {
+        return None;
+    }
+    let typed = typed_preimages(&pre);
+    let reference =
+        crate::reference::tree_reference(&p_text, UNSPENDABLE_KEY, &balanced, &typed).ok()?;
+    let reference_weight = weight_of(&reference)?;
+    if !exclude.is_empty() && exclude.contains(&reference) {
         return None;
     }
     // Self-check: the fixture must grade its own answer key at full
@@ -493,6 +526,7 @@ fn tree_attempt(
         keys: kvars.clone(),
         unspendable_key: UNSPENDABLE_KEY.to_string(),
         reference_policy: p_text.clone(),
+        reference_search: crate::reference::SEARCH_VERSION,
         reference_descriptor: reference,
         reference_weight,
         baseline_descriptor: baseline,
@@ -503,7 +537,6 @@ fn tree_attempt(
     if !self_grade.verdict.is_equivalent() || self_grade.weight_score < 1.0 {
         return None;
     }
-    let typed = typed_preimages(&pre);
     let Ok(Descriptor::Tr(tr)) = fixture
         .reference_descriptor
         .parse::<Descriptor<XOnlyPublicKey>>()
@@ -575,7 +608,7 @@ pub fn generate(params: &GenParams) -> Vec<Fixture> {
         let tier = tier_for(i, &params.tiers);
         let ctx = context_for(i, &params.contexts);
         let style = style_for(params, 0x51, i);
-        let c = compile_task(&mut rng, tier, ctx, false, style, &params.exclude)
+        let c = compile_task(&mut rng, tier, ctx, false, style, &params.exclude, 0)
             .unwrap_or_else(|| panic!("write task {i} ({tier:?}/{ctx:?}) failed to generate"));
         out.push(Fixture::Write(WriteFixture {
             prompt_version: 0,
@@ -598,8 +631,16 @@ pub fn generate(params: &GenParams) -> Vec<Fixture> {
         let tier = tier_for(i, &params.tiers);
         let ctx = context_for(i, &params.contexts);
         let style = style_for(params, 0x52, i);
-        let c = compile_task(&mut rng, tier, ctx, true, style, &params.exclude)
-            .unwrap_or_else(|| panic!("optimize task {i} ({tier:?}/{ctx:?}) failed to generate"));
+        let c = compile_task(
+            &mut rng,
+            tier,
+            ctx,
+            true,
+            style,
+            &params.exclude,
+            params.min_optimize_gain,
+        )
+        .unwrap_or_else(|| panic!("optimize task {i} ({tier:?}/{ctx:?}) failed to generate"));
         out.push(Fixture::Optimize(OptimizeFixture {
             prompt_version: 0,
             id: format!("t2-{i:04}"),
@@ -612,6 +653,7 @@ pub fn generate(params: &GenParams) -> Vec<Fixture> {
             baseline_script_hex: c.naive_hex,
             baseline_size: c.naive_size,
             baseline_weight: c.naive_weight,
+            reference_search: crate::reference::SEARCH_VERSION,
             optimal_script_hex: c.script_hex,
             optimal_size: c.opt_size,
             optimal_weight: c.opt_weight,
@@ -700,6 +742,7 @@ pub fn generate(params: &GenParams) -> Vec<Fixture> {
             keys: c.keys,
             unspendable_key: UNSPENDABLE_KEY.to_string(),
             reference_policy: c.policy_text,
+            reference_search: crate::reference::SEARCH_VERSION,
             reference_descriptor: c.reference_descriptor,
             reference_weight: c.reference_weight,
             baseline_descriptor: c.baseline_descriptor,

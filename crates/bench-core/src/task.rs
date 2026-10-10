@@ -30,7 +30,7 @@ impl ContextKind {
     }
 }
 
-#[derive(Copy, Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum Tier {
     Easy,
@@ -133,7 +133,14 @@ pub struct OptimizeFixture {
     pub baseline_script_hex: String,
     pub baseline_size: usize,
     pub baseline_weight: usize,
-    /// Answer key: compiler-optimal script, weight, and size.
+    /// Which builder made the answer key: 0 = the compiler (optimize)
+    /// or one compiled leaf per branch in a balanced tree (tree); 1 =
+    /// the searched references of `bench_gen::reference`. The audit
+    /// re-derives keys with the builder named here.
+    #[serde(default, skip_serializing_if = "is_zero_u32")]
+    pub reference_search: u32,
+    /// Answer key: the lightest known script (see `reference_search`),
+    /// its weight, and size.
     pub optimal_script_hex: String,
     pub optimal_size: usize,
     pub optimal_weight: usize,
@@ -180,7 +187,14 @@ pub struct TreeFixture {
     pub unspendable_key: String,
     /// Concrete policy string (diagnostic aid).
     pub reference_policy: String,
-    /// Answer key: the compiler's tr() descriptor (`compile_tr`).
+    /// Which builder made the answer key: 0 = the compiler (optimize)
+    /// or one compiled leaf per branch in a balanced tree (tree); 1 =
+    /// the searched references of `bench_gen::reference`. The audit
+    /// re-derives keys with the builder named here.
+    #[serde(default, skip_serializing_if = "is_zero_u32")]
+    pub reference_search: u32,
+    /// Answer key: the lightest known tr() descriptor (see
+    /// `reference_search`).
     pub reference_descriptor: String,
     /// Max satisfaction weight of the reference descriptor.
     pub reference_weight: usize,
@@ -359,6 +373,18 @@ impl Fixture {
 
     pub fn asm_dialect(&self) -> AsmDialect {
         dialect_for(self.prompt_version())
+    }
+
+    /// Difficulty tier; identify items have none.
+    pub fn tier(&self) -> Option<Tier> {
+        match self {
+            Fixture::Write(f) => Some(f.tier),
+            Fixture::Optimize(f) => Some(f.tier),
+            Fixture::Identify(_) => None,
+            Fixture::Tree(f) => Some(f.tier),
+            Fixture::Judgment(f) => Some(f.tier),
+            Fixture::Satisfy(f) => Some(f.tier),
+        }
     }
 
     pub fn id(&self) -> &str {

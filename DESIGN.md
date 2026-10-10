@@ -172,6 +172,9 @@ few-idiom problem.
    policy as one leaf under the NUMS key; the generator requires
    baseline weight strictly above reference weight, so the task is
    never vacuous.
+   Since 2026-10-10 that balanced tree is only the generation gate and
+   one candidate; the answer key is searched (see "Searched answer
+   keys" below), because models beat it on a third of the tasks.
 4. Grading: parse (must be `tr()`), lift both sides
    (`Tr::lift` = or(internal key, leaves)), truth-table equivalence
    with the fixture's unspendable key *pinned false* on both sides —
@@ -299,6 +302,52 @@ shapes that fail the assertion are skipped.
 Weights come from `Descriptor::max_weight_to_satisfy()` (the
 non-deprecated weight API; it supersedes `max_satisfaction_weight`)
 on `sh(ms)` / `wsh(ms)` / `tr(<dummy key>, leaf)` wrappers.
+
+### Searched answer keys
+
+Optimize and tree scores clamp at 1.0 when an answer beats the answer
+key, so a weak key hides skill. The compiler is a weak key for a
+worst-case weight metric: it minimizes expected cost under the
+policy's odds and never regroups keys into `multi`. The balanced tree
+put one compiled leaf per branch at equal depth. On bench-s42-lite
+(2026-10-10), Opus 5.5 beat the key on 6/48 optimize tasks (every one
+a 1-of-2 written as `multi`/`multi_a`) and on 17/50 tree tasks, by up
+to 32 WU, with heavy leaves shallow and thresholds split into leaves.
+Its tree score read 1.000.
+
+`bench_gen::reference` searches a small space of equivalent encodings
+and keeps the lightest that passes the gates every answer key passes:
+it decodes and lifts, is oracle-equivalent, and passes the execution
+oracle.
+
+- Optimize: policy variants that regroup the bare-key children of an
+  `or`/`and` into `thresh(1, ..)`/`thresh(n, ..)`, crossed with skewed
+  odds on binary `or`s (the compiler's expected-cost objective then
+  lands on cheaper worst cases). At most 96 compiles per task; the
+  plain compile is always a candidate.
+- Tree: each branch becomes one leaf, one leaf per k-subset of a
+  threshold, or one leaf per alternative of an `or` under an `and`.
+  For each combination the shape minimizing max(leaf cost + 32 ×
+  depth) comes from repeatedly merging the two cheapest subtrees
+  (cost max(a, b) + 32). The balanced tree is always a candidate.
+
+On bench-s42 this made 89/300 optimize and 49/150 tree keys lighter.
+Re-graded against them, Opus 5.5 scores 0.820 on optimize (was 0.872)
+and 0.998 on tree (was 1.000); Sonnet 5.5 0.662 and 0.960.
+
+The search is a heuristic, not an optimality proof. The generation gates (baseline strictly heavier)
+still use the compiler and the balanced tree, so every seed samples
+the same tasks as before; only the keys change. Fixtures record the
+builder in `reference_search` (0 = compiler/balanced, 1 = searched);
+the audit re-derives keys with the builder the fixture names, so older
+datasets keep auditing and grading exactly as they did. `btc-bench
+rereference` derives a searched-key copy of an existing dataset (tasks
+and prompts unchanged; the manifest records the source).
+
+`gen --min-optimize-gain <WU>` additionally requires that much room
+between baseline and key. Easy optimize tasks often have 1–2 WU, where
+a 1 WU miss scores 0.5 or 0. The default (0) keeps old seeds
+byte-stable.
 
 ### Hard-tier shapes and the shape census
 

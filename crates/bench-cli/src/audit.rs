@@ -279,9 +279,19 @@ impl AuditReport {
             }
             _ => {} // already reported by check_weights
         }
-        // Recompile drift on the answer key, same policy as write tasks.
-        match recompile(o.context, &o.reference_policy) {
-            Ok((_, script_hex)) => {
+        // Recompile drift on the answer key, same policy as write
+        // tasks, through the builder the fixture names.
+        let rebuilt = match o.reference_search {
+            0 => recompile(o.context, &o.reference_policy).map(|(_, hex)| hex),
+            bench_gen::reference::SEARCH_VERSION => {
+                bench_gen::reference::optimize_reference(o.context, &o.reference_policy, &pre)
+                    .map(|r| r.script.to_hex_string())
+                    .map_err(anyhow::Error::msg)
+            }
+            v => Err(anyhow::anyhow!("unknown reference_search {v}")),
+        };
+        match rebuilt {
+            Ok(script_hex) => {
                 if script_hex != o.optimal_script_hex {
                     let recompiled = ScriptBuf::from_hex(&script_hex).expect("just encoded");
                     if check_equivalence(o.context, &reference, &recompiled) == Verdict::Equivalent
@@ -375,11 +385,22 @@ impl AuditReport {
         // Recompile drift on the answer key, same policy as the others
         // (via the shared reference builder, not compile_tr — see
         // tree_descriptors_for_policy).
-        match bench_gen::fixtures::tree_descriptors_for_policy(
+        let rebuilt = bench_gen::fixtures::tree_descriptors_for_policy(
             &t.reference_policy,
             &t.unspendable_key,
-        ) {
-            Ok((recompiled, _)) => {
+        )
+        .and_then(|(balanced, _)| match t.reference_search {
+            0 => Ok(balanced),
+            bench_gen::reference::SEARCH_VERSION => bench_gen::reference::tree_reference(
+                &t.reference_policy,
+                &t.unspendable_key,
+                &balanced,
+                &pre,
+            ),
+            v => Err(format!("unknown reference_search {v}")),
+        });
+        match rebuilt {
+            Ok(recompiled) => {
                 if recompiled.to_string() != t.reference_descriptor {
                     let rg = bench_core::grade_tree(t, &recompiled.to_string());
                     if rg.verdict.is_equivalent() {

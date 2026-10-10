@@ -89,6 +89,11 @@ enum Command {
         /// Bitcoin Core asm). See bench_gen::prompt.
         #[arg(long, default_value_t = 0)]
         prompt_version: u32,
+        /// Minimum weight units between an optimize task's baseline
+        /// and its reference (0 = any strict gain, the historical
+        /// rule). Small gaps make the score curve coarse.
+        #[arg(long, default_value_t = 0)]
+        min_optimize_gain: usize,
     },
     /// Derive a dataset that poses the same tasks at another prompt
     /// version. Answer keys are unchanged; the manifest records the
@@ -100,6 +105,17 @@ enum Command {
         out: PathBuf,
         #[arg(long)]
         prompt_version: u32,
+    },
+    /// Derive a dataset whose optimize and tree answer keys come from
+    /// the reference search (bench_gen::reference) instead of the
+    /// compiler and the balanced tree. Tasks and prompts are
+    /// unchanged; the manifest records the source. The source is never
+    /// modified.
+    Rereference {
+        #[arg(long)]
+        dataset: PathBuf,
+        #[arg(long)]
+        out: PathBuf,
     },
     /// Derive satisfy tasks (t6) from a dataset's write and optimize
     /// fixtures: their scripts, re-keyed, with a sampled situation and a
@@ -365,6 +381,7 @@ fn main() -> Result<()> {
             exclude,
             contexts,
             prompt_version,
+            min_optimize_gain,
         } => {
             if let Some(f) = verbal_families
                 .iter()
@@ -450,6 +467,7 @@ fn main() -> Result<()> {
                 exclude: excluded,
                 contexts,
                 judgment,
+                min_optimize_gain,
             };
             let fixtures: Vec<_> = bench_gen::fixtures::generate(&params)
                 .iter()
@@ -507,61 +525,56 @@ fn main() -> Result<()> {
             out,
             prompt_version,
         } => {
-            use bitcoin::hashes::{sha256, Hash};
-            if out.join("fixtures.jsonl").exists() {
-                bail!(
-                    "{} already contains fixtures; choose a new directory",
-                    out.display()
-                );
-            }
-            let source: serde_json::Value =
-                serde_json::from_str(&fs::read_to_string(dataset.join("manifest.json"))?)?;
             let fixtures: Vec<_> = load_dataset(&dataset)?
                 .iter()
                 .map(|f| bench_gen::prompt::at_prompt_version(f, prompt_version))
                 .collect();
-            let seed = source["seed"].as_u64().unwrap_or(0);
-            let n = bench_cli::write_dataset(&out, &fixtures, seed, &bench_cli::build_stamp())?;
-            // Keep the source's descriptive fields (suite, subset_of,
-            // evaluation_only, ...); restate the hashes and provenance.
-            let mut manifest = source.clone();
-            let fresh: serde_json::Value =
-                serde_json::from_str(&fs::read_to_string(out.join("manifest.json"))?)?;
-            for key in ["generated_by", "counts", "pins", "schema_version"] {
-                manifest[key] = fresh[key].clone();
-            }
-            manifest["prompt_version"] = prompt_version.into();
-            manifest["fixtures_sha256"] =
-                sha256::Hash::hash(&fs::read(out.join("fixtures.jsonl"))?)
-                    .to_string()
-                    .into();
-            manifest["reprompted_from"] = serde_json::json!({
-                "dataset": dataset.display().to_string(),
-                "fixtures_sha256": sha256::Hash::hash(&fs::read(dataset.join("fixtures.jsonl"))?)
-                    .to_string(),
-            });
-            fs::write(
-                out.join("manifest.json"),
-                serde_json::to_string_pretty(&manifest)?,
+            let n = write_derived(
+                &dataset,
+                &out,
+                &fixtures,
+                "reprompted_from",
+                &[("prompt_version", prompt_version.into())],
             )?;
-            // Side files (human-suite groups and notes) carry over.
-            for entry in fs::read_dir(&dataset)? {
-                let path = entry?.path();
-                let name = path
-                    .file_name()
-                    .unwrap_or_default()
-                    .to_string_lossy()
-                    .to_string();
-                if path.is_file()
-                    && !["fixtures.jsonl", "manifest.json", "prompts.jsonl"]
-                        .contains(&name.as_str())
-                {
-                    fs::copy(&path, out.join(&name))?;
-                }
-            }
             println!(
                 "wrote {n} fixtures at prompt version {prompt_version} to {}",
                 out.display()
+            );
+            Ok(())
+        }
+        Command::Rereference { dataset, out } => {
+            let source = load_dataset(&dataset)?;
+            let fixtures = source
+                .iter()
+                .map(bench_gen::reference::rereference)
+                .collect::<Result<Vec<_>, _>>()
+                .map_err(anyhow::Error::msg)?;
+            let mut lighter = (0, 0);
+            for (old, new) in source.iter().zip(&fixtures) {
+                use bench_core::task::Fixture::{Optimize, Tree};
+                match (old, new) {
+                    (Optimize(a), Optimize(b)) if b.optimal_weight < a.optimal_weight => {
+                        lighter.0 += 1
+                    }
+                    (Tree(a), Tree(b)) if b.reference_weight < a.reference_weight => lighter.1 += 1,
+                    _ => {}
+                }
+            }
+            let n = write_derived(
+                &dataset,
+                &out,
+                &fixtures,
+                "rereferenced_from",
+                &[(
+                    "reference_search",
+                    bench_gen::reference::SEARCH_VERSION.into(),
+                )],
+            )?;
+            println!(
+                "wrote {n} fixtures to {}; lighter answer keys: {} optimize, {} tree",
+                out.display(),
+                lighter.0,
+                lighter.1
             );
             Ok(())
         }
@@ -932,6 +945,67 @@ fn main() -> Result<()> {
 }
 
 /// Pair run dirs with labels: explicit labels if given, else dir names.
+/// Write `fixtures`, derived from the dataset at `dataset`, to `out`.
+/// The manifest keeps the source's descriptive fields (suite,
+/// subset_of, evaluation_only, ...), restates hashes and pins, sets
+/// `fields`, and records the source under `provenance`. Side files
+/// (human-suite groups and notes) carry over. The source is never
+/// modified.
+fn write_derived(
+    dataset: &std::path::Path,
+    out: &std::path::Path,
+    fixtures: &[bench_core::task::Fixture],
+    provenance: &str,
+    fields: &[(&str, serde_json::Value)],
+) -> Result<usize> {
+    use bitcoin::hashes::{sha256, Hash};
+    if out.join("fixtures.jsonl").exists() {
+        bail!(
+            "{} already contains fixtures; choose a new directory",
+            out.display()
+        );
+    }
+    let source: serde_json::Value =
+        serde_json::from_str(&fs::read_to_string(dataset.join("manifest.json"))?)?;
+    let seed = source["seed"].as_u64().unwrap_or(0);
+    let n = bench_cli::write_dataset(out, fixtures, seed, &bench_cli::build_stamp())?;
+    let mut manifest = source.clone();
+    let fresh: serde_json::Value =
+        serde_json::from_str(&fs::read_to_string(out.join("manifest.json"))?)?;
+    for key in ["generated_by", "counts", "pins", "schema_version"] {
+        manifest[key] = fresh[key].clone();
+    }
+    for (key, value) in fields {
+        manifest[*key] = value.clone();
+    }
+    manifest["fixtures_sha256"] = sha256::Hash::hash(&fs::read(out.join("fixtures.jsonl"))?)
+        .to_string()
+        .into();
+    manifest[provenance] = serde_json::json!({
+        "dataset": dataset.display().to_string(),
+        "fixtures_sha256": sha256::Hash::hash(&fs::read(dataset.join("fixtures.jsonl"))?)
+            .to_string(),
+    });
+    fs::write(
+        out.join("manifest.json"),
+        serde_json::to_string_pretty(&manifest)?,
+    )?;
+    for entry in fs::read_dir(dataset)? {
+        let path = entry?.path();
+        let name = path
+            .file_name()
+            .unwrap_or_default()
+            .to_string_lossy()
+            .to_string();
+        if path.is_file()
+            && !["fixtures.jsonl", "manifest.json", "prompts.jsonl"].contains(&name.as_str())
+        {
+            fs::copy(&path, out.join(&name))?;
+        }
+    }
+    Ok(n)
+}
+
 fn label_pairs(runs: Vec<PathBuf>, labels: Vec<String>) -> Result<Vec<(String, PathBuf)>> {
     if !labels.is_empty() && labels.len() != runs.len() {
         bail!(
